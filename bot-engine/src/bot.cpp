@@ -170,32 +170,33 @@ int main(int argc, char* argv[]) {
         // When the acks come back, latency = ack_time - intended_time,
         // which correctly captures the full 5ms of delay.
         while (__builtin_expect(now >= next_send_time, 0)) {
-            tx_order->seq = ++total_sent;
-            tx_order->timestamp_ns = next_send_time; // intended, not actual
+            uint64_t this_seq = total_sent + 1;   // tentative, don't commit yet
 
-            // Store intended send time in pending map
-            size_t slot = tx_order->seq & PENDING_MASK;
-            assert(pending[slot].seq == 0 ||
-                   (tx_order->seq - pending[slot].seq) > (PENDING_SLOTS / 2) &&
-                   "Pending map collision: too many in-flight orders");
-            pending[slot] = {next_send_time, tx_order->seq};
+            tx_order->seq = this_seq;
+            tx_order->timestamp_ns = next_send_time; // intended, not actual
 
             ssize_t sent = send(sock, tx_buffer, sizeof(tx_buffer), MSG_DONTWAIT);
             if (__builtin_expect(sent < 0, 0)) {
-                // EAGAIN/EWOULDBLOCK: kernel buffer full. The order is
-                // "logically sent" at its intended time — we just can't
-                // push it to the wire yet. We still advance the schedule.
-                // This is intentional: the bot doesn't slow down for the
-                // network, which is the whole point of open-loop.
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    // Kernel buffer full. Do NOT commit the order —
+                    // it never reached the wire. Do NOT advance the
+                    // schedule. We'll retry this exact slot on the
+                    // next loop iteration. The orders we couldn't
+                    // send are precisely the ones whose corrected
+                    // latency matters most.
                     send_failures++;
-                    // Back off for this iteration — we'll retry the
-                    // remaining catch-up orders next loop around.
-                    // Don't revert total_sent; the order is "intended."
-                    next_send_time += interval_ns;
                     break;
                 }
+                // Other errno: real error, bail
+                break;
             }
+
+            // Send succeeded. Now commit everything.
+            size_t slot = this_seq & PENDING_MASK;
+            assert((pending[slot].seq == 0) ||
+                   ((this_seq - pending[slot].seq) > (PENDING_SLOTS / 2)));
+            pending[slot] = {next_send_time, this_seq};
+            total_sent = this_seq;
 
             sent_since_last_report++;
             next_send_time += interval_ns;
