@@ -1,7 +1,20 @@
+// bot.cpp — Open-loop latency benchmarking client
+// Demonstrates Coordinated Omission detection and correction.
+//
+// The critical invariant: latency is measured against INTENDED send time,
+// not actual send time. When the bot falls behind schedule (because TCP
+// backpressure blocked send(), or for any other reason), the intended
+// time keeps advancing at the configured interval. This means a stall
+// that delays 50 orders by 5ms records 50 latencies of ~5ms, not 50
+// latencies of ~15µs measured from the post-stall burst.
+//
+// This is the structural fix for Coordinated Omission.
+
 #include <iostream>
 #include <iomanip>
 #include <cstdint>
 #include <cstring>
+#include <cerrno>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -11,6 +24,7 @@
 #include <string>
 #include <stdexcept>
 #include <vector>
+#include <cassert>
 
 #include "contracts/interface_contract_v1.h"
 #include "tsc_util.h"
@@ -22,7 +36,7 @@ using std::hardware_destructive_interference_size;
 constexpr std::size_t hardware_destructive_interference_size = 64;
 #endif
 
-void set_non_blocking(int fd) {
+static void set_non_blocking(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1) throw std::runtime_error("fcntl F_GETFL failed");
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
@@ -33,7 +47,7 @@ void set_non_blocking(int fd) {
 int main(int argc, char* argv[]) {
     uint64_t interval_us = 100;
     uint64_t duration_sec = 10;
-    
+
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
         if (arg == "--interval-us" && i + 1 < argc) {
@@ -42,26 +56,24 @@ int main(int argc, char* argv[]) {
             duration_sec = std::stoull(argv[++i]);
         }
     }
-    
-    uint64_t interval_ns = interval_us * 1000;
-    uint64_t total_duration_ns = duration_sec * 1000000000ULL;
+
+    const uint64_t interval_ns = interval_us * 1000;
+    const uint64_t total_duration_ns = duration_sec * 1000000000ULL;
 
     hft::calibrate_tsc();
     std::cout << "[Bot] TSC calibrated.\n";
     std::cout << "[Bot] Interval: " << interval_us << " us, Duration: " << duration_sec << " s\n";
 
-    // Initialize HdrHistograms
+    // ── HdrHistograms ──────────────────────────────────────────────
+    // Track 1 ns up to 30 seconds with 3 significant figures.
     struct hdr_histogram* naive_hist = nullptr;
     struct hdr_histogram* co_hist = nullptr;
-    // Track 1 ns up to 10 seconds with 3 significant figures
-    hdr_init(1, 10000000000ULL, 3, &naive_hist);
-    hdr_init(1, 10000000000ULL, 3, &co_hist);
+    hdr_init(1, 30000000000LL, 3, &naive_hist);
+    hdr_init(1, 30000000000LL, 3, &co_hist);
 
+    // ── Socket setup ───────────────────────────────────────────────
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-        std::cerr << "socket() failed\n";
-        return 1;
-    }
+    if (sock < 0) { std::cerr << "socket() failed\n"; return 1; }
 
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
@@ -75,82 +87,151 @@ int main(int argc, char* argv[]) {
 
     int opt = 1;
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+
+    // FIX #3: Shrink SO_SNDBUF so the kernel can't silently absorb
+    // thousands of orders during a responder stall. With a 4KB buffer,
+    // backpressure becomes visible after ~90 orders (44B each), which
+    // forces send() to block or return EAGAIN much sooner.
+    int sndbuf_size = 4096;
+    setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &sndbuf_size, sizeof(sndbuf_size));
+
     set_non_blocking(sock);
 
-    std::cout << "[Bot] Connected. Starting STRICT OPEN-LOOP busy-spin.\n";
+    std::cout << "[Bot] Connected. Starting open-loop tight-poll.\n";
+    std::cout << "[Bot] SO_SNDBUF pinned to " << sndbuf_size << " bytes.\n";
 
-    alignas(hardware_destructive_interference_size) uint64_t total_sent = 0;
-    alignas(hardware_destructive_interference_size) uint64_t total_acked = 0;
-    
-    // Zero-allocation pending map: seq & 1048575 gives index
-    constexpr size_t PENDING_MASK = 1048575;
-    std::vector<uint64_t> pending_send_ts(PENDING_MASK + 1, 0);
+    // ── Pending map ────────────────────────────────────────────────
+    // Stores the INTENDED send time for each seq number.
+    // FIX #4: Power-of-2 size with collision detection.
+    constexpr size_t PENDING_SLOTS = 1 << 20; // 1,048,576
+    constexpr size_t PENDING_MASK  = PENDING_SLOTS - 1;
+    // Each slot: [intended_send_ts, seq_that_wrote_it]
+    struct PendingSlot {
+        uint64_t intended_ts;
+        uint64_t seq;
+    };
+    std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0});
 
-    alignas(hardware_destructive_interference_size) uint8_t tx_buffer[sizeof(FrameHeader) + sizeof(NewOrder)];
-    auto* tx_hdr = reinterpret_cast<FrameHeader*>(tx_buffer);
+    // ── TX/RX buffers (pre-populated, zero-alloc on hot path) ─────
+    alignas(hardware_destructive_interference_size)
+        uint8_t tx_buffer[sizeof(FrameHeader) + sizeof(NewOrder)];
+    auto* tx_hdr   = reinterpret_cast<FrameHeader*>(tx_buffer);
     tx_hdr->msg_type = MSG_NEWORDER;
-    tx_hdr->msg_len = sizeof(NewOrder);
+    tx_hdr->msg_len  = sizeof(NewOrder);
     auto* tx_order = reinterpret_cast<NewOrder*>(tx_buffer + sizeof(FrameHeader));
-    tx_order->symbol_id = 1;
+    tx_order->symbol_id  = 1;
     tx_order->order_type = ORDER_LIMIT;
-    tx_order->side = SIDE_BUY;
-    tx_order->price = 15050;
-    tx_order->quantity = 100;
+    tx_order->side       = SIDE_BUY;
+    tx_order->price      = 15050;
+    tx_order->quantity   = 100;
 
     alignas(hardware_destructive_interference_size) uint8_t rx_buffer[8192];
 
-    uint64_t start_time = hft::rdtscp_ns();
-    uint64_t next_send_time = start_time;
+    // ── Counters ──────────────────────────────────────────────────
+    uint64_t total_sent = 0;
+    uint64_t total_acked = 0;
+    uint64_t send_failures = 0;
+
+    const uint64_t start_time = hft::rdtscp_ns();
+    uint64_t next_send_time   = start_time;
     uint64_t last_report_time = start_time;
-    uint64_t end_time = start_time + total_duration_ns;
-    
+    const uint64_t end_time   = start_time + total_duration_ns;
+
     uint64_t sent_since_last_report = 0;
 
+    // ── Main loop ─────────────────────────────────────────────────
     while (true) {
         uint64_t now = hft::rdtscp_ns();
-        
-        if (__builtin_expect(now >= end_time, 0)) { // [[unlikely]]
-            break;
-        }
 
-        if (__builtin_expect(now - last_report_time >= 1000000000ULL, 0)) { // [[unlikely]]
-            std::cout << "[Report] Sent: " << total_sent 
-                      << " | Acked: " << total_acked 
-                      << " | Rate: " << sent_since_last_report << " msgs/sec\n";
+        if (__builtin_expect(now >= end_time, 0)) break;
+
+        // ── Periodic report (every 1s) ────────────────────────────
+        if (__builtin_expect(now - last_report_time >= 1000000000ULL, 0)) {
+            std::cout << "[Report] Sent: " << total_sent
+                      << " | Acked: " << total_acked
+                      << " | Rate: " << sent_since_last_report << " msgs/sec"
+                      << " | SendFail: " << send_failures << "\n";
             sent_since_last_report = 0;
             last_report_time += 1000000000ULL;
         }
 
-        // Send Path
-        if (__builtin_expect(now >= next_send_time, 0)) { // [[unlikely]]
+        // ── Send path: CATCH-UP LOOP ──────────────────────────────
+        // FIX #1 + #2: This is the structural CO fix.
+        //
+        // When the bot falls behind schedule (because send() returned
+        // EAGAIN, or the loop was slow), it fires multiple orders
+        // back-to-back to catch up to wall-clock. Each order records
+        // its INTENDED send time (the slot it was supposed to fill),
+        // NOT the actual wall-clock time of the send() call.
+        //
+        // This means: if the responder stalled 5ms and the bot is
+        // now 50 intervals behind, we send 50 orders in a burst,
+        // each tagged with the time they *should* have been sent.
+        // When the acks come back, latency = ack_time - intended_time,
+        // which correctly captures the full 5ms of delay.
+        while (__builtin_expect(now >= next_send_time, 0)) {
             tx_order->seq = ++total_sent;
-            tx_order->timestamp_ns = now;
-            
-            pending_send_ts[tx_order->seq & PENDING_MASK] = now;
-            
-            send(sock, tx_buffer, sizeof(tx_buffer), MSG_DONTWAIT);
-            
+            tx_order->timestamp_ns = next_send_time; // intended, not actual
+
+            // Store intended send time in pending map
+            size_t slot = tx_order->seq & PENDING_MASK;
+            assert(pending[slot].seq == 0 ||
+                   (tx_order->seq - pending[slot].seq) > (PENDING_SLOTS / 2) &&
+                   "Pending map collision: too many in-flight orders");
+            pending[slot] = {next_send_time, tx_order->seq};
+
+            ssize_t sent = send(sock, tx_buffer, sizeof(tx_buffer), MSG_DONTWAIT);
+            if (__builtin_expect(sent < 0, 0)) {
+                // EAGAIN/EWOULDBLOCK: kernel buffer full. The order is
+                // "logically sent" at its intended time — we just can't
+                // push it to the wire yet. We still advance the schedule.
+                // This is intentional: the bot doesn't slow down for the
+                // network, which is the whole point of open-loop.
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    send_failures++;
+                    // Back off for this iteration — we'll retry the
+                    // remaining catch-up orders next loop around.
+                    // Don't revert total_sent; the order is "intended."
+                    next_send_time += interval_ns;
+                    break;
+                }
+            }
+
             sent_since_last_report++;
             next_send_time += interval_ns;
         }
 
-        // Receive Path
+        // ── Receive path ──────────────────────────────────────────
         ssize_t bytes_read = recv(sock, rx_buffer, sizeof(rx_buffer), MSG_DONTWAIT);
-        if (__builtin_expect(bytes_read > 0, 0)) { // [[unlikely]]
+        if (__builtin_expect(bytes_read > 0, 1)) {
             size_t offset = 0;
-            while (offset + sizeof(FrameHeader) <= static_cast<size_t>(bytes_read)) {
+            while (offset + sizeof(FrameHeader) + sizeof(OrderAck) <= static_cast<size_t>(bytes_read)) {
                 auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
-                if (rx_hdr->msg_type == MSG_ORDERACK) {
+
+                if (__builtin_expect(rx_hdr->msg_type == MSG_ORDERACK, 1)) {
                     auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
-                    uint64_t ack_now = hft::rdtscp_ns();
-                    
-                    uint64_t original_ts = pending_send_ts[rx_ack->order_seq & PENDING_MASK];
-                    if (original_ts > 0) {
-                        uint64_t latency = ack_now - original_ts;
-                        
-                        // Record latencies
-                        hdr_record_value(naive_hist, latency);
-                        hdr_record_corrected_value(co_hist, latency, interval_ns);
+                    uint64_t ack_time = hft::rdtscp_ns();
+
+                    size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
+                    PendingSlot& ps = pending[ack_slot];
+
+                    if (__builtin_expect(ps.seq == rx_ack->order_seq && ps.intended_ts > 0, 1)) {
+                        int64_t latency = static_cast<int64_t>(ack_time - ps.intended_ts);
+                        if (__builtin_expect(latency > 0, 1)) {
+                            // Naive: records exactly what we measured.
+                            // This UNDER-REPORTS tail latency because
+                            // during stalls the bot couldn't send, so
+                            // fewer samples land in the stall window.
+                            hdr_record_value(naive_hist, latency);
+
+                            // CO-Corrected: if latency > interval,
+                            // HdrHistogram backfills the "missing"
+                            // samples that would have been recorded
+                            // had the system not stalled.
+                            hdr_record_corrected_value(co_hist, latency, interval_ns);
+                        }
+                        // Clear slot
+                        ps = {0, 0};
                     }
                     total_acked++;
                 }
@@ -159,27 +240,66 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    std::cout << "\n[Bot] Run complete. Total Sent: " << total_sent << " | Total Acked: " << total_acked << "\n\n";
+    // ── Final drain: give responder 500ms to flush remaining acks ──
+    {
+        auto drain_start = std::chrono::steady_clock::now();
+        while (std::chrono::steady_clock::now() - drain_start < std::chrono::milliseconds(500)) {
+            ssize_t bytes_read = recv(sock, rx_buffer, sizeof(rx_buffer), MSG_DONTWAIT);
+            if (bytes_read > 0) {
+                size_t offset = 0;
+                while (offset + sizeof(FrameHeader) + sizeof(OrderAck) <= static_cast<size_t>(bytes_read)) {
+                    auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
+                    if (rx_hdr->msg_type == MSG_ORDERACK) {
+                        auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
+                        uint64_t ack_time = hft::rdtscp_ns();
+                        size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
+                        PendingSlot& ps = pending[ack_slot];
+                        if (ps.seq == rx_ack->order_seq && ps.intended_ts > 0) {
+                            int64_t latency = static_cast<int64_t>(ack_time - ps.intended_ts);
+                            if (latency > 0) {
+                                hdr_record_value(naive_hist, latency);
+                                hdr_record_corrected_value(co_hist, latency, interval_ns);
+                            }
+                            ps = {0, 0};
+                        }
+                        total_acked++;
+                    }
+                    offset += sizeof(FrameHeader) + rx_hdr->msg_len;
+                }
+            }
+        }
+    }
 
-    std::cout << "=========================================================\n";
-    std::cout << "             ROUND-TRIP LATENCY (Nanoseconds)            \n";
-    std::cout << "=========================================================\n";
-    std::cout << std::left << std::setw(15) << "Percentile" 
-              << std::setw(20) << "Naive Measurement" 
-              << std::setw(20) << "CO-Corrected" << "\n";
-    std::cout << "---------------------------------------------------------\n";
-    
+    // ── Results ───────────────────────────────────────────────────
+    std::cout << "\n[Bot] Run complete. Total Sent: " << total_sent
+              << " | Total Acked: " << total_acked
+              << " | Send Failures (EAGAIN): " << send_failures << "\n\n";
+
+    std::cout << "=================================================================\n";
+    std::cout << "        ROUND-TRIP LATENCY — Naive vs CO-Corrected (ns)          \n";
+    std::cout << "=================================================================\n";
+    std::cout << std::left << std::setw(12) << "Percentile"
+              << std::right << std::setw(18) << "Naive"
+              << std::setw(18) << "CO-Corrected"
+              << std::setw(12) << "Ratio" << "\n";
+    std::cout << "-----------------------------------------------------------------\n";
+
     double percentiles[] = {50.0, 90.0, 99.0, 99.9, 99.99, 100.0};
-    const char* names[] = {"p50", "p90", "p99", "p99.9", "p99.99", "Max"};
+    const char* names[]  = {"p50", "p90", "p99", "p99.9", "p99.99", "Max"};
 
     for (int i = 0; i < 6; i++) {
-        uint64_t n_val = hdr_value_at_percentile(naive_hist, percentiles[i]);
-        uint64_t c_val = hdr_value_at_percentile(co_hist, percentiles[i]);
-        std::cout << std::left << std::setw(15) << names[i]
-                  << std::setw(20) << n_val 
-                  << std::setw(20) << c_val << "\n";
+        int64_t n_val = hdr_value_at_percentile(naive_hist, percentiles[i]);
+        int64_t c_val = hdr_value_at_percentile(co_hist, percentiles[i]);
+        double ratio = (n_val > 0) ? static_cast<double>(c_val) / static_cast<double>(n_val) : 0.0;
+        std::cout << std::left  << std::setw(12) << names[i]
+                  << std::right << std::setw(18) << n_val
+                  << std::setw(18) << c_val
+                  << std::setw(11) << std::fixed << std::setprecision(1) << ratio << "x\n";
     }
-    std::cout << "=========================================================\n";
+    std::cout << "=================================================================\n";
+    std::cout << "\nNaive sample count:  " << naive_hist->total_count << "\n";
+    std::cout << "CO-corrected count:  " << co_hist->total_count
+              << "  (backfilled " << (co_hist->total_count - naive_hist->total_count) << " phantom samples)\n";
 
     hdr_close(naive_hist);
     hdr_close(co_hist);
