@@ -1,0 +1,21 @@
+[Bot] TSC calibrated.
+[Bot] Interval: 100 us, Duration: 30 s
+[Bot] Connected. Starting open-loop tight-poll.
+[Bot] SO_SNDBUF pinned to 4096 bytes.
+
+[Bot] Run complete. Total Sent: 300000 | Total Acked: 300000 | Send Failures (EAGAIN): 0
+
+=================================================================
+        ROUND-TRIP LATENCY — Naive vs CO-Corrected (ns)          
+=================================================================
+Percentile               Naive      CO-Corrected       Ratio
+-----------------------------------------------------------------
+p50                      13311             13351        1.0x
+p90                      16863             21855        1.3x
+p99                      28031         4206591      150.1x
+p99.9                  4210687         5685247        1.4x
+p99.99                 6086655         6180863        1.0x
+Max                    6283263         6283263        1.0x
+=================================================================
+Naive sample count:  300000
+CO-corrected count:  328128  (backfilled 28128 phantom samples)
