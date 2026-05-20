@@ -3,7 +3,7 @@
 
 | | |
 |---|---|
-| Version | 1 |
+| Version | 1.1 |
 | Status | **FROZEN** |
 | Endianness | Little-endian, x86-64 only |
 | Header file | `contracts/interface_contract_v1.h` |
@@ -190,6 +190,7 @@ struct Reject {
 | 3 | UNKNOWN_SYMBOL |
 | 4 | DUPLICATE_SEQ |
 | 5 | ORDER_NOT_FOUND (cancel target gone) |
+| 6 | MARKET_INSUFFICIENT_LIQUIDITY (MARKET order's residual qty couldn't fill) |
 
 | Field | Type | Size | Offset | Purpose |
 |---|---|---|---|---|
@@ -255,6 +256,8 @@ mmap-readable. No extra wrapping. Validator mmaps journal and replays message by
 - `Fill.side` = copy from original `NewOrder.side`
 - Engine `seq` counter: monotonic, global, never reset
 - Cancel fail reason = `ORDER_NOT_FOUND = 5`
+- MARKET orders are IOC: emit Fills for what fills, then ONE Reject with `reason = MARKET_INSUFFICIENT_LIQUIDITY = 6` for any residual qty
+- Per match event, engines MUST emit the maker Fill BEFORE the taker Fill. This is contract, not convention — the byte-exact diff tool depends on this ordering
 
 **Telemetry developer**
 - `seq` @ 0, `timestamp_ns` @ 8, `symbol_id` @ 16 — identical in all 5 types

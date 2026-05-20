@@ -2,7 +2,7 @@
  * interface_contract_v1.h
  * =============================================================
  * HFT Benchmarking Platform — Wire Protocol Schema
- * VERSION : 1
+ * VERSION : 1.1 (1.0 + REJECT_MARKET_INSUFFICIENT_LIQUIDITY=6, additive only)
  * STATUS  : FROZEN
  * =============================================================
  *
@@ -20,6 +20,12 @@
  *
  * PRICES     : Fixed-point int64_t ticks. NO floats. NO doubles.
  *              Example: 150.50 = 15050 ticks (multiply by 100)
+ *
+ * MARKET ORDERS: IOC (immediate-or-cancel) semantics.
+ *                Engine emits Fills for whatever filled. If any qty
+ *                remains unfillable, engine emits a single Reject with
+ *                reason = REJECT_MARKET_INSUFFICIENT_LIQUIDITY (6),
+ *                order_seq = the original NewOrder.seq.
  *
  * CANCEL ACK : Engine reuses OrderAck to confirm cancel.
  *              OrderAck.order_seq = CancelOrder.seq (NOT original order seq)
@@ -67,6 +73,9 @@
 #define REJECT_UNKNOWN_SYMBOL  3
 #define REJECT_DUPLICATE_SEQ   4  /* seq already seen — replay protection */
 #define REJECT_ORDER_NOT_FOUND 5  /* cancel target doesn't exist or already fully filled */
+#define REJECT_MARKET_INSUFFICIENT_LIQUIDITY 6  /* MARKET order has residual qty after matching loop;
+                                                   IOC semantics — partial fills already emitted, this
+                                                   reject covers only the unfillable remainder. */
 
 
 /* ═════════════════════════════════════════════
