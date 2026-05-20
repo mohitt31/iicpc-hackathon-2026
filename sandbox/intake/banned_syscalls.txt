@@ -1,0 +1,49 @@
+# Banned syscall patterns for static source scanning (§7 stage 1)
+# These patterns are grep'd against contestant source files.
+# Any match causes rejection at intake.
+#
+# Rationale per doc §8:
+#   - fork/exec/system: prevent process escape
+#   - dlopen/dlsym: prevent dynamic code loading
+#   - ptrace: prevent debugger-based escape
+#   - socket/connect/bind: prevent network access (enforced at runtime too)
+#   - mount/umount: prevent filesystem manipulation
+#   - reboot/shutdown: prevent host disruption
+#   - mknod: prevent device creation
+#   - chroot: prevent namespace escape attempts
+
+# Process creation / execution
+fork
+vfork
+execve
+execvp
+execveat
+system
+popen
+
+# Dynamic loading
+dlopen
+dlsym
+dlclose
+
+# Debugging / tracing
+ptrace
+
+# Filesystem manipulation
+mount
+umount
+umount2
+pivot_root
+chroot
+mknod
+
+# System disruption
+reboot
+shutdown
+init_module
+finit_module
+delete_module
+
+# Kernel interaction
+ioctl
+kexec_load

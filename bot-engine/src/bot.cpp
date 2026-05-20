@@ -47,6 +47,8 @@ static void set_non_blocking(int fd) {
 int main(int argc, char* argv[]) {
     uint64_t interval_us = 100;
     uint64_t duration_sec = 10;
+    std::string ip_addr = "127.0.0.1";
+    uint16_t port = 9000;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -54,6 +56,10 @@ int main(int argc, char* argv[]) {
             interval_us = std::stoull(argv[++i]);
         } else if (arg == "--duration-sec" && i + 1 < argc) {
             duration_sec = std::stoull(argv[++i]);
+        } else if (arg == "--ip" && i + 1 < argc) {
+            ip_addr = argv[++i];
+        } else if (arg == "--port" && i + 1 < argc) {
+            port = static_cast<uint16_t>(std::stoul(argv[++i]));
         }
     }
 
@@ -77,8 +83,13 @@ int main(int argc, char* argv[]) {
 
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(9000);
-    inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
+    serv_addr.sin_port = htons(port);
+    if (inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr) <= 0) {
+        std::cerr << "Invalid address: " << ip_addr << "\n";
+        return 1;
+    }
+
+    std::cout << "[Bot] Connecting to " << ip_addr << ":" << port << "...\n";
 
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "connect() failed. Make sure null_responder is running.\n";
@@ -128,14 +139,17 @@ int main(int argc, char* argv[]) {
     // rx_buffer holds fresh recv() bytes; residual_buf holds the trailing
     // partial message from the previous recv() that couldn't be parsed yet.
     alignas(hardware_destructive_interference_size) uint8_t rx_buffer[8192];
-    // BUG 2 FIX: residual buffer — max one partial message can be leftover
-    constexpr size_t MSG_MAX = sizeof(FrameHeader) + sizeof(OrderAck);
+    // BUG 2 FIX: residual buffer — max one partial message can be leftover.
+    // Sized for the largest response: Fill = 60B on wire.
+    constexpr size_t MSG_MAX = sizeof(FrameHeader) + sizeof(Fill);
     uint8_t residual_buf[MSG_MAX];
     size_t  residual_len = 0;  // bytes currently sitting in residual_buf
 
     // ── Counters ──────────────────────────────────────────────────
     uint64_t total_sent = 0;
     uint64_t total_acked = 0;
+    uint64_t total_fills = 0;
+    uint64_t total_rejects = 0;
     uint64_t send_failures = 0;
 
     const uint64_t start_time = hft::rdtscp_ns();
@@ -155,6 +169,8 @@ int main(int argc, char* argv[]) {
         if (__builtin_expect(now - last_report_time >= 1000000000ULL, 0)) {
             std::cout << "[Report] Sent: " << total_sent
                       << " | Acked: " << total_acked
+                      << " | Fills: " << total_fills
+                      << " | Rejects: " << total_rejects
                       << " | Rate: " << sent_since_last_report << " msgs/sec"
                       << " | SendFail: " << send_failures << "\n";
             sent_since_last_report = 0;
@@ -214,27 +230,60 @@ int main(int argc, char* argv[]) {
         if (__builtin_expect(fresh > 0, 1)) {
             size_t bytes_available = recv_offset + static_cast<size_t>(fresh);
             size_t offset = 0;
-            while (offset + sizeof(FrameHeader) + sizeof(OrderAck) <= bytes_available) {
+            // Parse variable-size responses: read FrameHeader first, then
+            // dispatch based on msg_type. Real engine sends OrderAck, Fill,
+            // AND Reject — not just acks like null_responder.
+            while (offset + sizeof(FrameHeader) <= bytes_available) {
                 auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
+                size_t frame_size = sizeof(FrameHeader) + rx_hdr->msg_len;
+                if (offset + frame_size > bytes_available) break; // incomplete
 
-                if (__builtin_expect(rx_hdr->msg_type == MSG_ORDERACK, 1)) {
-                    auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
-                    uint64_t ack_time = hft::rdtscp_ns();
+                uint64_t resp_time = hft::rdtscp_ns();
 
-                    size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
-                    PendingSlot& ps = pending[ack_slot];
-
-                    if (__builtin_expect(ps.seq == rx_ack->order_seq && ps.intended_ts > 0, 1)) {
-                        int64_t latency = static_cast<int64_t>(ack_time - ps.intended_ts);
-                        if (__builtin_expect(latency > 0, 1)) {
-                            hdr_record_value(naive_hist, latency);
-                            hdr_record_corrected_value(co_hist, latency, interval_ns);
+                switch (rx_hdr->msg_type) {
+                    case MSG_ORDERACK: {
+                        auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
+                        // Record latency on OrderAck (first response for this order)
+                        size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
+                        PendingSlot& ps = pending[ack_slot];
+                        if (__builtin_expect(ps.seq == rx_ack->order_seq && ps.intended_ts > 0, 1)) {
+                            int64_t latency = static_cast<int64_t>(resp_time - ps.intended_ts);
+                            if (__builtin_expect(latency > 0, 1)) {
+                                hdr_record_value(naive_hist, latency);
+                                hdr_record_corrected_value(co_hist, latency, interval_ns);
+                            }
+                            // Don't clear yet — wait for terminal event (fill done / reject)
                         }
-                        ps = {0, 0};
+                        total_acked++;
+                        break;
                     }
-                    total_acked++;
+                    case MSG_FILL: {
+                        auto* rx_fill = reinterpret_cast<Fill*>(rx_buffer + offset + sizeof(FrameHeader));
+                        total_fills++;
+                        // Remove from pending when fully filled
+                        if (rx_fill->leaves_qty == 0) {
+                            size_t slot = rx_fill->order_seq & PENDING_MASK;
+                            PendingSlot& ps = pending[slot];
+                            if (ps.seq == rx_fill->order_seq) {
+                                ps = {0, 0};
+                            }
+                        }
+                        break;
+                    }
+                    case MSG_REJECT: {
+                        auto* rx_rej = reinterpret_cast<Reject*>(rx_buffer + offset + sizeof(FrameHeader));
+                        total_rejects++;
+                        // Remove from pending on any reject
+                        size_t slot = rx_rej->order_seq & PENDING_MASK;
+                        PendingSlot& ps = pending[slot];
+                        if (ps.seq == rx_rej->order_seq) {
+                            ps = {0, 0};
+                        }
+                        break;
+                    }
+                    default: break;
                 }
-                offset += sizeof(FrameHeader) + rx_hdr->msg_len;
+                offset += frame_size;
             }
 
             // Save any trailing partial message for the next iteration.
@@ -263,24 +312,49 @@ int main(int argc, char* argv[]) {
 
             size_t avail = d_offset + static_cast<size_t>(fresh);
             size_t offset = 0;
-            while (offset + sizeof(FrameHeader) + sizeof(OrderAck) <= avail) {
+            while (offset + sizeof(FrameHeader) <= avail) {
                 auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
-                if (rx_hdr->msg_type == MSG_ORDERACK) {
-                    auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
-                    uint64_t ack_time = hft::rdtscp_ns();
-                    size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
-                    PendingSlot& ps = pending[ack_slot];
-                    if (ps.seq == rx_ack->order_seq && ps.intended_ts > 0) {
-                        int64_t latency = static_cast<int64_t>(ack_time - ps.intended_ts);
-                        if (latency > 0) {
-                            hdr_record_value(naive_hist, latency);
-                            hdr_record_corrected_value(co_hist, latency, interval_ns);
+                size_t frame_size = sizeof(FrameHeader) + rx_hdr->msg_len;
+                if (offset + frame_size > avail) break;
+
+                uint64_t resp_time = hft::rdtscp_ns();
+
+                switch (rx_hdr->msg_type) {
+                    case MSG_ORDERACK: {
+                        auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
+                        size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
+                        PendingSlot& ps = pending[ack_slot];
+                        if (ps.seq == rx_ack->order_seq && ps.intended_ts > 0) {
+                            int64_t latency = static_cast<int64_t>(resp_time - ps.intended_ts);
+                            if (latency > 0) {
+                                hdr_record_value(naive_hist, latency);
+                                hdr_record_corrected_value(co_hist, latency, interval_ns);
+                            }
                         }
-                        ps = {0, 0};
+                        total_acked++;
+                        break;
                     }
-                    total_acked++;
+                    case MSG_FILL: {
+                        auto* rx_fill = reinterpret_cast<Fill*>(rx_buffer + offset + sizeof(FrameHeader));
+                        total_fills++;
+                        if (rx_fill->leaves_qty == 0) {
+                            size_t slot = rx_fill->order_seq & PENDING_MASK;
+                            PendingSlot& ps = pending[slot];
+                            if (ps.seq == rx_fill->order_seq) ps = {0, 0};
+                        }
+                        break;
+                    }
+                    case MSG_REJECT: {
+                        auto* rx_rej = reinterpret_cast<Reject*>(rx_buffer + offset + sizeof(FrameHeader));
+                        total_rejects++;
+                        size_t slot = rx_rej->order_seq & PENDING_MASK;
+                        PendingSlot& ps = pending[slot];
+                        if (ps.seq == rx_rej->order_seq) ps = {0, 0};
+                        break;
+                    }
+                    default: break;
                 }
-                offset += sizeof(FrameHeader) + rx_hdr->msg_len;
+                offset += frame_size;
             }
             residual_len = avail - offset;
             if (residual_len > 0) std::memcpy(residual_buf, rx_buffer + offset, residual_len);
@@ -290,6 +364,8 @@ int main(int argc, char* argv[]) {
     // ── Results ───────────────────────────────────────────────────
     std::cout << "\n[Bot] Run complete. Total Sent: " << total_sent
               << " | Total Acked: " << total_acked
+              << " | Total Fills: " << total_fills
+              << " | Total Rejects: " << total_rejects
               << " | Send Failures (EAGAIN): " << send_failures << "\n\n";
 
     std::cout << "=================================================================\n";

@@ -222,9 +222,18 @@ struct __attribute__((packed)) Reject {
 /* ─────────────────────────────────────────────
    STATIC SIZE ASSERTIONS  —  compile-time check
    ───────────────────────────────────────────── */
-_Static_assert(sizeof(struct FrameHeader)  ==  4, "FrameHeader must be 4B");
-_Static_assert(sizeof(struct NewOrder)     == 40, "NewOrder must be 40B");
-_Static_assert(sizeof(struct CancelOrder)  == 32, "CancelOrder must be 32B");
-_Static_assert(sizeof(struct OrderAck)     == 32, "OrderAck must be 32B");
-_Static_assert(sizeof(struct Fill)         == 56, "Fill must be 56B");
-_Static_assert(sizeof(struct Reject)       == 32, "Reject must be 32B");
+#ifdef __cplusplus
+  static_assert(sizeof(FrameHeader)  ==  4, "FrameHeader must be 4B");
+  static_assert(sizeof(NewOrder)     == 40, "NewOrder must be 40B");
+  static_assert(sizeof(CancelOrder)  == 32, "CancelOrder must be 32B");
+  static_assert(sizeof(OrderAck)     == 32, "OrderAck must be 32B");
+  static_assert(sizeof(Fill)         == 56, "Fill must be 56B");
+  static_assert(sizeof(Reject)       == 32, "Reject must be 32B");
+#else
+  _Static_assert(sizeof(struct FrameHeader)  ==  4, "FrameHeader must be 4B");
+  _Static_assert(sizeof(struct NewOrder)     == 40, "NewOrder must be 40B");
+  _Static_assert(sizeof(struct CancelOrder)  == 32, "CancelOrder must be 32B");
+  _Static_assert(sizeof(struct OrderAck)     == 32, "OrderAck must be 32B");
+  _Static_assert(sizeof(struct Fill)         == 56, "Fill must be 56B");
+  _Static_assert(sizeof(struct Reject)       == 32, "Reject must be 32B");
+#endif
