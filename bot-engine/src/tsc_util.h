@@ -14,7 +14,7 @@ static_assert(std::endian::native == std::endian::little,
 
 namespace hft {
 
-static double g_tsc_to_ns_ratio = 1.0;
+inline double g_tsc_to_ns_ratio = 1.0;  // inline = one shared instance across all TUs (C++17)
 
 #if defined(__x86_64__) || defined(__i386__)
 inline void calibrate_tsc() {

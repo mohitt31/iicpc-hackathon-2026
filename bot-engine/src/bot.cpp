@@ -125,7 +125,13 @@ int main(int argc, char* argv[]) {
     tx_order->price      = 15050;
     tx_order->quantity   = 100;
 
+    // rx_buffer holds fresh recv() bytes; residual_buf holds the trailing
+    // partial message from the previous recv() that couldn't be parsed yet.
     alignas(hardware_destructive_interference_size) uint8_t rx_buffer[8192];
+    // BUG 2 FIX: residual buffer — max one partial message can be leftover
+    constexpr size_t MSG_MAX = sizeof(FrameHeader) + sizeof(OrderAck);
+    uint8_t residual_buf[MSG_MAX];
+    size_t  residual_len = 0;  // bytes currently sitting in residual_buf
 
     // ── Counters ──────────────────────────────────────────────────
     uint64_t total_sent = 0;
@@ -176,22 +182,16 @@ int main(int argc, char* argv[]) {
             tx_order->timestamp_ns = next_send_time; // intended, not actual
 
             ssize_t sent = send(sock, tx_buffer, sizeof(tx_buffer), MSG_DONTWAIT);
-            if (__builtin_expect(sent < 0, 0)) {
-                if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                    // Kernel buffer full. Do NOT commit the order —
-                    // it never reached the wire. Do NOT advance the
-                    // schedule. We'll retry this exact slot on the
-                    // next loop iteration. The orders we couldn't
-                    // send are precisely the ones whose corrected
-                    // latency matters most.
-                    send_failures++;
-                    break;
-                }
-                // Other errno: real error, bail
-                break;
+            // BUG 1 FIX: treat partial send (0 < sent < full size) same as EAGAIN.
+            // TCP may write fewer bytes than requested when SNDBUF is small.
+            // A partial write = garbled NewOrder on the wire = wrong ack or reject.
+            // Don't commit; the wire never saw a complete message.
+            if (__builtin_expect(sent != static_cast<ssize_t>(sizeof(tx_buffer)), 0)) {
+                send_failures++;
+                break;  // retry next outer iteration; schedule NOT advanced
             }
 
-            // Send succeeded. Now commit everything.
+            // Full message reached the wire. Now commit everything.
             size_t slot = this_seq & PENDING_MASK;
             assert((pending[slot].seq == 0) ||
                    ((this_seq - pending[slot].seq) > (PENDING_SLOTS / 2)));
@@ -203,10 +203,18 @@ int main(int argc, char* argv[]) {
         }
 
         // ── Receive path ──────────────────────────────────────────
-        ssize_t bytes_read = recv(sock, rx_buffer, sizeof(rx_buffer), MSG_DONTWAIT);
-        if (__builtin_expect(bytes_read > 0, 1)) {
+        // BUG 2 FIX: prepend any leftover bytes from the previous recv()
+        // so a message split across two recv() calls is reassembled.
+        size_t recv_offset = residual_len;
+        if (residual_len > 0) {
+            std::memcpy(rx_buffer, residual_buf, residual_len);
+        }
+        ssize_t fresh = recv(sock, rx_buffer + recv_offset,
+                             sizeof(rx_buffer) - recv_offset, MSG_DONTWAIT);
+        if (__builtin_expect(fresh > 0, 1)) {
+            size_t bytes_available = recv_offset + static_cast<size_t>(fresh);
             size_t offset = 0;
-            while (offset + sizeof(FrameHeader) + sizeof(OrderAck) <= static_cast<size_t>(bytes_read)) {
+            while (offset + sizeof(FrameHeader) + sizeof(OrderAck) <= bytes_available) {
                 auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
 
                 if (__builtin_expect(rx_hdr->msg_type == MSG_ORDERACK, 1)) {
@@ -219,55 +227,63 @@ int main(int argc, char* argv[]) {
                     if (__builtin_expect(ps.seq == rx_ack->order_seq && ps.intended_ts > 0, 1)) {
                         int64_t latency = static_cast<int64_t>(ack_time - ps.intended_ts);
                         if (__builtin_expect(latency > 0, 1)) {
-                            // Naive: records exactly what we measured.
-                            // This UNDER-REPORTS tail latency because
-                            // during stalls the bot couldn't send, so
-                            // fewer samples land in the stall window.
                             hdr_record_value(naive_hist, latency);
-
-                            // CO-Corrected: if latency > interval,
-                            // HdrHistogram backfills the "missing"
-                            // samples that would have been recorded
-                            // had the system not stalled.
                             hdr_record_corrected_value(co_hist, latency, interval_ns);
                         }
-                        // Clear slot
                         ps = {0, 0};
                     }
                     total_acked++;
                 }
                 offset += sizeof(FrameHeader) + rx_hdr->msg_len;
             }
+
+            // Save any trailing partial message for the next iteration.
+            residual_len = bytes_available - offset;
+            if (residual_len > 0) {
+                std::memcpy(residual_buf, rx_buffer + offset, residual_len);
+            }
+        } else {
+            // Nothing new from recv() — residual stays as-is for next iter.
+            // (If fresh == 0 the connection closed; if < 0 it's EAGAIN.)
         }
     }
 
     // ── Final drain: give responder 500ms to flush remaining acks ──
+    // Uses the same residual-buffer logic so split messages at drain
+    // boundary are also handled correctly.
     {
         auto drain_start = std::chrono::steady_clock::now();
         while (std::chrono::steady_clock::now() - drain_start < std::chrono::milliseconds(500)) {
-            ssize_t bytes_read = recv(sock, rx_buffer, sizeof(rx_buffer), MSG_DONTWAIT);
-            if (bytes_read > 0) {
-                size_t offset = 0;
-                while (offset + sizeof(FrameHeader) + sizeof(OrderAck) <= static_cast<size_t>(bytes_read)) {
-                    auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
-                    if (rx_hdr->msg_type == MSG_ORDERACK) {
-                        auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
-                        uint64_t ack_time = hft::rdtscp_ns();
-                        size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
-                        PendingSlot& ps = pending[ack_slot];
-                        if (ps.seq == rx_ack->order_seq && ps.intended_ts > 0) {
-                            int64_t latency = static_cast<int64_t>(ack_time - ps.intended_ts);
-                            if (latency > 0) {
-                                hdr_record_value(naive_hist, latency);
-                                hdr_record_corrected_value(co_hist, latency, interval_ns);
-                            }
-                            ps = {0, 0};
+            size_t d_offset = residual_len;
+            if (residual_len > 0) std::memcpy(rx_buffer, residual_buf, residual_len);
+
+            ssize_t fresh = recv(sock, rx_buffer + d_offset,
+                                 sizeof(rx_buffer) - d_offset, MSG_DONTWAIT);
+            if (fresh <= 0) continue;
+
+            size_t avail = d_offset + static_cast<size_t>(fresh);
+            size_t offset = 0;
+            while (offset + sizeof(FrameHeader) + sizeof(OrderAck) <= avail) {
+                auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
+                if (rx_hdr->msg_type == MSG_ORDERACK) {
+                    auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
+                    uint64_t ack_time = hft::rdtscp_ns();
+                    size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
+                    PendingSlot& ps = pending[ack_slot];
+                    if (ps.seq == rx_ack->order_seq && ps.intended_ts > 0) {
+                        int64_t latency = static_cast<int64_t>(ack_time - ps.intended_ts);
+                        if (latency > 0) {
+                            hdr_record_value(naive_hist, latency);
+                            hdr_record_corrected_value(co_hist, latency, interval_ns);
                         }
-                        total_acked++;
+                        ps = {0, 0};
                     }
-                    offset += sizeof(FrameHeader) + rx_hdr->msg_len;
+                    total_acked++;
                 }
+                offset += sizeof(FrameHeader) + rx_hdr->msg_len;
             }
+            residual_len = avail - offset;
+            if (residual_len > 0) std::memcpy(residual_buf, rx_buffer + offset, residual_len);
         }
     }
 
