@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include <vector>
 #include <cassert>
+#include <array>
 
 #include "contracts/interface_contract_v1.h"
 #include "tsc_util.h"
@@ -43,6 +44,49 @@ static void set_non_blocking(int fd) {
         throw std::runtime_error("fcntl F_SETFL failed");
     }
 }
+
+// ── NewOrder Memory Pool ──────────────────────────────────────────────────
+// Pre-allocates 1024 NewOrder slots, 64-byte aligned.
+// acquire() pops from a free-stack — O(1), zero malloc on the hot path.
+// release(slot) pushes back onto the free-stack — O(1).
+// pool_exhausted is incremented when acquire() is called on an empty pool;
+// the caller must handle this gracefully (treat as EAGAIN / skip send).
+// The pool is NOT thread-safe — bot is single-threaded so no locks needed.
+struct OrderPool {
+    static constexpr size_t CAPACITY = 1024;
+
+    // 64-byte-aligned storage: each slot lands on its own cache line
+    // so that writing one NewOrder doesn't dirty adjacent slots.
+    alignas(64) std::array<NewOrder, CAPACITY> slots;
+
+    // Stack of free indices. Starts fully loaded [CAPACITY-1 .. 0].
+    std::array<uint16_t, CAPACITY> free_stack;
+    int                            top = -1;   // index of top free entry
+
+    uint64_t pool_exhausted = 0;  // incremented on empty-pool acquire()
+
+    OrderPool() {
+        // Push all indices onto the free-stack so slot 0 is acquired first.
+        for (size_t i = 0; i < CAPACITY; ++i) {
+            free_stack[++top] = static_cast<uint16_t>(i);
+        }
+    }
+
+    // Returns pointer to a free NewOrder slot, or nullptr if pool is empty.
+    NewOrder* acquire() {
+        if (__builtin_expect(top < 0, 0)) {
+            ++pool_exhausted;
+            return nullptr;
+        }
+        return &slots[free_stack[top--]];
+    }
+
+    // Returns slot to the pool. Pointer must have come from acquire().
+    void release(NewOrder* p) {
+        uint16_t idx = static_cast<uint16_t>(p - slots.data());
+        free_stack[++top] = idx;
+    }
+};
 
 int main(int argc, char* argv[]) {
     uint64_t interval_us = 100;
@@ -123,18 +167,15 @@ int main(int argc, char* argv[]) {
     };
     std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0});
 
-    // ── TX/RX buffers (pre-populated, zero-alloc on hot path) ─────
+    // ── Memory pool (zero-alloc on hot path) ──────────────────────
+    OrderPool pool;
+
+    // ── TX buffer (header pre-populated once, payload via pool) ────
     alignas(hardware_destructive_interference_size)
         uint8_t tx_buffer[sizeof(FrameHeader) + sizeof(NewOrder)];
     auto* tx_hdr   = reinterpret_cast<FrameHeader*>(tx_buffer);
     tx_hdr->msg_type = MSG_NEWORDER;
     tx_hdr->msg_len  = sizeof(NewOrder);
-    auto* tx_order = reinterpret_cast<NewOrder*>(tx_buffer + sizeof(FrameHeader));
-    tx_order->symbol_id  = 1;
-    tx_order->order_type = ORDER_LIMIT;
-    tx_order->side       = SIDE_BUY;
-    tx_order->price      = 15050;
-    tx_order->quantity   = 100;
 
     // rx_buffer holds fresh recv() bytes; residual_buf holds the trailing
     // partial message from the previous recv() that couldn't be parsed yet.
@@ -146,11 +187,12 @@ int main(int argc, char* argv[]) {
     size_t  residual_len = 0;  // bytes currently sitting in residual_buf
 
     // ── Counters ──────────────────────────────────────────────────
-    uint64_t total_sent = 0;
-    uint64_t total_acked = 0;
-    uint64_t total_fills = 0;
+    uint64_t total_sent    = 0;
+    uint64_t total_acked   = 0;
+    uint64_t total_fills   = 0;
     uint64_t total_rejects = 0;
     uint64_t send_failures = 0;
+    // pool_exhausted is tracked inside pool itself (pool.pool_exhausted)
 
     const uint64_t start_time = hft::rdtscp_ns();
     uint64_t next_send_time   = start_time;
@@ -192,10 +234,28 @@ int main(int argc, char* argv[]) {
         // When the acks come back, latency = ack_time - intended_time,
         // which correctly captures the full 5ms of delay.
         while (__builtin_expect(now >= next_send_time, 0)) {
+            // Acquire a slot from the pool (O(1), zero malloc).
+            // If pool is exhausted (1024 orders in-flight simultaneously),
+            // skip this slot and try again next iteration — same as EAGAIN.
+            NewOrder* tx_order = pool.acquire();
+            if (__builtin_expect(tx_order == nullptr, 0)) {
+                break;  // pool exhausted; pool.pool_exhausted already incremented
+            }
+
             uint64_t this_seq = total_sent + 1;   // tentative, don't commit yet
 
-            tx_order->seq = this_seq;
+            tx_order->seq        = this_seq;
             tx_order->timestamp_ns = next_send_time; // intended, not actual
+            tx_order->symbol_id  = 1;
+            tx_order->order_type = ORDER_LIMIT;
+            tx_order->side       = SIDE_BUY;
+            tx_order->price      = 15050;
+            tx_order->quantity   = 100;
+
+            // Copy pool slot into tx_buffer (header already set). The pool
+            // slot is then immediately releasable — send() reads tx_buffer.
+            std::memcpy(tx_buffer + sizeof(FrameHeader), tx_order, sizeof(NewOrder));
+            pool.release(tx_order);
 
             ssize_t sent = send(sock, tx_buffer, sizeof(tx_buffer), MSG_DONTWAIT);
             // BUG 1 FIX: treat partial send (0 < sent < full size) same as EAGAIN.
@@ -366,7 +426,8 @@ int main(int argc, char* argv[]) {
               << " | Total Acked: " << total_acked
               << " | Total Fills: " << total_fills
               << " | Total Rejects: " << total_rejects
-              << " | Send Failures (EAGAIN): " << send_failures << "\n\n";
+              << " | Send Failures (EAGAIN): " << send_failures
+              << " | Pool Exhausted: " << pool.pool_exhausted << "\n\n";
 
     std::cout << "=================================================================\n";
     std::cout << "        ROUND-TRIP LATENCY — Naive vs CO-Corrected (ns)          \n";
