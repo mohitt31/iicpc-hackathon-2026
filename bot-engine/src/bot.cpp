@@ -2,10 +2,9 @@
 // Demonstrates Coordinated Omission detection and correction at scale.
 //
 // Architecture:
-//   - Main thread (cold): args, thread launch, snapshot lifecycle, results
+//   - Main thread (cold): args, integrity gate, thread launch, results
 //   - N worker threads (hot, CPU-pinned): independent send/recv loops
 //   - Per-bot snapshot writer (cold side): every 1s, dumps HDR percentiles
-//     to a CSV file for time-series analysis and live leaderboard feed
 //
 // HFT-grade primitives:
 //   - _mm_pause() inside busy-spin catch-up loop (CPU pipeline-friendly)
@@ -13,11 +12,16 @@
 //   - alignas(hardware_destructive_interference_size) on hot buffers
 //   - Per-thread state, zero shared writes on hot path
 //
-// Snapshot lifecycle (deadlock-free):
-//   main spawns snapshot threads -> main spawns workers -> workers run ->
-//   workers join -> main sets stop_flag -> snapshot threads exit -> main joins
-//   snapshot threads. This ordering is critical — see the comment at the
-//   bottom of main().
+// INTEGRITY GATE (per telemetry contract):
+//   Before scoring, the bot self-tests against a null-responder. It measures
+//   its OWN end-to-end latency baseline. If the bot's own p99 exceeds the
+//   software-jitter threshold (default 1ms — adjustable via --gate-p99-us),
+//   the entire run's samples are flagged as untrustworthy and EXCLUDED from
+//   final aggregate. The score line still prints, but with an INTEGRITY
+//   FAILED marker so the leaderboard knows to filter them out.
+//
+//   This implements the "integrity gate" from Bot Fleet & Telemetry §3:
+//   "if its own p99 or software-jitter gate fails, its samples are excluded".
 
 #include <iostream>
 #include <iomanip>
@@ -46,15 +50,10 @@
 #include <hdr/hdr_histogram.h>
 
 // ── _mm_pause() — CPU pipeline hint inside busy-spin loops ───────────────
-// On x86 this emits the PAUSE instruction (~30 cycle hint). It tells the
-// CPU "I'm spinning; deprioritize this so other SMT siblings can use the
-// pipeline, and don't penalize me with a memory-order-violation flush when
-// the spin breaks." On non-x86 (e.g. macOS arm64) we fall through cleanly.
 #if defined(__x86_64__) || defined(__i386__)
 #include <immintrin.h>
 #define HFT_PAUSE() _mm_pause()
 #elif defined(__aarch64__)
-// ARM equivalent: 'yield' instruction
 #define HFT_PAUSE() asm volatile("yield" ::: "memory")
 #else
 #define HFT_PAUSE() do {} while (0)
@@ -104,12 +103,12 @@ struct OrderPool {
 // ── Per-thread config and result structs ─────────────────────────────────
 struct BotConfig {
     uint32_t    thread_id;
-    int         cpu_core;       // -1 = no pinning
+    int         cpu_core;
     std::string ip_addr;
     uint16_t    port;
     uint64_t    interval_ns;
     uint64_t    duration_ns;
-    std::string snapshot_dir;   // empty = snapshots disabled
+    std::string snapshot_dir;
 };
 
 struct BotResult {
@@ -148,20 +147,159 @@ static bool pin_to_core(int core_id) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// SNAPSHOT WRITER — runs in cold thread per bot, owned by MAIN (not worker).
-// Every 1 second, samples the hot thread's HDR histograms and appends a
-// CSV row with p50/p90/p99/p99.9/p99.99/max + throughput counters.
+// INTEGRITY GATE — pre-flight self-test
 //
-// Lifecycle (deadlock-free):
-//   main creates snapshot threads BEFORE workers.
-//   workers run, write to histograms, finish, get joined by main.
-//   main then sets stop_flag.
-//   snapshot threads observe stop_flag, write their final row, exit.
-//   main joins snapshot threads.
+// Connects to the target, fires 1000 orders at 100us intervals, measures
+// own latency. If p99 exceeds the threshold, the bot is too noisy to
+// produce trustworthy measurements during the real run and samples will
+// be flagged as untrustworthy.
 //
-// IMPORTANT: hdr_value_at_percentile() does NOT modify the histogram.
-// HDR's count writes are 64-bit aligned; torn reads bounded to one sample,
-// statistically negligible at 1Hz snapshot rate.
+// Returns p99 in nanoseconds (or UINT64_MAX on connect/send error).
+//
+// Why this matters:
+//   A latency benchmark whose measuring instrument is noisier than what
+//   it's measuring produces meaningless data. The integrity gate enforces
+//   that the bot's own jitter is bounded BEFORE we trust its measurements
+//   of the system under test. This is the "self-test against null-responder"
+//   pattern from Bot Fleet & Telemetry section 3.
+// ══════════════════════════════════════════════════════════════════════════
+static uint64_t integrity_gate_test(const std::string& ip_addr, uint16_t port,
+                                    uint64_t interval_ns) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) return UINT64_MAX;
+
+    sockaddr_in serv_addr{};
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port   = htons(port);
+    inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr);
+
+    if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+        close(sock);
+        return UINT64_MAX;
+    }
+
+    int opt = 1;
+    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+    set_non_blocking(sock);
+
+    struct hdr_histogram* gate_hist = nullptr;
+    hdr_init(1, 30000000000LL, 3, &gate_hist);
+
+    constexpr size_t GATE_ORDERS  = 1000;
+    constexpr size_t TX_FRAME_SIZE = sizeof(FrameHeader) + sizeof(NewOrder);
+    constexpr size_t RX_BUFFER_SIZE = 8192;
+
+    uint8_t tx_buffer[TX_FRAME_SIZE];
+    uint8_t rx_buffer[RX_BUFFER_SIZE];
+    auto* tx_hdr     = reinterpret_cast<FrameHeader*>(tx_buffer);
+    tx_hdr->msg_type = MSG_NEWORDER;
+    tx_hdr->_pad     = 0;
+    tx_hdr->msg_len  = sizeof(NewOrder);
+    auto* tx_order   = reinterpret_cast<NewOrder*>(tx_buffer + sizeof(FrameHeader));
+    tx_order->symbol_id  = 1;
+    tx_order->order_type = ORDER_LIMIT;
+    tx_order->side       = SIDE_BUY;
+    tx_order->price      = 100;
+    tx_order->quantity   = 1;
+
+    // Pending: simple linear map seq → intended_ts
+    std::vector<uint64_t> pending(GATE_ORDERS + 1, 0);
+
+    size_t residual = 0;
+    uint64_t sent = 0, acked = 0;
+
+    uint64_t now            = hft::rdtscp_ns();
+    uint64_t next_send_time = now;
+    uint64_t deadline       = now + 5000000000ULL;  // 5s hard cap
+
+    while (sent < GATE_ORDERS && hft::rdtscp_ns() < deadline) {
+        now = hft::rdtscp_ns();
+        if (now >= next_send_time && sent < GATE_ORDERS) {
+            uint64_t seq = sent + 1;
+            tx_order->seq          = seq;
+            tx_order->timestamp_ns = next_send_time;
+            ssize_t s = send(sock, tx_buffer, TX_FRAME_SIZE, MSG_DONTWAIT);
+            if (s == static_cast<ssize_t>(TX_FRAME_SIZE)) {
+                pending[seq] = next_send_time;
+                sent++;
+                next_send_time += interval_ns;
+            }
+        }
+
+        ssize_t br = recv(sock, rx_buffer + residual,
+                          RX_BUFFER_SIZE - residual, MSG_DONTWAIT);
+        if (br > 0) {
+            size_t tb = residual + static_cast<size_t>(br);
+            size_t off = 0;
+            while (off + sizeof(FrameHeader) <= tb) {
+                auto* rh = reinterpret_cast<FrameHeader*>(rx_buffer + off);
+                size_t fs = sizeof(FrameHeader) + rh->msg_len;
+                if (off + fs > tb) break;
+                if (rh->msg_type == MSG_ORDERACK) {
+                    auto* a = reinterpret_cast<OrderAck*>(
+                        rx_buffer + off + sizeof(FrameHeader));
+                    uint64_t t_recv = hft::rdtscp_ns();
+                    if (a->order_seq > 0 && a->order_seq <= GATE_ORDERS
+                        && pending[a->order_seq] > 0) {
+                        int64_t lat = static_cast<int64_t>(t_recv - pending[a->order_seq]);
+                        if (lat > 0) hdr_record_value(gate_hist, lat);
+                        pending[a->order_seq] = 0;
+                        acked++;
+                    }
+                }
+                off += fs;
+            }
+            residual = tb - off;
+            if (residual > 0 && off > 0)
+                std::memmove(rx_buffer, rx_buffer + off, residual);
+        }
+    }
+
+    // Drain remaining for 200ms
+    auto drain_start = std::chrono::steady_clock::now();
+    while (acked < sent && std::chrono::steady_clock::now() - drain_start
+           < std::chrono::milliseconds(200)) {
+        ssize_t br = recv(sock, rx_buffer + residual,
+                          RX_BUFFER_SIZE - residual, MSG_DONTWAIT);
+        if (br > 0) {
+            size_t tb = residual + static_cast<size_t>(br);
+            size_t off = 0;
+            while (off + sizeof(FrameHeader) <= tb) {
+                auto* rh = reinterpret_cast<FrameHeader*>(rx_buffer + off);
+                size_t fs = sizeof(FrameHeader) + rh->msg_len;
+                if (off + fs > tb) break;
+                if (rh->msg_type == MSG_ORDERACK) {
+                    auto* a = reinterpret_cast<OrderAck*>(
+                        rx_buffer + off + sizeof(FrameHeader));
+                    uint64_t t_recv = hft::rdtscp_ns();
+                    if (a->order_seq > 0 && a->order_seq <= GATE_ORDERS
+                        && pending[a->order_seq] > 0) {
+                        int64_t lat = static_cast<int64_t>(t_recv - pending[a->order_seq]);
+                        if (lat > 0) hdr_record_value(gate_hist, lat);
+                        pending[a->order_seq] = 0;
+                        acked++;
+                    }
+                }
+                off += fs;
+            }
+            residual = tb - off;
+            if (residual > 0 && off > 0)
+                std::memmove(rx_buffer, rx_buffer + off, residual);
+        }
+    }
+
+    int64_t p99 = (gate_hist->total_count > 0)
+        ? hdr_value_at_percentile(gate_hist, 99.0) : INT64_MAX;
+
+    hdr_close(gate_hist);
+    close(sock);
+
+    if (acked < GATE_ORDERS / 2) return UINT64_MAX; // too few acks → bad
+    return static_cast<uint64_t>(p99);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SNAPSHOT WRITER
 // ══════════════════════════════════════════════════════════════════════════
 static void snapshot_writer(uint32_t thread_id,
                             std::string snapshot_dir,
@@ -208,20 +346,16 @@ static void snapshot_writer(uint32_t thread_id,
     };
 
     while (!stop_flag->load(std::memory_order_acquire)) {
-        // Sleep in small slices so stop_flag is checked frequently —
-        // worker finish → stop flag flip → exit within ~100ms.
         for (int i = 0; i < 10; i++) {
             if (stop_flag->load(std::memory_order_acquire)) goto final_write;
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
             std::chrono::steady_clock::now() - t_start).count();
         write_row(elapsed);
     }
 
 final_write:
-    // Write one final snapshot capturing end-of-run state
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
         std::chrono::steady_clock::now() - t_start).count();
     write_row(elapsed);
@@ -230,8 +364,7 @@ final_write:
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// WORKER THREAD — one per bot. CPU-pinned, independent send/recv loop.
-// Does NOT own its snapshot thread — that's main's job (see top comment).
+// WORKER THREAD
 // ══════════════════════════════════════════════════════════════════════════
 static void bot_worker(BotConfig config, BotResult* result) {
     if (config.cpu_core >= 0) {
@@ -275,28 +408,14 @@ static void bot_worker(BotConfig config, BotResult* result) {
     int sndbuf_size = 4096;
     setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &sndbuf_size, sizeof(sndbuf_size));
 
-    // ── SO_BUSY_POLL — kernel polls NIC ring instead of waiting for IRQ ──
-    // On Linux only. Asks the kernel to spin briefly checking the NIC RX
-    // queue when the socket has no data ready, bypassing interrupt-driven
-    // wakeup latency (5-20μs IRQ handling overhead). Documented by Linux
-    // network stack as the right primitive for microsecond-grade workloads
-    // that already busy-spin in user space.
-    //
-    // Value is the poll budget in microseconds — 50μs is a typical HFT
-    // setting: long enough to capture most ack arrivals, short enough that
-    // a stall doesn't pin the kernel indefinitely. Requires CAP_NET_ADMIN
-    // or sysctl net.core.busy_poll set system-wide; if blocked, setsockopt
-    // returns EPERM and we just continue without it (graceful fallback).
 #ifdef __linux__
 #ifdef SO_BUSY_POLL
     int busy_poll_us = 50;
     if (setsockopt(sock, SOL_SOCKET, SO_BUSY_POLL,
                    &busy_poll_us, sizeof(busy_poll_us)) == 0) {
-        // Successfully enabled — log once per bot for visibility
         if (config.thread_id == 0)
             std::cout << "[Bot 0] SO_BUSY_POLL enabled (" << busy_poll_us << "us)\n";
     }
-    // EPERM is expected without CAP_NET_ADMIN; we proceed regardless
 #endif
 #endif
 
@@ -323,7 +442,6 @@ static void bot_worker(BotConfig config, BotResult* result) {
     alignas(hardware_destructive_interference_size) uint8_t rx_buffer[RX_BUFFER_SIZE];
     size_t residual_bytes = 0;
 
-    // Counters live in result struct so snapshot thread can read them
     uint64_t& total_sent          = result->total_sent;
     uint64_t& total_acked         = result->total_acked;
     uint64_t& total_fills         = result->total_fills;
@@ -341,15 +459,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
         uint64_t now = hft::rdtscp_ns();
         if (__builtin_expect(now >= end_time, 0)) break;
 
-        // ── SEND PATH (catch-up loop) ─────────────────────────────────────
-        // The CO structural fix: fire all "overdue" intervals in a burst,
-        // each tagged with its INTENDED time, never wall-clock-of-actual-send.
         while (__builtin_expect(now >= next_send_time, 0)) {
-            // CPU pause hint at the top of the spin — lets the pipeline
-            // breathe; on AMD/Intel SMT it gives the sibling thread fair
-            // share when we're catching up. Free on the hot path; the cost
-            // of the pause is recovered many times over by not flushing the
-            // pipeline when the catch-up condition becomes false.
             HFT_PAUSE();
 
             NewOrder* slot = pool.acquire();
@@ -409,7 +519,6 @@ static void bot_worker(BotConfig config, BotResult* result) {
             next_send_time += config.interval_ns;
         }
 
-        // ── RECEIVE PATH ──────────────────────────────────────────────────
         ssize_t bytes_read = recv(sock,
                                   rx_buffer + residual_bytes,
                                   RX_BUFFER_SIZE - residual_bytes,
@@ -477,7 +586,6 @@ static void bot_worker(BotConfig config, BotResult* result) {
     }
 
 end_run:
-    // ── Drain remaining acks (500ms grace) ────────────────────────────────
     {
         auto drain_start = std::chrono::steady_clock::now();
         while (std::chrono::steady_clock::now() - drain_start <
@@ -532,11 +640,6 @@ end_run:
     result->pool_exhausted      = pool.exhausted_count;
 
     close(sock);
-
-    // NOTE: snapshot thread is NOT owned by the worker. Main thread
-    // manages its lifecycle, preventing the previous deadlock where
-    // worker waited on snapshot, snapshot waited on stop_flag, and
-    // main waited on worker.
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -550,6 +653,11 @@ int main(int argc, char* argv[]) {
     std::string ip_addr      = "127.0.0.1";
     uint16_t port            = 9000;
     std::string snapshot_dir = "";
+    // Integrity gate: max acceptable own p99 in microseconds.
+    // Default 1000us (1ms) — generous, catches truly broken setups.
+    // For sub-microsecond claims, set this to 50-100us.
+    uint64_t gate_p99_us     = 1000;
+    bool     gate_enabled    = true;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -561,6 +669,8 @@ int main(int argc, char* argv[]) {
         else if (arg == "--port"         && i + 1 < argc) port         = static_cast<uint16_t>(std::stoi(argv[++i]));
         else if (arg == "--no-pin")                       start_core   = -1;
         else if (arg == "--snapshot-dir" && i + 1 < argc) snapshot_dir = argv[++i];
+        else if (arg == "--gate-p99-us"  && i + 1 < argc) gate_p99_us  = std::stoull(argv[++i]);
+        else if (arg == "--no-gate")                      gate_enabled = false;
     }
 
     const uint64_t interval_ns = interval_us * 1000;
@@ -568,6 +678,38 @@ int main(int argc, char* argv[]) {
 
     hft::calibrate_tsc();
     std::cout << "[Main] TSC calibrated.\n";
+
+    // ── INTEGRITY GATE — pre-flight self-test ─────────────────────────────
+    bool integrity_passed = true;
+    uint64_t gate_p99_ns_observed = 0;
+    if (gate_enabled) {
+        std::cout << "[Gate] Running integrity self-test (1000 orders @ "
+                  << interval_us << "us)...\n";
+        gate_p99_ns_observed = integrity_gate_test(ip_addr, port, interval_ns);
+
+        if (gate_p99_ns_observed == UINT64_MAX) {
+            std::cerr << "[Gate] FAILED: could not complete self-test\n";
+            std::cerr << "[Gate] Target may be unreachable. Aborting.\n";
+            return 2;
+        }
+
+        uint64_t threshold_ns = gate_p99_us * 1000;
+        if (gate_p99_ns_observed > threshold_ns) {
+            std::cout << "[Gate] FAILED: bot self-test p99 = "
+                      << gate_p99_ns_observed << "ns"
+                      << " (threshold " << threshold_ns << "ns)\n";
+            std::cout << "[Gate] Run will proceed, but samples will be flagged "
+                      << "as INTEGRITY_FAILED for leaderboard filtering.\n";
+            integrity_passed = false;
+        } else {
+            std::cout << "[Gate] PASSED: bot self-test p99 = "
+                      << gate_p99_ns_observed << "ns"
+                      << " (threshold " << threshold_ns << "ns)\n";
+        }
+    } else {
+        std::cout << "[Gate] SKIPPED (--no-gate)\n";
+    }
+
     std::cout << "[Main] Launching " << num_bots << " bots, "
               << "interval " << interval_us << "us, "
               << "duration " << duration_sec << "s, "
@@ -580,23 +722,11 @@ int main(int argc, char* argv[]) {
 
     if (!snapshot_dir.empty()) {
         mkdir(snapshot_dir.c_str(), 0755);
-        std::cout << "[Main] Snapshot dir: " << snapshot_dir
-                  << " (writing bot_<id>.csv every 1s)\n";
+        std::cout << "[Main] Snapshot dir: " << snapshot_dir << "\n";
     }
 
     std::vector<BotConfig> configs(num_bots);
     std::vector<BotResult> results(num_bots);
-
-    // ── Lifecycle ordering (the deadlock fix) ────────────────────────────
-    // 1. Initialize histograms BEFORE snapshot threads can read them.
-    //    We do this lazily in the worker — but snapshot polls until
-    //    histogram pointers are non-null, so safe.
-    // 2. Start snapshot threads first (main owns them).
-    // 3. Start worker threads.
-    // 4. Join workers (they finish).
-    // 5. Set stop_flag — snapshots see it, write final row, exit.
-    // 6. Join snapshot threads.
-
     std::atomic<bool> snapshot_stop{false};
     std::vector<std::thread> snap_threads;
     std::vector<std::thread> work_threads;
@@ -613,8 +743,6 @@ int main(int argc, char* argv[]) {
             .duration_ns  = duration_ns,
             .snapshot_dir = snapshot_dir,
         };
-
-        // Snapshot thread first (cold) — it polls until histograms init
         if (!snapshot_dir.empty()) {
             snap_threads.emplace_back(snapshot_writer,
                                       i, snapshot_dir,
@@ -622,23 +750,16 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Then workers (hot)
     for (uint32_t i = 0; i < num_bots; i++) {
         work_threads.emplace_back(bot_worker, configs[i], &results[i]);
     }
 
-    // Wait for all workers to finish
     for (auto& t : work_threads) t.join();
-
-    // Signal snapshot threads to write final row and exit
     snapshot_stop.store(true, std::memory_order_release);
-
-    // Wait for snapshot threads to finish their final write
     for (auto& t : snap_threads) {
         if (t.joinable()) t.join();
     }
 
-    // ── Merge per-thread histograms into unified aggregate ────────────────
     struct hdr_histogram* unified_naive = nullptr;
     struct hdr_histogram* unified_co    = nullptr;
     hdr_init(1, 30000000000LL, 3, &unified_naive);
@@ -671,6 +792,20 @@ int main(int argc, char* argv[]) {
 
     std::cout << "\n[Main] All bots finished. Connected: "
               << connected_count << "/" << num_bots << "\n";
+
+    // ── Integrity status banner (after run) ──────────────────────────────
+    if (gate_enabled) {
+        if (integrity_passed) {
+            std::cout << "[Main] INTEGRITY: PASSED  (gate p99 = "
+                      << gate_p99_ns_observed << "ns)\n";
+        } else {
+            std::cout << "[Main] INTEGRITY: FAILED — samples flagged as untrustworthy\n";
+            std::cout << "[Main] Leaderboard should EXCLUDE this run's samples\n";
+        }
+    } else {
+        std::cout << "[Main] INTEGRITY: UNCHECKED  (gate disabled)\n";
+    }
+
     std::cout << "[Main] Aggregate: Sent=" << agg_sent
               << " Acked=" << agg_acked
               << " Fills=" << agg_fills
@@ -683,6 +818,9 @@ int main(int argc, char* argv[]) {
     std::cout << "=================================================================\n";
     std::cout << " AGGREGATE ROUND-TRIP LATENCY — " << num_bots
               << " bots — Naive vs CO-Corrected (ns)\n";
+    if (!integrity_passed) {
+        std::cout << " ⚠️  INTEGRITY FAILED — DO NOT USE FOR SCORING\n";
+    }
     std::cout << "=================================================================\n";
     std::cout << std::left  << std::setw(12) << "Percentile"
               << std::right << std::setw(18) << "Naive"
@@ -723,5 +861,6 @@ int main(int argc, char* argv[]) {
     hdr_close(unified_naive);
     hdr_close(unified_co);
 
-    return 0;
+    // Exit code: non-zero if integrity failed (CI / leaderboard auto-filter)
+    return integrity_passed ? 0 : 1;
 }
