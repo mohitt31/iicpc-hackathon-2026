@@ -29,7 +29,16 @@
 #include <chrono>
 #include <thread>
 #include <pthread.h>
-#include <sched.h>
+#include <atomic>
+
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i32__) || defined(_M_IX86)
+#include <immintrin.h>
+#define HFT_PAUSE() _mm_pause()
+#elif defined(__aarch64__)
+#define HFT_PAUSE() asm volatile("yield" ::: "memory")
+#else
+#define HFT_PAUSE()
+#endif
 
 #include "contracts/interface_contract_v1.h"
 #include "tsc_util.h"
@@ -173,6 +182,13 @@ static void bot_worker(BotConfig config, BotResult* result) {
 
     int opt = 1;
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
+#ifdef SO_QUICKACK
+    setsockopt(sock, SOL_SOCKET, SO_QUICKACK, &opt, sizeof(opt));
+#endif
+#ifdef SO_BUSY_POLL
+    int busy_poll_us = 50;
+    setsockopt(sock, SOL_SOCKET, SO_BUSY_POLL, &busy_poll_us, sizeof(busy_poll_us));
+#endif
     int sndbuf_size = 4096;
     setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &sndbuf_size, sizeof(sndbuf_size));
     set_non_blocking(sock);
@@ -345,7 +361,11 @@ static void bot_worker(BotConfig config, BotResult* result) {
             if (residual_bytes > 0 && offset > 0)
                 std::memmove(rx_buffer, rx_buffer + offset, residual_bytes);
         }
-    }
+        
+        // Micro-optimization: Pause instruction reduces CPU thermal load and pipeline 
+        // flush penalties in tight busy-spin loops.
+        HFT_PAUSE();
+    } // END MAIN LOOP
 
 end_run:
     // Drain remaining acks (500ms grace)

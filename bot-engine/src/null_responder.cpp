@@ -43,6 +43,10 @@ static void handle_client(int client_socket, uint32_t client_id,
 #ifdef SO_QUICKACK
     setsockopt(client_socket, SOL_SOCKET, SO_QUICKACK, &opt, sizeof(opt));
 #endif
+#ifdef SO_BUSY_POLL
+    int busy_poll_us = 50;
+    setsockopt(client_socket, SOL_SOCKET, SO_BUSY_POLL, &busy_poll_us, sizeof(busy_poll_us));
+#endif
 
     uint64_t monotonic_seq = 0;
     uint64_t orders_seen   = 0;
