@@ -29,6 +29,8 @@ add_subdirectory(third_party/HdrHistogram_c)
 # Executable targets
 add_executable(null_responder src/null_responder.cpp)
 add_executable(bot src/bot.cpp)
+add_executable(refengine src/reference_engine.cpp)
+add_executable(buggy_engine demo/buggy_engine.cpp)
 
 # Link threads if necessary
 find_package(Threads REQUIRED)
