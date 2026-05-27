@@ -64,13 +64,36 @@ static void handle_client(int client_socket, uint32_t client_id,
     while (true) {
         ssize_t bytes_read = recv(client_socket, rx_buffer,
                                   EXPECTED_BYTES, MSG_WAITALL);
+
+        // recv with MSG_WAITALL returns:
+        //   == EXPECTED_BYTES: success
+        //   == 0: peer closed cleanly
+        //   < 0: error (EINTR, ECONNRESET, etc)
+        //   0 < n < EXPECTED_BYTES: peer closed mid-frame (partial)
+        // We treat anything other than full-frame as disconnect.
         if (__builtin_expect(bytes_read <= 0, 0)) {
             std::cout << "[Responder] Client " << client_id
                       << " disconnected. Served " << orders_seen << " orders.\n";
             break;
         }
+        if (__builtin_expect(static_cast<size_t>(bytes_read) != EXPECTED_BYTES, 0)) {
+            std::cerr << "[Responder] Client " << client_id
+                      << " sent truncated frame (" << bytes_read
+                      << "/" << EXPECTED_BYTES << "). Closing.\n";
+            break;
+        }
 
         auto* rx_hdr = reinterpret_cast<const FrameHeader*>(rx_buffer);
+
+        // null_responder is intentionally minimal: it only acks NewOrder.
+        // Receiving any other message type (CancelOrder, etc) means the
+        // contract changed or the bot sent something unexpected — we
+        // silently skip rather than reinterpret garbage as NewOrder.
+        if (__builtin_expect(rx_hdr->msg_type != MSG_NEWORDER, 0)) {
+            // Drop the frame and continue (we already read full bytes)
+            continue;
+        }
+
         if (__builtin_expect(rx_hdr->msg_type == MSG_NEWORDER, 1)) {
             auto* rx_order = reinterpret_cast<const NewOrder*>(
                 rx_buffer + sizeof(FrameHeader));

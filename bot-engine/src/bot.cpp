@@ -430,6 +430,15 @@ static void bot_worker(BotConfig config, BotResult* result) {
         return;
     }
 
+    // Bound the synchronous connect() — without this, a blackholed IP
+    // (e.g., misconfigured sandbox) hangs the bot thread indefinitely
+    // in the kernel. 3 seconds is generous for any reasonable network.
+    struct timeval connect_timeout{ .tv_sec = 3, .tv_usec = 0 };
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO,
+               &connect_timeout, sizeof(connect_timeout));
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
+               &connect_timeout, sizeof(connect_timeout));
+
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port   = htons(config.port);
@@ -442,6 +451,12 @@ static void bot_worker(BotConfig config, BotResult* result) {
         return;
     }
     result->connected = true;
+
+    // Clear connect-phase timeouts now that we're connected.
+    // Hot path uses MSG_DONTWAIT + non-blocking socket; timeouts irrelevant.
+    struct timeval no_timeout{ .tv_sec = 0, .tv_usec = 0 };
+    setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &no_timeout, sizeof(no_timeout));
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &no_timeout, sizeof(no_timeout));
 
     int opt = 1;
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
@@ -593,11 +608,19 @@ static void bot_worker(BotConfig config, BotResult* result) {
         }
 
         ssize_t bytes_read = recv(sock,
-                                  rx_buffer + residual_bytes,
-                                  RX_BUFFER_SIZE - residual_bytes,
-                                  MSG_DONTWAIT);
+                              rx_buffer + residual_bytes,
+                              RX_BUFFER_SIZE - residual_bytes,
+                              MSG_DONTWAIT);
 
-        if (__builtin_expect(bytes_read > 0, 1)) {
+    // recv() returns 0 = peer closed connection cleanly.
+    // Without this check, we busy-spin at 100% CPU forever.
+    if (__builtin_expect(bytes_read == 0, 0)) {
+        std::cerr << "[Bot " << config.thread_id
+                  << "] Peer closed connection. Stopping.\n";
+        goto end_run;
+    }
+
+    if (__builtin_expect(bytes_read > 0, 1)) {
             size_t total_bytes = residual_bytes + static_cast<size_t>(bytes_read);
             size_t offset = 0;
 
