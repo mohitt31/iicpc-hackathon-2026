@@ -29,12 +29,10 @@ add_subdirectory(third_party/HdrHistogram_c)
 # Executable targets
 add_executable(null_responder src/null_responder.cpp)
 add_executable(bot src/bot.cpp)
-add_executable(reference_server src/reference_server.cpp)
 add_executable(refengine src/reference_engine.cpp)
+add_executable(buggy_engine demo/buggy_engine.cpp)
 
 # Link threads if necessary
 find_package(Threads REQUIRED)
 target_link_libraries(null_responder PRIVATE Threads::Threads)
 target_link_libraries(bot PRIVATE Threads::Threads hdr_histogram_static)
-target_link_libraries(reference_server PRIVATE Threads::Threads)
-target_link_libraries(refengine PRIVATE Threads::Threads)
