@@ -1,11 +1,16 @@
-// bot.cpp — Open-loop latency benchmarking client
-// Demonstrates Coordinated Omission detection and correction.
+// bot.cpp — Open-loop multi-threaded latency benchmarking client
+// Demonstrates Coordinated Omission detection and correction at scale.
 //
-// Key invariants:
-//   1. OPEN-LOOP: bot fires on wall-clock schedule regardless of responses
-//   2. CO-CORRECTED: latency measured against INTENDED send time, not actual
-//   3. ZERO-MALLOC on hot path: memory pool pre-allocated at startup
-//   4. DETERMINISTIC ORDER GENERATION: xorshift64 with fixed seed
+// Architecture:
+//   - Main thread (cold): args, thread launch, histogram merge, results
+//   - N worker threads (hot, CPU-pinned): independent send/recv loops
+//   - Zero shared state on hot path — each thread owns its socket, pool,
+//     RNG, and histograms. Main merges histograms at the end.
+//
+// Why CPU pinning?
+//   Without pinning, OS scheduler moves the bot across cores, causing
+//   ~1ms preemption jitter that pollutes the histogram. With each thread
+//   locked to one isolated core, the only stalls visible are real ones.
 
 #include <iostream>
 #include <iomanip>
@@ -22,7 +27,9 @@
 #include <stdexcept>
 #include <vector>
 #include <chrono>
-#include <atomic>
+#include <thread>
+#include <pthread.h>
+#include <sched.h>
 
 #include "contracts/interface_contract_v1.h"
 #include "tsc_util.h"
@@ -35,10 +42,6 @@ constexpr std::size_t hardware_destructive_interference_size = 64;
 #endif
 
 // ── xorshift64 RNG ────────────────────────────────────────────────────────
-// Why xorshift64 and not std::mt19937?
-// std::mt19937 has ~2KB state and 624-element init table — too slow for
-// a hot loop that generates one order per 100μs. xorshift64 is 3 XOR-shift
-// ops, 1 uint64_t of state, sub-nanosecond per call.
 static inline uint64_t xorshift64(uint64_t& state) {
     state ^= state << 13;
     state ^= state >> 7;
@@ -46,51 +49,55 @@ static inline uint64_t xorshift64(uint64_t& state) {
     return state;
 }
 
-// ── Memory Pool ───────────────────────────────────────────────────────────
-// Pre-allocates N NewOrder slots at startup. acquire()/release() are O(1)
-// and zero-malloc — a free-list index stack. All slots are 64-byte aligned
-// to avoid false sharing when multiple bots share a pool.
-//
-// Why a pool instead of a static tx_buffer?
-// Single-bot: the pool is equivalent. Multi-bot (Day 7): each bot thread
-// acquires its own slot, fills it, sends it, and releases on ack. No locks
-// needed if each thread has its own pool instance.
+// ── Memory Pool (per-thread, zero-malloc on hot path) ────────────────────
 struct OrderPool {
-    static constexpr size_t POOL_SIZE = 1024; // 1024 * 40B = 40KB — fits in L1
-
-    // Each slot is 64-byte aligned to avoid cache-line sharing across bots
+    static constexpr size_t POOL_SIZE = 1024;
     alignas(64) NewOrder slots[POOL_SIZE];
-
-    // Free-list: stack of available slot indices.
-    // Using a simple array-backed stack — O(1) push/pop, zero allocation.
     uint16_t free_stack[POOL_SIZE];
-    uint16_t free_top = 0;          // points to next available entry
-    uint64_t exhausted_count = 0;   // how many times we had no free slots
+    uint16_t free_top = 0;
+    uint64_t exhausted_count = 0;
 
     OrderPool() {
-        // Initialize free-list with all slots available
-        for (uint16_t i = 0; i < POOL_SIZE; i++) {
-            free_stack[i] = i;
-        }
+        for (uint16_t i = 0; i < POOL_SIZE; i++) free_stack[i] = i;
         free_top = POOL_SIZE;
     }
 
-    // acquire() — get a free slot. Returns nullptr if pool exhausted.
-    // Caller fills the slot and sends it. Must call release() when done.
     inline NewOrder* acquire() {
         if (__builtin_expect(free_top == 0, 0)) {
             exhausted_count++;
-            return nullptr; // pool exhausted — caller must handle
+            return nullptr;
         }
         return &slots[free_stack[--free_top]];
     }
 
-    // release() — return slot back to pool after ack/reject received.
-    // No bounds check — caller must pass a pointer from this pool.
     inline void release(NewOrder* ptr) {
         uint16_t idx = static_cast<uint16_t>(ptr - slots);
         free_stack[free_top++] = idx;
     }
+};
+
+// ── Per-thread config and result structs ─────────────────────────────────
+struct BotConfig {
+    uint32_t    thread_id;
+    int         cpu_core;       // -1 = no pinning
+    std::string ip_addr;
+    uint16_t    port;
+    uint64_t    interval_ns;
+    uint64_t    duration_ns;
+};
+
+struct BotResult {
+    struct hdr_histogram* naive_hist = nullptr;
+    struct hdr_histogram* co_hist    = nullptr;
+    uint64_t total_sent           = 0;
+    uint64_t total_acked          = 0;
+    uint64_t total_fills          = 0;
+    uint64_t total_rejects        = 0;
+    uint64_t send_failures        = 0;
+    uint64_t partial_send_aborts  = 0;
+    uint64_t pending_collisions   = 0;
+    uint64_t pool_exhausted       = 0;
+    bool     connected            = false;
 };
 
 static void set_non_blocking(int fd) {
@@ -100,182 +107,144 @@ static void set_non_blocking(int fd) {
         throw std::runtime_error("fcntl F_SETFL failed");
 }
 
-int main(int argc, char* argv[]) {
-    uint64_t interval_us  = 100;
-    uint64_t duration_sec = 10;
-    std::string ip_addr   = "127.0.0.1";
+// Pin current thread to specific CPU core.
+// Called from inside the worker so the thread's TLS/stack pages get
+// allocated on the target core's NUMA node.
+static bool pin_to_core(int core_id) {
+    if (core_id < 0) return false;
+#ifdef __APPLE__
+    // macOS does not support sched_setaffinity or pthread_setaffinity_np
+    return false;
+#else
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+    int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    return rc == 0;
+#endif
+}
 
-    for (int i = 1; i < argc; i++) {
-        std::string arg = argv[i];
-        if (arg == "--interval-us" && i + 1 < argc)
-            interval_us = std::stoull(argv[++i]);
-        else if (arg == "--duration-sec" && i + 1 < argc)
-            duration_sec = std::stoull(argv[++i]);
-        else if (arg == "--ip" && i + 1 < argc)
-            ip_addr = argv[++i];
+// ══════════════════════════════════════════════════════════════════════════
+// WORKER THREAD — one per bot. CPU-pinned, independent send/recv loop.
+// ══════════════════════════════════════════════════════════════════════════
+static void bot_worker(BotConfig config, BotResult* result) {
+    // Pin to dedicated CPU core (skip core 0 — handles most IRQs)
+    if (config.cpu_core >= 0) {
+        if (pin_to_core(config.cpu_core)) {
+            std::cout << "[Bot " << config.thread_id << "] Pinned to core "
+                      << config.cpu_core << "\n";
+        } else {
+            std::cerr << "[Bot " << config.thread_id
+                      << "] WARNING: could not pin to core "
+                      << config.cpu_core << " (perhaps not supported on this OS)\n";
+        }
     }
 
-    const uint64_t interval_ns       = interval_us * 1000;
-    const uint64_t total_duration_ns = duration_sec * 1000000000ULL;
+    // Per-thread HDR histograms
+    hdr_init(1, 30000000000LL, 3, &result->naive_hist);
+    hdr_init(1, 30000000000LL, 3, &result->co_hist);
 
-    hft::calibrate_tsc();
-    std::cout << "[Bot] TSC calibrated.\n";
-    std::cout << "[Bot] Interval: " << interval_us << " us, Duration: "
-              << duration_sec << " s\n";
-
-    // ── Memory Pool (startup allocation, zero-malloc after this) ─────────
+    // Per-thread memory pool
     OrderPool pool;
-    std::cout << "[Bot] Order pool initialized: " << OrderPool::POOL_SIZE
-              << " slots, " << (OrderPool::POOL_SIZE * sizeof(NewOrder))
-              << " bytes\n";
 
-    // ── xorshift64 RNG — deterministic, seed=42 ──────────────────────────
-    // Why seed=42? Reproducibility — same seed = same order sequence every
-    // run, so latency differences between runs are from the system, not RNG.
-    uint64_t rng_state = 42;
+    // Per-thread RNG (seed = 42 + thread_id → different stream per bot,
+    // reproducible across runs for the same thread_id).
+    uint64_t rng_state = 42 + config.thread_id;
 
-    // ── HDR histograms ────────────────────────────────────────────────────
-    struct hdr_histogram* naive_hist = nullptr;
-    struct hdr_histogram* co_hist    = nullptr;
-    hdr_init(1, 30000000000LL, 3, &naive_hist);
-    hdr_init(1, 30000000000LL, 3, &co_hist);
-
-    // ── Socket setup ──────────────────────────────────────────────────────
+    // Socket setup
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) { std::cerr << "socket() failed\n"; return 1; }
+    if (sock < 0) {
+        std::cerr << "[Bot " << config.thread_id << "] socket() failed\n";
+        return;
+    }
 
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port   = htons(9000);
-    inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr);
+    serv_addr.sin_port   = htons(config.port);
+    inet_pton(AF_INET, config.ip_addr.c_str(), &serv_addr.sin_addr);
 
-    std::cout << "[Bot] Connecting to " << ip_addr << ":9000...\n";
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "connect() failed. Make sure engine is running.\n";
-        return 1;
+        std::cerr << "[Bot " << config.thread_id << "] connect() failed: "
+                  << strerror(errno) << "\n";
+        close(sock);
+        return;
     }
+    result->connected = true;
 
     int opt = 1;
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
-
-    // Shrink SO_SNDBUF so kernel can't absorb thousands of orders during
-    // a stall — makes backpressure visible, which is required for CO proof.
     int sndbuf_size = 4096;
     setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &sndbuf_size, sizeof(sndbuf_size));
-
     set_non_blocking(sock);
 
-    std::cout << "[Bot] Connected. Starting open-loop tight-poll.\n";
-    std::cout << "[Bot] SO_SNDBUF pinned to " << sndbuf_size << " bytes.\n";
-
-    // ── Pending map: seq → {intended_ts, pool_slot_ptr} ──────────────────
-    // Power-of-2 size for fast modulo via bitmask.
+    // Pending map (per-thread, no locks)
     constexpr size_t PENDING_SLOTS = 1 << 20;
     constexpr size_t PENDING_MASK  = PENDING_SLOTS - 1;
     struct PendingSlot {
         uint64_t  intended_ts;
         uint64_t  seq;
-        NewOrder* pool_ptr;    // non-null → release back to pool on ack
+        NewOrder* pool_ptr;
     };
     std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0, nullptr});
 
-    // ── TX wire buffer (FrameHeader + NewOrder, pre-populated header) ─────
+    // TX buffer
     constexpr size_t TX_FRAME_SIZE = sizeof(FrameHeader) + sizeof(NewOrder);
     alignas(hardware_destructive_interference_size) uint8_t tx_buffer[TX_FRAME_SIZE];
-    auto* tx_hdr      = reinterpret_cast<FrameHeader*>(tx_buffer);
-    tx_hdr->msg_type  = MSG_NEWORDER;
-    tx_hdr->_pad      = 0;
-    tx_hdr->msg_len   = sizeof(NewOrder);
-    // NewOrder pointer inside the wire buffer — filled per-send from pool slot
-    auto* tx_order    = reinterpret_cast<NewOrder*>(tx_buffer + sizeof(FrameHeader));
+    auto* tx_hdr     = reinterpret_cast<FrameHeader*>(tx_buffer);
+    tx_hdr->msg_type = MSG_NEWORDER;
+    tx_hdr->_pad     = 0;
+    tx_hdr->msg_len  = sizeof(NewOrder);
+    auto* tx_order   = reinterpret_cast<NewOrder*>(tx_buffer + sizeof(FrameHeader));
 
-    // ── RX buffer with residual handling ──────────────────────────────────
+    // RX buffer
     constexpr size_t RX_BUFFER_SIZE = 65536;
     alignas(hardware_destructive_interference_size) uint8_t rx_buffer[RX_BUFFER_SIZE];
     size_t residual_bytes = 0;
 
-    // ── Counters ──────────────────────────────────────────────────────────
-    uint64_t total_sent           = 0;
-    uint64_t total_acked          = 0;
-    uint64_t total_fills          = 0;
-    uint64_t total_rejects        = 0;
-    uint64_t send_failures        = 0;
-    uint64_t partial_send_aborts  = 0;
-    uint64_t pending_collisions   = 0;
-    // side alternates BUY/SELL deterministically (no RNG needed)
-    uint8_t  next_side            = SIDE_BUY;
+    // Local counters (no atomics, no shared state)
+    uint64_t total_sent          = 0;
+    uint64_t total_acked         = 0;
+    uint64_t total_fills         = 0;
+    uint64_t total_rejects       = 0;
+    uint64_t send_failures       = 0;
+    uint64_t partial_send_aborts = 0;
+    uint64_t pending_collisions  = 0;
+    uint8_t  next_side           = (config.thread_id % 2 == 0) ? SIDE_BUY : SIDE_SELL;
 
-    const uint64_t start_time   = hft::rdtscp_ns();
-    uint64_t next_send_time     = start_time;
-    uint64_t last_report_time   = start_time;
-    const uint64_t end_time     = start_time + total_duration_ns;
-    uint64_t sent_since_report  = 0;
+    const uint64_t start_time = hft::rdtscp_ns();
+    uint64_t next_send_time   = start_time;
+    const uint64_t end_time   = start_time + config.duration_ns;
 
-    // ── MAIN LOOP ─────────────────────────────────────────────────────────
+    // MAIN LOOP
     while (true) {
         uint64_t now = hft::rdtscp_ns();
         if (__builtin_expect(now >= end_time, 0)) break;
 
-        // ── Periodic report (every 1s) ────────────────────────────────────
-        if (__builtin_expect(now - last_report_time >= 1000000000ULL, 0)) {
-            std::cout << "[Report] Sent: " << total_sent
-                      << " | Acked: " << total_acked
-                      << " | Fills: " << total_fills
-                      << " | Rejects: " << total_rejects
-                      << " | Rate: " << sent_since_report << " msgs/sec"
-                      << " | SendFail: " << send_failures << "\n";
-            sent_since_report = 0;
-            last_report_time += 1000000000ULL;
-        }
-
-        // ── SEND PATH (catch-up loop) ─────────────────────────────────────
-        // Structural CO fix: fire all "overdue" slots in a burst, each
-        // tagged with its INTENDED time (not wall-clock time of actual send).
+        // SEND PATH — catch-up loop (CO structural fix)
         while (__builtin_expect(now >= next_send_time, 0)) {
-            // Acquire pool slot — zero malloc
             NewOrder* slot = pool.acquire();
             if (__builtin_expect(slot == nullptr, 0)) {
-                // Pool exhausted — too many in-flight orders.
-                // Skip this interval slot, advance schedule.
-                // This is preferable to a malloc: if pool is full we're
-                // already overloaded — adding more would make it worse.
-                next_send_time += interval_ns;
+                next_send_time += config.interval_ns;
                 continue;
             }
 
             uint64_t this_seq = total_sent + 1;
 
-            // ── Realistic order generation (xorshift64, seed=42) ──────────
-            // Why varied orders? Real exchange testing requires diverse
-            // price/qty/side to trigger actual matching, not just acks.
-
-            // price: uniform in [99, 101] ticks — narrow spread around par
-            int64_t price = static_cast<int64_t>(99 + (xorshift64(rng_state) % 3));
-
-            // qty: uniform in [1, 5]
-            uint64_t qty = 1 + (xorshift64(rng_state) % 5);
-
-            // order_type: LIMIT 95%, MARKET 5%
-            // Why 95/5? Matches real market microstructure — most orders
-            // are limit orders; market orders consume liquidity aggressively.
-            bool is_market = (xorshift64(rng_state) % 20 == 0); // 1/20 = 5%
-
-            // side: strictly alternating BUY/SELL — ensures balanced book
-            // and avoids one-sided liquidity starvation in the reference engine
-            uint8_t side = next_side;
+            // Realistic order generation
+            int64_t  price     = static_cast<int64_t>(99 + (xorshift64(rng_state) % 3));
+            uint64_t qty       = 1 + (xorshift64(rng_state) % 5);
+            bool     is_market = (xorshift64(rng_state) % 20 == 0);
+            uint8_t  side      = next_side;
             next_side = (next_side == SIDE_BUY) ? SIDE_SELL : SIDE_BUY;
 
-            // Fill the pool slot
             slot->seq          = this_seq;
-            slot->timestamp_ns = next_send_time; // INTENDED time, not actual
+            slot->timestamp_ns = next_send_time;
             slot->symbol_id    = 1;
             slot->order_type   = is_market ? ORDER_MARKET : ORDER_LIMIT;
             slot->side         = side;
-            slot->price        = is_market ? 0 : price; // MARKET must be 0
+            slot->price        = is_market ? 0 : price;
             slot->quantity     = qty;
 
-            // Copy pool slot into wire buffer (28 bytes of variable fields)
-            // FrameHeader already pre-populated (msg_type=1, msg_len=40)
             std::memcpy(tx_order, slot, sizeof(NewOrder));
 
             ssize_t sent = send(sock, tx_buffer, TX_FRAME_SIZE, MSG_DONTWAIT);
@@ -283,39 +252,35 @@ int main(int argc, char* argv[]) {
             if (__builtin_expect(sent < 0, 0)) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     send_failures++;
-                    pool.release(slot); // return slot, order never sent
+                    pool.release(slot);
                     break;
                 }
                 pool.release(slot);
                 break;
             }
 
-            // Partial send — wire now corrupt, abort run
             if (__builtin_expect(static_cast<size_t>(sent) != TX_FRAME_SIZE, 0)) {
-                std::cerr << "[Bot] FATAL: partial send (" << sent
-                          << "/" << TX_FRAME_SIZE << " bytes). Aborting.\n";
+                std::cerr << "[Bot " << config.thread_id
+                          << "] FATAL: partial send (" << sent
+                          << "/" << TX_FRAME_SIZE << "). Aborting.\n";
                 partial_send_aborts++;
                 pool.release(slot);
                 goto end_run;
             }
 
-            // Commit: store slot pointer in pending map for release on ack
             size_t map_slot = this_seq & PENDING_MASK;
             if (__builtin_expect(pending[map_slot].seq != 0, 0)) {
                 uint64_t age = this_seq - pending[map_slot].seq;
                 if (age <= PENDING_SLOTS / 2) pending_collisions++;
-                // Release old slot if still occupied (shouldn't happen normally)
                 if (pending[map_slot].pool_ptr)
                     pool.release(pending[map_slot].pool_ptr);
             }
             pending[map_slot] = {next_send_time, this_seq, slot};
             total_sent = this_seq;
-
-            sent_since_report++;
-            next_send_time += interval_ns;
+            next_send_time += config.interval_ns;
         }
 
-        // ── RECEIVE PATH (with residual buffer) ───────────────────────────
+        // RECEIVE PATH
         ssize_t bytes_read = recv(sock,
                                   rx_buffer + residual_bytes,
                                   RX_BUFFER_SIZE - residual_bytes,
@@ -335,29 +300,25 @@ int main(int argc, char* argv[]) {
                 if (rx_hdr->msg_type == MSG_ORDERACK) {
                     auto* rx_ack = reinterpret_cast<OrderAck*>(
                         rx_buffer + offset + sizeof(FrameHeader));
-
                     size_t ps = rx_ack->order_seq & PENDING_MASK;
                     PendingSlot& pslot = pending[ps];
-
                     if (__builtin_expect(pslot.seq == rx_ack->order_seq &&
                                         pslot.intended_ts > 0, 1)) {
                         int64_t latency = static_cast<int64_t>(
                             ack_time - pslot.intended_ts);
                         if (latency > 0) {
-                            hdr_record_value(naive_hist, latency);
-                            hdr_record_corrected_value(co_hist, latency, interval_ns);
+                            hdr_record_value(result->naive_hist, latency);
+                            hdr_record_corrected_value(result->co_hist,
+                                                       latency, config.interval_ns);
                         }
-                        // Release pool slot — order lifecycle complete
                         if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
                         pslot = {0, 0, nullptr};
                     }
                     total_acked++;
-
                 } else if (rx_hdr->msg_type == MSG_FILL) {
                     auto* rx_fill = reinterpret_cast<Fill*>(
                         rx_buffer + offset + sizeof(FrameHeader));
                     total_fills++;
-                    // Full fill: remove from pending
                     if (rx_fill->leaves_qty == 0) {
                         size_t ps = rx_fill->order_seq & PENDING_MASK;
                         PendingSlot& pslot = pending[ps];
@@ -366,12 +327,10 @@ int main(int argc, char* argv[]) {
                             pslot = {0, 0, nullptr};
                         }
                     }
-
                 } else if (rx_hdr->msg_type == MSG_REJECT) {
                     auto* rx_rej = reinterpret_cast<Reject*>(
                         rx_buffer + offset + sizeof(FrameHeader));
                     total_rejects++;
-                    // Reject: always remove from pending
                     size_t ps = rx_rej->order_seq & PENDING_MASK;
                     PendingSlot& pslot = pending[ps];
                     if (pslot.seq == rx_rej->order_seq) {
@@ -379,11 +338,9 @@ int main(int argc, char* argv[]) {
                         pslot = {0, 0, nullptr};
                     }
                 }
-
                 offset += frame_size;
             }
 
-            // Preserve trailing partial bytes for next recv
             residual_bytes = total_bytes - offset;
             if (residual_bytes > 0 && offset > 0)
                 std::memmove(rx_buffer, rx_buffer + offset, residual_bytes);
@@ -391,7 +348,7 @@ int main(int argc, char* argv[]) {
     }
 
 end_run:
-    // ── Final drain: 500ms grace for in-flight acks ───────────────────────
+    // Drain remaining acks (500ms grace)
     {
         auto drain_start = std::chrono::steady_clock::now();
         while (std::chrono::steady_clock::now() - drain_start <
@@ -418,8 +375,9 @@ end_run:
                             int64_t latency = static_cast<int64_t>(
                                 ack_time - pslot.intended_ts);
                             if (latency > 0) {
-                                hdr_record_value(naive_hist, latency);
-                                hdr_record_corrected_value(co_hist, latency, interval_ns);
+                                hdr_record_value(result->naive_hist, latency);
+                                hdr_record_corrected_value(result->co_hist,
+                                                           latency, config.interval_ns);
                             }
                             if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
                             pslot = {0, 0, nullptr};
@@ -439,19 +397,123 @@ end_run:
         }
     }
 
-    // ── Results ───────────────────────────────────────────────────────────
-    std::cout << "\n[Bot] Run complete."
-              << " Total Sent: " << total_sent
-              << " | Total Acked: " << total_acked
-              << " | Total Fills: " << total_fills
-              << " | Total Rejects: " << total_rejects
-              << " | EAGAIN: " << send_failures
-              << " | PartialAborts: " << partial_send_aborts
-              << " | PendingCollisions: " << pending_collisions
-              << " | PoolExhausted: " << pool.exhausted_count << "\n\n";
+    // Copy local counters back into shared result
+    result->total_sent          = total_sent;
+    result->total_acked         = total_acked;
+    result->total_fills         = total_fills;
+    result->total_rejects       = total_rejects;
+    result->send_failures       = send_failures;
+    result->partial_send_aborts = partial_send_aborts;
+    result->pending_collisions  = pending_collisions;
+    result->pool_exhausted      = pool.exhausted_count;
+
+    close(sock);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// MAIN — parse args, spawn worker threads, merge histograms, print results
+// ══════════════════════════════════════════════════════════════════════════
+int main(int argc, char* argv[]) {
+    uint32_t num_bots        = 4;
+    int      start_core      = 1;       // skip core 0 (IRQ-heavy)
+    uint64_t interval_us     = 100;
+    uint64_t duration_sec    = 10;
+    std::string ip_addr      = "127.0.0.1";
+    uint16_t port            = 9000;
+
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if      (arg == "--bots"         && i + 1 < argc) num_bots     = std::stoul(argv[++i]);
+        else if (arg == "--start-core"   && i + 1 < argc) start_core   = std::stoi(argv[++i]);
+        else if (arg == "--interval-us"  && i + 1 < argc) interval_us  = std::stoull(argv[++i]);
+        else if (arg == "--duration-sec" && i + 1 < argc) duration_sec = std::stoull(argv[++i]);
+        else if (arg == "--ip"           && i + 1 < argc) ip_addr      = argv[++i];
+        else if (arg == "--port"         && i + 1 < argc) port         = static_cast<uint16_t>(std::stoi(argv[++i]));
+        else if (arg == "--no-pin")                       start_core   = -1;
+    }
+
+    const uint64_t interval_ns = interval_us * 1000;
+    const uint64_t duration_ns = duration_sec * 1000000000ULL;
+
+    hft::calibrate_tsc();
+    std::cout << "[Main] TSC calibrated.\n";
+    std::cout << "[Main] Launching " << num_bots << " bots, "
+              << "interval " << interval_us << "us, "
+              << "duration " << duration_sec << "s, "
+              << "target " << ip_addr << ":" << port << "\n";
+    if (start_core >= 0)
+        std::cout << "[Main] CPU pinning: cores " << start_core
+                  << " through " << (start_core + num_bots - 1) << "\n";
+    else
+        std::cout << "[Main] CPU pinning DISABLED\n";
+
+    // Spawn worker threads
+    std::vector<BotConfig> configs(num_bots);
+    std::vector<BotResult> results(num_bots);
+    std::vector<std::thread> threads;
+    threads.reserve(num_bots);
+
+    for (uint32_t i = 0; i < num_bots; i++) {
+        configs[i] = BotConfig{
+            .thread_id   = i,
+            .cpu_core    = (start_core >= 0) ? (start_core + static_cast<int>(i)) : -1,
+            .ip_addr     = ip_addr,
+            .port        = port,
+            .interval_ns = interval_ns,
+            .duration_ns = duration_ns,
+        };
+        threads.emplace_back(bot_worker, configs[i], &results[i]);
+    }
+
+    // Wait for all to finish
+    for (auto& t : threads) t.join();
+
+    // Merge per-thread histograms into unified aggregate
+    struct hdr_histogram* unified_naive = nullptr;
+    struct hdr_histogram* unified_co    = nullptr;
+    hdr_init(1, 30000000000LL, 3, &unified_naive);
+    hdr_init(1, 30000000000LL, 3, &unified_co);
+
+    uint64_t agg_sent         = 0;
+    uint64_t agg_acked        = 0;
+    uint64_t agg_fills        = 0;
+    uint64_t agg_rejects      = 0;
+    uint64_t agg_send_fail    = 0;
+    uint64_t agg_partial      = 0;
+    uint64_t agg_collisions   = 0;
+    uint64_t agg_pool_exhaust = 0;
+    uint32_t connected_count  = 0;
+
+    for (uint32_t i = 0; i < num_bots; i++) {
+        if (!results[i].connected) continue;
+        connected_count++;
+        if (results[i].naive_hist) hdr_add(unified_naive, results[i].naive_hist);
+        if (results[i].co_hist)    hdr_add(unified_co,    results[i].co_hist);
+        agg_sent         += results[i].total_sent;
+        agg_acked        += results[i].total_acked;
+        agg_fills        += results[i].total_fills;
+        agg_rejects      += results[i].total_rejects;
+        agg_send_fail    += results[i].send_failures;
+        agg_partial      += results[i].partial_send_aborts;
+        agg_collisions   += results[i].pending_collisions;
+        agg_pool_exhaust += results[i].pool_exhausted;
+    }
+
+    // Final report
+    std::cout << "\n[Main] All bots finished. Connected: "
+              << connected_count << "/" << num_bots << "\n";
+    std::cout << "[Main] Aggregate: Sent=" << agg_sent
+              << " Acked=" << agg_acked
+              << " Fills=" << agg_fills
+              << " Rejects=" << agg_rejects
+              << " EAGAIN=" << agg_send_fail
+              << " PartialAborts=" << agg_partial
+              << " Collisions=" << agg_collisions
+              << " PoolExhausted=" << agg_pool_exhaust << "\n\n";
 
     std::cout << "=================================================================\n";
-    std::cout << "        ROUND-TRIP LATENCY — Naive vs CO-Corrected (ns)          \n";
+    std::cout << " AGGREGATE ROUND-TRIP LATENCY — " << num_bots
+              << " bots — Naive vs CO-Corrected (ns)\n";
     std::cout << "=================================================================\n";
     std::cout << std::left  << std::setw(12) << "Percentile"
               << std::right << std::setw(18) << "Naive"
@@ -463,8 +525,8 @@ end_run:
     const char* names[]  = {"p50", "p90", "p99", "p99.9", "p99.99", "Max"};
 
     for (int i = 0; i < 6; i++) {
-        int64_t n_val = hdr_value_at_percentile(naive_hist, percentiles[i]);
-        int64_t c_val = hdr_value_at_percentile(co_hist,    percentiles[i]);
+        int64_t n_val = hdr_value_at_percentile(unified_naive, percentiles[i]);
+        int64_t c_val = hdr_value_at_percentile(unified_co,    percentiles[i]);
         double ratio  = (n_val > 0)
             ? static_cast<double>(c_val) / static_cast<double>(n_val) : 0.0;
         std::cout << std::left  << std::setw(12) << names[i]
@@ -474,14 +536,19 @@ end_run:
                   << ratio << "x\n";
     }
     std::cout << "=================================================================\n";
-    std::cout << "\nNaive sample count:  " << naive_hist->total_count << "\n";
-    std::cout << "CO-corrected count:  " << co_hist->total_count
+    std::cout << "\nNaive sample count:  " << unified_naive->total_count << "\n";
+    std::cout << "CO-corrected count:  " << unified_co->total_count
               << "  (backfilled "
-              << (co_hist->total_count - naive_hist->total_count)
+              << (unified_co->total_count - unified_naive->total_count)
               << " phantom samples)\n";
 
-    hdr_close(naive_hist);
-    hdr_close(co_hist);
-    close(sock);
+    // Cleanup
+    for (uint32_t i = 0; i < num_bots; i++) {
+        if (results[i].naive_hist) hdr_close(results[i].naive_hist);
+        if (results[i].co_hist)    hdr_close(results[i].co_hist);
+    }
+    hdr_close(unified_naive);
+    hdr_close(unified_co);
+
     return 0;
 }
