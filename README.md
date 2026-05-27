@@ -4,14 +4,7 @@
 
 The platform lets independent teams submit a C++ matching engine, runs it inside a sandbox, hammers it with a low-latency synthetic order flow, and ranks submissions by a composite of correctness, throughput, and tail latency.
 
-This repository contains three tracks:
-
-| Track | Owner | Subdirectory |
-|---|---|---|
-| **A — Low-latency C++ bot fleet** | Mohit | `bot-engine/` |
-| **B — Sandbox & orchestration** | Aftab | `sandbox/` |
-| **C — Realtime leaderboard & analytics** | Manish | (frontend repo) |
-| **Shared — wire contract** | All | `contracts/` |
+The platform has three pieces: a low-latency C++ bot fleet that generates load, a sandbox that runs contestant matching engines under controlled isolation, and a realtime leaderboard that ranks submissions by composite score. The shared wire contract is in `contracts/`.
 
 ---
 
@@ -100,7 +93,7 @@ cd ..
 ./test/integration_test.sh
 ```
 
-For Track-B sandbox integration (Aftab) or Track-C leaderboard integration (Manish), see the contract documentation in `contracts/INTERFACE_CONTRACT.md`.
+For sandbox integration or leaderboard integration, see the contract documentation in `contracts/INTERFACE_CONTRACT.md`.
 
 ---
 
@@ -122,7 +115,7 @@ Some optimizations from the research documents would not have improved this subm
 - **SIMD AVX2 batch ingester** — payoff begins at 1M+ msg/sec receive. Current per-bot rate is 10k/sec. Skipped.
 - **AF_XDP kernel bypass** — needed for sub-µs receive. Current p99 already at 84 µs on TCP + `SO_BUSY_POLL`. Skipped.
 - **Aeron / Chronicle transport** — our topology is N bots → 1 engine TCP fan-in, not 1 publisher → many subscribers. Skipped.
-- **Firecracker microVM sandbox** — Docker provides sufficient isolation for the hackathon judge environment. Track B keeps Docker as the primary path.
+- **Firecracker microVM sandbox** — Docker provides sufficient isolation for the hackathon judge environment. The sandbox keeps Docker as the primary path.
 
 These are documented as deliberate engineering judgment, not gaps.
 
@@ -130,4 +123,4 @@ These are documented as deliberate engineering judgment, not gaps.
 
 ## License & contributors
 
-Hackathon submission, IICPC 2026. Team:Aftab , Mohit, Manish .
+Hackathon submission, IICPC 2026.
