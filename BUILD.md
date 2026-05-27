@@ -83,7 +83,7 @@ Not supported. The bot uses POSIX sockets, `pthread_setaffinity_np`, and `SO_BUS
 ## Building from a fresh checkout
 
 ```bash
-git clone https://github.com/mohitt31/iicpc-hackathon-2026.git
+git clone https://github.com/repo/iicpc-hackathon-2026.git
 cd iicpc-hackathon-2026/bot-engine
 mkdir -p build
 cd build
@@ -96,7 +96,7 @@ After `make -j` the following binaries should be in `build/`:
 
 | Binary | What it does |
 |---|---|
-| `bot` | The load generator (Role A main deliverable) |
+| `bot` | The load generator (main deliverable) |
 | `null_responder` | Multi-connection TCP server that acks everything |
 | `refengine` | Reference matching engine + `diff` subcommand |
 | `buggy_engine` | Reference engine + planted price-time priority bug (demo) |

@@ -13,7 +13,7 @@
 //
 // Build (from bot-engine/):
 //   mkdir -p build
-//   g++ -std=c++20 -O2 -Wall -Wextra -I.. src/reference_engine.cpp -o build/refengine
+//   Built via CMakeLists.txt (cmake .. && make -j refengine)
 
 #include "contracts/interface_contract_v1.h"
 
@@ -36,7 +36,6 @@ struct RestingOrder {
 
 struct PriceLevel {
     std::list<RestingOrder> orders;
-    uint64_t total_qty = 0;   // kept for future depth-snapshot debugging
 };
 
 // OrderBook — one instance per contestant submission per symbol.
@@ -186,7 +185,6 @@ void OrderBook::match_aggressive(uint8_t taker_side, int64_t limit_price_ticks,
 
             // Apply the trade
             it->leaves_qty -= trade_qty;
-            lvl.total_qty  -= trade_qty;
             leaves_qty     -= trade_qty;
 
             // Emit TWO Fills per execution event. Maker Fill first
@@ -242,7 +240,6 @@ void OrderBook::rest_order(const NewOrder& o, uint64_t leaves_qty,
 
     PriceLevel& lvl = levels_[idx];
     lvl.orders.push_back(RestingOrder{o.seq, leaves_qty, o.side});
-    lvl.total_qty += leaves_qty;
     auto it = std::prev(lvl.orders.end());
     by_id_[o.seq] = {idx, it};
 
@@ -291,7 +288,6 @@ void OrderBook::on_cancel(const CancelOrder& c, std::ostream& out) {
     auto    list_it   = it->second.second;
     PriceLevel& lvl   = levels_[price_idx];
 
-    lvl.total_qty -= list_it->leaves_qty;
     lvl.orders.erase(list_it);
     by_id_.erase(it);
 
