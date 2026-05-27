@@ -1,14 +1,11 @@
 // bot.cpp — Open-loop latency benchmarking client
 // Demonstrates Coordinated Omission detection and correction.
 //
-// The critical invariant: latency is measured against INTENDED send time,
-// not actual send time. When the bot falls behind schedule (because TCP
-// backpressure blocked send(), or for any other reason), the intended
-// time keeps advancing at the configured interval. This means a stall
-// that delays 50 orders by 5ms records 50 latencies of ~5ms, not 50
-// latencies of ~15µs measured from the post-stall burst.
-//
-// This is the structural fix for Coordinated Omission.
+// Key invariants:
+//   1. OPEN-LOOP: bot fires on wall-clock schedule regardless of responses
+//   2. CO-CORRECTED: latency measured against INTENDED send time, not actual
+//   3. ZERO-MALLOC on hot path: memory pool pre-allocated at startup
+//   4. DETERMINISTIC ORDER GENERATION: xorshift64 with fixed seed
 
 #include <iostream>
 #include <iomanip>
@@ -24,8 +21,8 @@
 #include <string>
 #include <stdexcept>
 #include <vector>
-#include <cassert>
-#include <array>
+#include <chrono>
+#include <atomic>
 
 #include "contracts/interface_contract_v1.h"
 #include "tsc_util.h"
@@ -37,116 +34,132 @@ using std::hardware_destructive_interference_size;
 constexpr std::size_t hardware_destructive_interference_size = 64;
 #endif
 
-static void set_non_blocking(int fd) {
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1) throw std::runtime_error("fcntl F_GETFL failed");
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-        throw std::runtime_error("fcntl F_SETFL failed");
-    }
+// ── xorshift64 RNG ────────────────────────────────────────────────────────
+// Why xorshift64 and not std::mt19937?
+// std::mt19937 has ~2KB state and 624-element init table — too slow for
+// a hot loop that generates one order per 100μs. xorshift64 is 3 XOR-shift
+// ops, 1 uint64_t of state, sub-nanosecond per call.
+static inline uint64_t xorshift64(uint64_t& state) {
+    state ^= state << 13;
+    state ^= state >> 7;
+    state ^= state << 17;
+    return state;
 }
 
-// ── NewOrder Memory Pool ──────────────────────────────────────────────────
-// Pre-allocates 1024 NewOrder slots, 64-byte aligned.
-// acquire() pops from a free-stack — O(1), zero malloc on the hot path.
-// release(slot) pushes back onto the free-stack — O(1).
-// pool_exhausted is incremented when acquire() is called on an empty pool;
-// the caller must handle this gracefully (treat as EAGAIN / skip send).
-// The pool is NOT thread-safe — bot is single-threaded so no locks needed.
+// ── Memory Pool ───────────────────────────────────────────────────────────
+// Pre-allocates N NewOrder slots at startup. acquire()/release() are O(1)
+// and zero-malloc — a free-list index stack. All slots are 64-byte aligned
+// to avoid false sharing when multiple bots share a pool.
+//
+// Why a pool instead of a static tx_buffer?
+// Single-bot: the pool is equivalent. Multi-bot (Day 7): each bot thread
+// acquires its own slot, fills it, sends it, and releases on ack. No locks
+// needed if each thread has its own pool instance.
 struct OrderPool {
-    static constexpr size_t CAPACITY = 1024;
+    static constexpr size_t POOL_SIZE = 1024; // 1024 * 40B = 40KB — fits in L1
 
-    // 64-byte-aligned storage: each slot lands on its own cache line
-    // so that writing one NewOrder doesn't dirty adjacent slots.
-    alignas(64) std::array<NewOrder, CAPACITY> slots;
+    // Each slot is 64-byte aligned to avoid cache-line sharing across bots
+    alignas(64) NewOrder slots[POOL_SIZE];
 
-    // Stack of free indices. Starts fully loaded [CAPACITY-1 .. 0].
-    std::array<uint16_t, CAPACITY> free_stack;
-    int                            top = -1;   // index of top free entry
-
-    uint64_t pool_exhausted = 0;  // incremented on empty-pool acquire()
+    // Free-list: stack of available slot indices.
+    // Using a simple array-backed stack — O(1) push/pop, zero allocation.
+    uint16_t free_stack[POOL_SIZE];
+    uint16_t free_top = 0;          // points to next available entry
+    uint64_t exhausted_count = 0;   // how many times we had no free slots
 
     OrderPool() {
-        // Push all indices onto the free-stack so slot 0 is acquired first.
-        for (size_t i = 0; i < CAPACITY; ++i) {
-            free_stack[++top] = static_cast<uint16_t>(i);
+        // Initialize free-list with all slots available
+        for (uint16_t i = 0; i < POOL_SIZE; i++) {
+            free_stack[i] = i;
         }
+        free_top = POOL_SIZE;
     }
 
-    // Returns pointer to a free NewOrder slot, or nullptr if pool is empty.
-    NewOrder* acquire() {
-        if (__builtin_expect(top < 0, 0)) {
-            ++pool_exhausted;
-            return nullptr;
+    // acquire() — get a free slot. Returns nullptr if pool exhausted.
+    // Caller fills the slot and sends it. Must call release() when done.
+    inline NewOrder* acquire() {
+        if (__builtin_expect(free_top == 0, 0)) {
+            exhausted_count++;
+            return nullptr; // pool exhausted — caller must handle
         }
-        return &slots[free_stack[top--]];
+        return &slots[free_stack[--free_top]];
     }
 
-    // Returns slot to the pool. Pointer must have come from acquire().
-    void release(NewOrder* p) {
-        uint16_t idx = static_cast<uint16_t>(p - slots.data());
-        free_stack[++top] = idx;
+    // release() — return slot back to pool after ack/reject received.
+    // No bounds check — caller must pass a pointer from this pool.
+    inline void release(NewOrder* ptr) {
+        uint16_t idx = static_cast<uint16_t>(ptr - slots);
+        free_stack[free_top++] = idx;
     }
 };
 
+static void set_non_blocking(int fd) {
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1) throw std::runtime_error("fcntl F_GETFL failed");
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+        throw std::runtime_error("fcntl F_SETFL failed");
+}
+
 int main(int argc, char* argv[]) {
-    uint64_t interval_us = 100;
+    uint64_t interval_us  = 100;
     uint64_t duration_sec = 10;
-    std::string ip_addr = "127.0.0.1";
-    uint16_t port = 9000;
+    std::string ip_addr   = "127.0.0.1";
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
-        if (arg == "--interval-us" && i + 1 < argc) {
+        if (arg == "--interval-us" && i + 1 < argc)
             interval_us = std::stoull(argv[++i]);
-        } else if (arg == "--duration-sec" && i + 1 < argc) {
+        else if (arg == "--duration-sec" && i + 1 < argc)
             duration_sec = std::stoull(argv[++i]);
-        } else if (arg == "--ip" && i + 1 < argc) {
+        else if (arg == "--ip" && i + 1 < argc)
             ip_addr = argv[++i];
-        } else if (arg == "--port" && i + 1 < argc) {
-            port = static_cast<uint16_t>(std::stoul(argv[++i]));
-        }
     }
 
-    const uint64_t interval_ns = interval_us * 1000;
+    const uint64_t interval_ns       = interval_us * 1000;
     const uint64_t total_duration_ns = duration_sec * 1000000000ULL;
 
     hft::calibrate_tsc();
     std::cout << "[Bot] TSC calibrated.\n";
-    std::cout << "[Bot] Interval: " << interval_us << " us, Duration: " << duration_sec << " s\n";
+    std::cout << "[Bot] Interval: " << interval_us << " us, Duration: "
+              << duration_sec << " s\n";
 
-    // ── HdrHistograms ──────────────────────────────────────────────
-    // Track 1 ns up to 30 seconds with 3 significant figures.
+    // ── Memory Pool (startup allocation, zero-malloc after this) ─────────
+    OrderPool pool;
+    std::cout << "[Bot] Order pool initialized: " << OrderPool::POOL_SIZE
+              << " slots, " << (OrderPool::POOL_SIZE * sizeof(NewOrder))
+              << " bytes\n";
+
+    // ── xorshift64 RNG — deterministic, seed=42 ──────────────────────────
+    // Why seed=42? Reproducibility — same seed = same order sequence every
+    // run, so latency differences between runs are from the system, not RNG.
+    uint64_t rng_state = 42;
+
+    // ── HDR histograms ────────────────────────────────────────────────────
     struct hdr_histogram* naive_hist = nullptr;
-    struct hdr_histogram* co_hist = nullptr;
+    struct hdr_histogram* co_hist    = nullptr;
     hdr_init(1, 30000000000LL, 3, &naive_hist);
     hdr_init(1, 30000000000LL, 3, &co_hist);
 
-    // ── Socket setup ───────────────────────────────────────────────
+    // ── Socket setup ──────────────────────────────────────────────────────
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) { std::cerr << "socket() failed\n"; return 1; }
 
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
-    if (inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr) <= 0) {
-        std::cerr << "Invalid address: " << ip_addr << "\n";
-        return 1;
-    }
+    serv_addr.sin_port   = htons(9000);
+    inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr);
 
-    std::cout << "[Bot] Connecting to " << ip_addr << ":" << port << "...\n";
-
+    std::cout << "[Bot] Connecting to " << ip_addr << ":9000...\n";
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-        std::cerr << "connect() failed. Make sure null_responder is running.\n";
+        std::cerr << "connect() failed. Make sure engine is running.\n";
         return 1;
     }
 
     int opt = 1;
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
 
-    // FIX #3: Shrink SO_SNDBUF so the kernel can't silently absorb
-    // thousands of orders during a responder stall. With a 4KB buffer,
-    // backpressure becomes visible after ~90 orders (44B each), which
-    // forces send() to block or return EAGAIN much sooner.
+    // Shrink SO_SNDBUF so kernel can't absorb thousands of orders during
+    // a stall — makes backpressure visible, which is required for CO proof.
     int sndbuf_size = 4096;
     setsockopt(sock, SOL_SOCKET, SO_SNDBUF, &sndbuf_size, sizeof(sndbuf_size));
 
@@ -155,284 +168,292 @@ int main(int argc, char* argv[]) {
     std::cout << "[Bot] Connected. Starting open-loop tight-poll.\n";
     std::cout << "[Bot] SO_SNDBUF pinned to " << sndbuf_size << " bytes.\n";
 
-    // ── Pending map ────────────────────────────────────────────────
-    // Stores the INTENDED send time for each seq number.
-    // FIX #4: Power-of-2 size with collision detection.
-    constexpr size_t PENDING_SLOTS = 1 << 20; // 1,048,576
+    // ── Pending map: seq → {intended_ts, pool_slot_ptr} ──────────────────
+    // Power-of-2 size for fast modulo via bitmask.
+    constexpr size_t PENDING_SLOTS = 1 << 20;
     constexpr size_t PENDING_MASK  = PENDING_SLOTS - 1;
-    // Each slot: [intended_send_ts, seq_that_wrote_it]
     struct PendingSlot {
-        uint64_t intended_ts;
-        uint64_t seq;
+        uint64_t  intended_ts;
+        uint64_t  seq;
+        NewOrder* pool_ptr;    // non-null → release back to pool on ack
     };
-    std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0});
+    std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0, nullptr});
 
-    // ── Memory pool (zero-alloc on hot path) ──────────────────────
-    OrderPool pool;
+    // ── TX wire buffer (FrameHeader + NewOrder, pre-populated header) ─────
+    constexpr size_t TX_FRAME_SIZE = sizeof(FrameHeader) + sizeof(NewOrder);
+    alignas(hardware_destructive_interference_size) uint8_t tx_buffer[TX_FRAME_SIZE];
+    auto* tx_hdr      = reinterpret_cast<FrameHeader*>(tx_buffer);
+    tx_hdr->msg_type  = MSG_NEWORDER;
+    tx_hdr->_pad      = 0;
+    tx_hdr->msg_len   = sizeof(NewOrder);
+    // NewOrder pointer inside the wire buffer — filled per-send from pool slot
+    auto* tx_order    = reinterpret_cast<NewOrder*>(tx_buffer + sizeof(FrameHeader));
 
-    // ── TX buffer (header pre-populated once, payload via pool) ────
-    alignas(hardware_destructive_interference_size)
-        uint8_t tx_buffer[sizeof(FrameHeader) + sizeof(NewOrder)];
-    auto* tx_hdr   = reinterpret_cast<FrameHeader*>(tx_buffer);
-    tx_hdr->msg_type = MSG_NEWORDER;
-    tx_hdr->msg_len  = sizeof(NewOrder);
+    // ── RX buffer with residual handling ──────────────────────────────────
+    constexpr size_t RX_BUFFER_SIZE = 65536;
+    alignas(hardware_destructive_interference_size) uint8_t rx_buffer[RX_BUFFER_SIZE];
+    size_t residual_bytes = 0;
 
-    // rx_buffer holds fresh recv() bytes; residual_buf holds the trailing
-    // partial message from the previous recv() that couldn't be parsed yet.
-    alignas(hardware_destructive_interference_size) uint8_t rx_buffer[8192];
-    // BUG 2 FIX: residual buffer — max one partial message can be leftover.
-    // Sized for the largest response: Fill = 60B on wire.
-    constexpr size_t MSG_MAX = sizeof(FrameHeader) + sizeof(Fill);
-    uint8_t residual_buf[MSG_MAX];
-    size_t  residual_len = 0;  // bytes currently sitting in residual_buf
+    // ── Counters ──────────────────────────────────────────────────────────
+    uint64_t total_sent           = 0;
+    uint64_t total_acked          = 0;
+    uint64_t total_fills          = 0;
+    uint64_t total_rejects        = 0;
+    uint64_t send_failures        = 0;
+    uint64_t partial_send_aborts  = 0;
+    uint64_t pending_collisions   = 0;
+    // side alternates BUY/SELL deterministically (no RNG needed)
+    uint8_t  next_side            = SIDE_BUY;
 
-    // ── Counters ──────────────────────────────────────────────────
-    uint64_t total_sent    = 0;
-    uint64_t total_acked   = 0;
-    uint64_t total_fills   = 0;
-    uint64_t total_rejects = 0;
-    uint64_t send_failures = 0;
-    // pool_exhausted is tracked inside pool itself (pool.pool_exhausted)
+    const uint64_t start_time   = hft::rdtscp_ns();
+    uint64_t next_send_time     = start_time;
+    uint64_t last_report_time   = start_time;
+    const uint64_t end_time     = start_time + total_duration_ns;
+    uint64_t sent_since_report  = 0;
 
-    const uint64_t start_time = hft::rdtscp_ns();
-    uint64_t next_send_time   = start_time;
-    uint64_t last_report_time = start_time;
-    const uint64_t end_time   = start_time + total_duration_ns;
-
-    uint64_t sent_since_last_report = 0;
-
-    // ── Main loop ─────────────────────────────────────────────────
+    // ── MAIN LOOP ─────────────────────────────────────────────────────────
     while (true) {
         uint64_t now = hft::rdtscp_ns();
-
         if (__builtin_expect(now >= end_time, 0)) break;
 
-        // ── Periodic report (every 1s) ────────────────────────────
+        // ── Periodic report (every 1s) ────────────────────────────────────
         if (__builtin_expect(now - last_report_time >= 1000000000ULL, 0)) {
             std::cout << "[Report] Sent: " << total_sent
                       << " | Acked: " << total_acked
                       << " | Fills: " << total_fills
                       << " | Rejects: " << total_rejects
-                      << " | Rate: " << sent_since_last_report << " msgs/sec"
+                      << " | Rate: " << sent_since_report << " msgs/sec"
                       << " | SendFail: " << send_failures << "\n";
-            sent_since_last_report = 0;
+            sent_since_report = 0;
             last_report_time += 1000000000ULL;
         }
 
-        // ── Send path: CATCH-UP LOOP ──────────────────────────────
-        // FIX #1 + #2: This is the structural CO fix.
-        //
-        // When the bot falls behind schedule (because send() returned
-        // EAGAIN, or the loop was slow), it fires multiple orders
-        // back-to-back to catch up to wall-clock. Each order records
-        // its INTENDED send time (the slot it was supposed to fill),
-        // NOT the actual wall-clock time of the send() call.
-        //
-        // This means: if the responder stalled 5ms and the bot is
-        // now 50 intervals behind, we send 50 orders in a burst,
-        // each tagged with the time they *should* have been sent.
-        // When the acks come back, latency = ack_time - intended_time,
-        // which correctly captures the full 5ms of delay.
+        // ── SEND PATH (catch-up loop) ─────────────────────────────────────
+        // Structural CO fix: fire all "overdue" slots in a burst, each
+        // tagged with its INTENDED time (not wall-clock time of actual send).
         while (__builtin_expect(now >= next_send_time, 0)) {
-            // Acquire a slot from the pool (O(1), zero malloc).
-            // If pool is exhausted (1024 orders in-flight simultaneously),
-            // skip this slot and try again next iteration — same as EAGAIN.
-            NewOrder* tx_order = pool.acquire();
-            if (__builtin_expect(tx_order == nullptr, 0)) {
-                break;  // pool exhausted; pool.pool_exhausted already incremented
+            // Acquire pool slot — zero malloc
+            NewOrder* slot = pool.acquire();
+            if (__builtin_expect(slot == nullptr, 0)) {
+                // Pool exhausted — too many in-flight orders.
+                // Skip this interval slot, advance schedule.
+                // This is preferable to a malloc: if pool is full we're
+                // already overloaded — adding more would make it worse.
+                next_send_time += interval_ns;
+                continue;
             }
 
-            uint64_t this_seq = total_sent + 1;   // tentative, don't commit yet
+            uint64_t this_seq = total_sent + 1;
 
-            tx_order->seq        = this_seq;
-            tx_order->timestamp_ns = next_send_time; // intended, not actual
-            tx_order->symbol_id  = 1;
-            tx_order->order_type = ORDER_LIMIT;
-            tx_order->side       = SIDE_BUY;
-            tx_order->price      = 15050;
-            tx_order->quantity   = 100;
+            // ── Realistic order generation (xorshift64, seed=42) ──────────
+            // Why varied orders? Real exchange testing requires diverse
+            // price/qty/side to trigger actual matching, not just acks.
 
-            // Copy pool slot into tx_buffer (header already set). The pool
-            // slot is then immediately releasable — send() reads tx_buffer.
-            std::memcpy(tx_buffer + sizeof(FrameHeader), tx_order, sizeof(NewOrder));
-            pool.release(tx_order);
+            // price: uniform in [99, 101] ticks — narrow spread around par
+            int64_t price = static_cast<int64_t>(99 + (xorshift64(rng_state) % 3));
 
-            ssize_t sent = send(sock, tx_buffer, sizeof(tx_buffer), MSG_DONTWAIT);
-            // BUG 1 FIX: treat partial send (0 < sent < full size) same as EAGAIN.
-            // TCP may write fewer bytes than requested when SNDBUF is small.
-            // A partial write = garbled NewOrder on the wire = wrong ack or reject.
-            // Don't commit; the wire never saw a complete message.
-            if (__builtin_expect(sent != static_cast<ssize_t>(sizeof(tx_buffer)), 0)) {
-                send_failures++;
-                break;  // retry next outer iteration; schedule NOT advanced
+            // qty: uniform in [1, 5]
+            uint64_t qty = 1 + (xorshift64(rng_state) % 5);
+
+            // order_type: LIMIT 95%, MARKET 5%
+            // Why 95/5? Matches real market microstructure — most orders
+            // are limit orders; market orders consume liquidity aggressively.
+            bool is_market = (xorshift64(rng_state) % 20 == 0); // 1/20 = 5%
+
+            // side: strictly alternating BUY/SELL — ensures balanced book
+            // and avoids one-sided liquidity starvation in the reference engine
+            uint8_t side = next_side;
+            next_side = (next_side == SIDE_BUY) ? SIDE_SELL : SIDE_BUY;
+
+            // Fill the pool slot
+            slot->seq          = this_seq;
+            slot->timestamp_ns = next_send_time; // INTENDED time, not actual
+            slot->symbol_id    = 1;
+            slot->order_type   = is_market ? ORDER_MARKET : ORDER_LIMIT;
+            slot->side         = side;
+            slot->price        = is_market ? 0 : price; // MARKET must be 0
+            slot->quantity     = qty;
+
+            // Copy pool slot into wire buffer (28 bytes of variable fields)
+            // FrameHeader already pre-populated (msg_type=1, msg_len=40)
+            std::memcpy(tx_order, slot, sizeof(NewOrder));
+
+            ssize_t sent = send(sock, tx_buffer, TX_FRAME_SIZE, MSG_DONTWAIT);
+
+            if (__builtin_expect(sent < 0, 0)) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    send_failures++;
+                    pool.release(slot); // return slot, order never sent
+                    break;
+                }
+                pool.release(slot);
+                break;
             }
 
-            // Full message reached the wire. Now commit everything.
-            size_t slot = this_seq & PENDING_MASK;
-            assert((pending[slot].seq == 0) ||
-                   ((this_seq - pending[slot].seq) > (PENDING_SLOTS / 2)));
-            pending[slot] = {next_send_time, this_seq};
+            // Partial send — wire now corrupt, abort run
+            if (__builtin_expect(static_cast<size_t>(sent) != TX_FRAME_SIZE, 0)) {
+                std::cerr << "[Bot] FATAL: partial send (" << sent
+                          << "/" << TX_FRAME_SIZE << " bytes). Aborting.\n";
+                partial_send_aborts++;
+                pool.release(slot);
+                goto end_run;
+            }
+
+            // Commit: store slot pointer in pending map for release on ack
+            size_t map_slot = this_seq & PENDING_MASK;
+            if (__builtin_expect(pending[map_slot].seq != 0, 0)) {
+                uint64_t age = this_seq - pending[map_slot].seq;
+                if (age <= PENDING_SLOTS / 2) pending_collisions++;
+                // Release old slot if still occupied (shouldn't happen normally)
+                if (pending[map_slot].pool_ptr)
+                    pool.release(pending[map_slot].pool_ptr);
+            }
+            pending[map_slot] = {next_send_time, this_seq, slot};
             total_sent = this_seq;
 
-            sent_since_last_report++;
+            sent_since_report++;
             next_send_time += interval_ns;
         }
 
-        // ── Receive path ──────────────────────────────────────────
-        // BUG 2 FIX: prepend any leftover bytes from the previous recv()
-        // so a message split across two recv() calls is reassembled.
-        size_t recv_offset = residual_len;
-        if (residual_len > 0) {
-            std::memcpy(rx_buffer, residual_buf, residual_len);
-        }
-        ssize_t fresh = recv(sock, rx_buffer + recv_offset,
-                             sizeof(rx_buffer) - recv_offset, MSG_DONTWAIT);
-        if (__builtin_expect(fresh > 0, 1)) {
-            size_t bytes_available = recv_offset + static_cast<size_t>(fresh);
+        // ── RECEIVE PATH (with residual buffer) ───────────────────────────
+        ssize_t bytes_read = recv(sock,
+                                  rx_buffer + residual_bytes,
+                                  RX_BUFFER_SIZE - residual_bytes,
+                                  MSG_DONTWAIT);
+
+        if (__builtin_expect(bytes_read > 0, 1)) {
+            size_t total_bytes = residual_bytes + static_cast<size_t>(bytes_read);
             size_t offset = 0;
-            // Parse variable-size responses: read FrameHeader first, then
-            // dispatch based on msg_type. Real engine sends OrderAck, Fill,
-            // AND Reject — not just acks like null_responder.
-            while (offset + sizeof(FrameHeader) <= bytes_available) {
+
+            while (offset + sizeof(FrameHeader) <= total_bytes) {
                 auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
                 size_t frame_size = sizeof(FrameHeader) + rx_hdr->msg_len;
-                if (offset + frame_size > bytes_available) break; // incomplete
+                if (offset + frame_size > total_bytes) break;
 
-                uint64_t resp_time = hft::rdtscp_ns();
+                uint64_t ack_time = hft::rdtscp_ns();
 
-                switch (rx_hdr->msg_type) {
-                    case MSG_ORDERACK: {
-                        auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
-                        // Record latency on OrderAck (first response for this order)
-                        size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
-                        PendingSlot& ps = pending[ack_slot];
-                        if (__builtin_expect(ps.seq == rx_ack->order_seq && ps.intended_ts > 0, 1)) {
-                            int64_t latency = static_cast<int64_t>(resp_time - ps.intended_ts);
-                            if (__builtin_expect(latency > 0, 1)) {
-                                hdr_record_value(naive_hist, latency);
-                                hdr_record_corrected_value(co_hist, latency, interval_ns);
-                            }
-                            // Don't clear yet — wait for terminal event (fill done / reject)
+                if (rx_hdr->msg_type == MSG_ORDERACK) {
+                    auto* rx_ack = reinterpret_cast<OrderAck*>(
+                        rx_buffer + offset + sizeof(FrameHeader));
+
+                    size_t ps = rx_ack->order_seq & PENDING_MASK;
+                    PendingSlot& pslot = pending[ps];
+
+                    if (__builtin_expect(pslot.seq == rx_ack->order_seq &&
+                                        pslot.intended_ts > 0, 1)) {
+                        int64_t latency = static_cast<int64_t>(
+                            ack_time - pslot.intended_ts);
+                        if (latency > 0) {
+                            hdr_record_value(naive_hist, latency);
+                            hdr_record_corrected_value(co_hist, latency, interval_ns);
                         }
-                        total_acked++;
-                        break;
+                        // Release pool slot — order lifecycle complete
+                        if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
+                        pslot = {0, 0, nullptr};
                     }
-                    case MSG_FILL: {
-                        auto* rx_fill = reinterpret_cast<Fill*>(rx_buffer + offset + sizeof(FrameHeader));
-                        total_fills++;
-                        // Remove from pending when fully filled
-                        if (rx_fill->leaves_qty == 0) {
-                            size_t slot = rx_fill->order_seq & PENDING_MASK;
-                            PendingSlot& ps = pending[slot];
-                            if (ps.seq == rx_fill->order_seq) {
-                                ps = {0, 0};
-                            }
+                    total_acked++;
+
+                } else if (rx_hdr->msg_type == MSG_FILL) {
+                    auto* rx_fill = reinterpret_cast<Fill*>(
+                        rx_buffer + offset + sizeof(FrameHeader));
+                    total_fills++;
+                    // Full fill: remove from pending
+                    if (rx_fill->leaves_qty == 0) {
+                        size_t ps = rx_fill->order_seq & PENDING_MASK;
+                        PendingSlot& pslot = pending[ps];
+                        if (pslot.seq == rx_fill->order_seq) {
+                            if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
+                            pslot = {0, 0, nullptr};
                         }
-                        break;
                     }
-                    case MSG_REJECT: {
-                        auto* rx_rej = reinterpret_cast<Reject*>(rx_buffer + offset + sizeof(FrameHeader));
-                        total_rejects++;
-                        // Remove from pending on any reject
-                        size_t slot = rx_rej->order_seq & PENDING_MASK;
-                        PendingSlot& ps = pending[slot];
-                        if (ps.seq == rx_rej->order_seq) {
-                            ps = {0, 0};
-                        }
-                        break;
+
+                } else if (rx_hdr->msg_type == MSG_REJECT) {
+                    auto* rx_rej = reinterpret_cast<Reject*>(
+                        rx_buffer + offset + sizeof(FrameHeader));
+                    total_rejects++;
+                    // Reject: always remove from pending
+                    size_t ps = rx_rej->order_seq & PENDING_MASK;
+                    PendingSlot& pslot = pending[ps];
+                    if (pslot.seq == rx_rej->order_seq) {
+                        if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
+                        pslot = {0, 0, nullptr};
                     }
-                    default: break;
                 }
+
                 offset += frame_size;
             }
 
-            // Save any trailing partial message for the next iteration.
-            residual_len = bytes_available - offset;
-            if (residual_len > 0) {
-                std::memcpy(residual_buf, rx_buffer + offset, residual_len);
-            }
-        } else {
-            // Nothing new from recv() — residual stays as-is for next iter.
-            // (If fresh == 0 the connection closed; if < 0 it's EAGAIN.)
+            // Preserve trailing partial bytes for next recv
+            residual_bytes = total_bytes - offset;
+            if (residual_bytes > 0 && offset > 0)
+                std::memmove(rx_buffer, rx_buffer + offset, residual_bytes);
         }
     }
 
-    // ── Final drain: give responder 500ms to flush remaining acks ──
-    // Uses the same residual-buffer logic so split messages at drain
-    // boundary are also handled correctly.
+end_run:
+    // ── Final drain: 500ms grace for in-flight acks ───────────────────────
     {
         auto drain_start = std::chrono::steady_clock::now();
-        while (std::chrono::steady_clock::now() - drain_start < std::chrono::milliseconds(500)) {
-            size_t d_offset = residual_len;
-            if (residual_len > 0) std::memcpy(rx_buffer, residual_buf, residual_len);
+        while (std::chrono::steady_clock::now() - drain_start <
+               std::chrono::milliseconds(500)) {
+            ssize_t bytes_read = recv(sock,
+                                      rx_buffer + residual_bytes,
+                                      RX_BUFFER_SIZE - residual_bytes,
+                                      MSG_DONTWAIT);
+            if (bytes_read > 0) {
+                size_t total_bytes = residual_bytes + static_cast<size_t>(bytes_read);
+                size_t offset = 0;
+                while (offset + sizeof(FrameHeader) <= total_bytes) {
+                    auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
+                    size_t frame_size = sizeof(FrameHeader) + rx_hdr->msg_len;
+                    if (offset + frame_size > total_bytes) break;
+                    uint64_t ack_time = hft::rdtscp_ns();
 
-            ssize_t fresh = recv(sock, rx_buffer + d_offset,
-                                 sizeof(rx_buffer) - d_offset, MSG_DONTWAIT);
-            if (fresh <= 0) continue;
-
-            size_t avail = d_offset + static_cast<size_t>(fresh);
-            size_t offset = 0;
-            while (offset + sizeof(FrameHeader) <= avail) {
-                auto* rx_hdr = reinterpret_cast<FrameHeader*>(rx_buffer + offset);
-                size_t frame_size = sizeof(FrameHeader) + rx_hdr->msg_len;
-                if (offset + frame_size > avail) break;
-
-                uint64_t resp_time = hft::rdtscp_ns();
-
-                switch (rx_hdr->msg_type) {
-                    case MSG_ORDERACK: {
-                        auto* rx_ack = reinterpret_cast<OrderAck*>(rx_buffer + offset + sizeof(FrameHeader));
-                        size_t ack_slot = rx_ack->order_seq & PENDING_MASK;
-                        PendingSlot& ps = pending[ack_slot];
-                        if (ps.seq == rx_ack->order_seq && ps.intended_ts > 0) {
-                            int64_t latency = static_cast<int64_t>(resp_time - ps.intended_ts);
+                    if (rx_hdr->msg_type == MSG_ORDERACK) {
+                        auto* rx_ack = reinterpret_cast<OrderAck*>(
+                            rx_buffer + offset + sizeof(FrameHeader));
+                        size_t ps = rx_ack->order_seq & PENDING_MASK;
+                        PendingSlot& pslot = pending[ps];
+                        if (pslot.seq == rx_ack->order_seq && pslot.intended_ts > 0) {
+                            int64_t latency = static_cast<int64_t>(
+                                ack_time - pslot.intended_ts);
                             if (latency > 0) {
                                 hdr_record_value(naive_hist, latency);
                                 hdr_record_corrected_value(co_hist, latency, interval_ns);
                             }
+                            if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
+                            pslot = {0, 0, nullptr};
                         }
                         total_acked++;
-                        break;
-                    }
-                    case MSG_FILL: {
-                        auto* rx_fill = reinterpret_cast<Fill*>(rx_buffer + offset + sizeof(FrameHeader));
+                    } else if (rx_hdr->msg_type == MSG_FILL) {
                         total_fills++;
-                        if (rx_fill->leaves_qty == 0) {
-                            size_t slot = rx_fill->order_seq & PENDING_MASK;
-                            PendingSlot& ps = pending[slot];
-                            if (ps.seq == rx_fill->order_seq) ps = {0, 0};
-                        }
-                        break;
-                    }
-                    case MSG_REJECT: {
-                        auto* rx_rej = reinterpret_cast<Reject*>(rx_buffer + offset + sizeof(FrameHeader));
+                    } else if (rx_hdr->msg_type == MSG_REJECT) {
                         total_rejects++;
-                        size_t slot = rx_rej->order_seq & PENDING_MASK;
-                        PendingSlot& ps = pending[slot];
-                        if (ps.seq == rx_rej->order_seq) ps = {0, 0};
-                        break;
                     }
-                    default: break;
+                    offset += frame_size;
                 }
-                offset += frame_size;
+                residual_bytes = total_bytes - offset;
+                if (residual_bytes > 0 && offset > 0)
+                    std::memmove(rx_buffer, rx_buffer + offset, residual_bytes);
             }
-            residual_len = avail - offset;
-            if (residual_len > 0) std::memcpy(residual_buf, rx_buffer + offset, residual_len);
         }
     }
 
-    // ── Results ───────────────────────────────────────────────────
-    std::cout << "\n[Bot] Run complete. Total Sent: " << total_sent
+    // ── Results ───────────────────────────────────────────────────────────
+    std::cout << "\n[Bot] Run complete."
+              << " Total Sent: " << total_sent
               << " | Total Acked: " << total_acked
               << " | Total Fills: " << total_fills
               << " | Total Rejects: " << total_rejects
-              << " | Send Failures (EAGAIN): " << send_failures
-              << " | Pool Exhausted: " << pool.pool_exhausted << "\n\n";
+              << " | EAGAIN: " << send_failures
+              << " | PartialAborts: " << partial_send_aborts
+              << " | PendingCollisions: " << pending_collisions
+              << " | PoolExhausted: " << pool.exhausted_count << "\n\n";
 
     std::cout << "=================================================================\n";
     std::cout << "        ROUND-TRIP LATENCY — Naive vs CO-Corrected (ns)          \n";
     std::cout << "=================================================================\n";
-    std::cout << std::left << std::setw(12) << "Percentile"
+    std::cout << std::left  << std::setw(12) << "Percentile"
               << std::right << std::setw(18) << "Naive"
               << std::setw(18) << "CO-Corrected"
               << std::setw(12) << "Ratio" << "\n";
@@ -443,17 +464,21 @@ int main(int argc, char* argv[]) {
 
     for (int i = 0; i < 6; i++) {
         int64_t n_val = hdr_value_at_percentile(naive_hist, percentiles[i]);
-        int64_t c_val = hdr_value_at_percentile(co_hist, percentiles[i]);
-        double ratio = (n_val > 0) ? static_cast<double>(c_val) / static_cast<double>(n_val) : 0.0;
+        int64_t c_val = hdr_value_at_percentile(co_hist,    percentiles[i]);
+        double ratio  = (n_val > 0)
+            ? static_cast<double>(c_val) / static_cast<double>(n_val) : 0.0;
         std::cout << std::left  << std::setw(12) << names[i]
                   << std::right << std::setw(18) << n_val
                   << std::setw(18) << c_val
-                  << std::setw(11) << std::fixed << std::setprecision(1) << ratio << "x\n";
+                  << std::setw(11) << std::fixed << std::setprecision(1)
+                  << ratio << "x\n";
     }
     std::cout << "=================================================================\n";
     std::cout << "\nNaive sample count:  " << naive_hist->total_count << "\n";
     std::cout << "CO-corrected count:  " << co_hist->total_count
-              << "  (backfilled " << (co_hist->total_count - naive_hist->total_count) << " phantom samples)\n";
+              << "  (backfilled "
+              << (co_hist->total_count - naive_hist->total_count)
+              << " phantom samples)\n";
 
     hdr_close(naive_hist);
     hdr_close(co_hist);
