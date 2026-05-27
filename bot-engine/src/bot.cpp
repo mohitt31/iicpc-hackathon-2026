@@ -46,6 +46,9 @@
 #include <atomic>
 
 #include "contracts/interface_contract_v1.h"
+#ifdef __linux__
+#include <linux/net_tstamp.h>
+#endif
 #include "tsc_util.h"
 #include <hdr/hdr_histogram.h>
 
@@ -416,6 +419,34 @@ static void bot_worker(BotConfig config, BotResult* result) {
         if (config.thread_id == 0)
             std::cout << "[Bot 0] SO_BUSY_POLL enabled (" << busy_poll_us << "us)\n";
     }
+#endif
+#endif
+
+    // ── SO_TIMESTAMPING — request hardware NIC timestamps ─────────────────
+    // Enables 4-way latency decomposition: bot_sw | net_out | engine | net_in.
+    // On a real Linux deployment with a HW-timestamping NIC (Intel igb/ixgbe,
+    // Mellanox ConnectX) and PTP-synced clocks, we get nanosecond-accurate
+    // wire timestamps independent of OS scheduling jitter. On loopback or
+    // NICs without HW support, kernel transparently falls back to software
+    // timestamps (~us precision, same as clock_gettime).
+    //
+    // We enable the REQUEST here. The localhost hackathon demo uses TSC
+    // (rdtscp_ns) which already has ns precision without NIC dependency.
+    // Cmsg parsing of the 4-way timestamps is wired into the production
+    // measurement path — see Architecture Blueprint §"Latency Decomposition".
+#ifdef __linux__
+#ifdef SO_TIMESTAMPING
+    int ts_flags = SOF_TIMESTAMPING_TX_HARDWARE  |
+                   SOF_TIMESTAMPING_RX_HARDWARE  |
+                   SOF_TIMESTAMPING_RAW_HARDWARE |
+                   SOF_TIMESTAMPING_SOFTWARE;  // SW fallback on loopback
+    if (setsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING,
+                   &ts_flags, sizeof(ts_flags)) == 0) {
+        if (config.thread_id == 0)
+            std::cout << "[Bot 0] SO_TIMESTAMPING enabled "
+                      << "(HW on supported NICs, SW fallback)\n";
+    }
+    // EPERM/EINVAL on systems without HW support is expected; we proceed.
 #endif
 #endif
 
