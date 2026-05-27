@@ -31,7 +31,7 @@ add_executable(null_responder src/null_responder.cpp)
 add_executable(bot src/bot.cpp)
 add_executable(refengine src/reference_engine.cpp)
 add_executable(buggy_engine demo/buggy_engine.cpp)
-
+add_executable(hdr_merge src/hdr_merge.cpp)
 # Link threads if necessary
 find_package(Threads REQUIRED)
 target_link_libraries(null_responder PRIVATE Threads::Threads)
