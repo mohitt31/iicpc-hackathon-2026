@@ -71,22 +71,32 @@ static std::vector<SnapshotRow> parse_csv(const std::string& path) {
             return static_cast<bool>(std::getline(ss, field, ','));
         };
 
+        // Wrap parsing in try/catch — partial/corrupt rows (e.g. a bot
+        // crashed mid-write) throw std::invalid_argument/out_of_range
+        // from stoll/stoull. We log and skip the row rather than
+        // crashing the entire merge tool and destroying fleet telemetry.
         bool ok = true;
-        if (!next()) { ok = false; } else r.elapsed_sec    = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.sent           = std::stoull(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.acked          = std::stoull(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.naive_p50      = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.naive_p90      = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.naive_p99      = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.naive_p99_9    = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.naive_p99_99   = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.naive_max      = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.co_p50         = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.co_p90         = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.co_p99         = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.co_p99_9       = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.co_p99_99      = std::stoll(field);
-        if (ok && !next()) { ok = false; } else if (ok) r.co_max         = std::stoll(field);
+        try {
+            if (!next()) { ok = false; } else r.elapsed_sec    = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.sent           = std::stoull(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.acked          = std::stoull(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.naive_p50      = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.naive_p90      = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.naive_p99      = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.naive_p99_9    = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.naive_p99_99   = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.naive_max      = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.co_p50         = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.co_p90         = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.co_p99         = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.co_p99_9       = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.co_p99_99      = std::stoll(field);
+            if (ok && !next()) { ok = false; } else if (ok) r.co_max         = std::stoll(field);
+        } catch (const std::exception& e) {
+            std::cerr << "warning: skipping corrupt row in " << path
+                      << " (" << e.what() << ")\n";
+            ok = false;
+        }
 
         if (ok) rows.push_back(r);
     }
