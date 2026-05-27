@@ -128,6 +128,7 @@ struct BotConfig {
     uint64_t    duration_ns;
     std::string snapshot_dir;
     bool        use_spsc;
+    uint64_t    warmup_orders;  // first N samples excluded from HDR
 };
 
 struct BotResult {
@@ -640,7 +641,12 @@ static void bot_worker(BotConfig config, BotResult* result) {
                                         pslot.intended_ts > 0, 1)) {
                         int64_t latency = static_cast<int64_t>(
                             ack_time - pslot.intended_ts);
-                        if (latency > 0) {
+                        // Exclude warmup samples from HDR — TCP slow-start,
+                        // ARP, cache-warming spikes pollute the first N
+                        // samples. Standard practice in serious benchmarks.
+                        // We still count the ack so total_acked is honest.
+                        if (latency > 0 &&
+                            rx_ack->order_seq > config.warmup_orders) {
                             record_latency(latency);
                         }
                         if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
@@ -749,6 +755,7 @@ int main(int argc, char* argv[]) {
     uint64_t gate_p99_us     = 1000;
     bool     gate_enabled    = true;
     bool     use_spsc        = false;
+    uint64_t warmup_orders   = 0;  // 0 = no warmup exclusion (default)
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -763,6 +770,8 @@ int main(int argc, char* argv[]) {
         else if (arg == "--gate-p99-us"  && i + 1 < argc) gate_p99_us  = std::stoull(argv[++i]);
         else if (arg == "--no-gate")                      gate_enabled = false;
         else if (arg == "--use-spsc")                     use_spsc     = true;
+        else if (arg == "--warmup-orders" && i + 1 < argc)
+            warmup_orders = std::stoull(argv[++i]);
     }
 
     const uint64_t interval_ns = interval_us * 1000;
@@ -814,6 +823,11 @@ int main(int argc, char* argv[]) {
         std::cout << "[Main] Snapshot dir: " << snapshot_dir << "\n";
     }
 
+    if (warmup_orders > 0) {
+        std::cout << "[Main] Warmup: excluding first " << warmup_orders
+                  << " orders from HDR (TCP slow-start / cache warming)\n";
+    }
+
     if (use_spsc) {
         std::cout << "[Main] SPSC HDR offload ENABLED — hot path pushes\n"
                   << "       (latency, interval) records to lock-free ring;\n"
@@ -832,14 +846,15 @@ int main(int argc, char* argv[]) {
 
     for (uint32_t i = 0; i < num_bots; i++) {
         configs[i] = BotConfig{
-            .thread_id    = i,
-            .cpu_core     = (start_core >= 0) ? (start_core + static_cast<int>(i)) : -1,
-            .ip_addr      = ip_addr,
-            .port         = port,
-            .interval_ns  = interval_ns,
-            .duration_ns  = duration_ns,
-            .snapshot_dir = snapshot_dir,
-            .use_spsc     = use_spsc,
+            .thread_id     = i,
+            .cpu_core      = (start_core >= 0) ? (start_core + static_cast<int>(i)) : -1,
+            .ip_addr       = ip_addr,
+            .port          = port,
+            .interval_ns   = interval_ns,
+            .duration_ns   = duration_ns,
+            .snapshot_dir  = snapshot_dir,
+            .use_spsc      = use_spsc,
+            .warmup_orders = warmup_orders,
         };
         if (!snapshot_dir.empty()) {
             snap_threads.emplace_back(snapshot_writer,
