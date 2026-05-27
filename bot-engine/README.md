@@ -1,6 +1,6 @@
-# bot-engine — Role A (Low-Latency C++)
+# bot-engine
 
-This subdirectory is the **Role A submission**: a low-latency synthetic order-flow generator (bot fleet), a reference matching engine, and the correctness validator that ranks contestants byte-exact against the reference.
+This subdirectory contains a low-latency synthetic order-flow generator (bot fleet), a reference matching engine, and the correctness validator that ranks contestants byte-exact against the reference.
 
 For project-wide context, see the [repository root README](../README.md).
 
@@ -70,7 +70,7 @@ Before the scoring run, the bot runs a 1,000-order self-test against the target.
 
 ### Per-second HDR snapshots
 
-When `--snapshot-dir <path>` is set, each bot spawns a cold thread that samples its HDR histograms every 1 s and writes a CSV row. The leaderboard (Track C) consumes these CSVs for the "p99 over time" timeline view. Snapshot reads are concurrent with hot-path writes — HDR's 64-bit counts are aligned and torn reads are statistically negligible at 1 Hz. We deliberately do **not** mutex the hot path.
+When `--snapshot-dir <path>` is set, each bot spawns a cold thread that samples its HDR histograms every 1 s and writes a CSV row. The leaderboard consumes these CSVs for the "p99 over time" timeline view. Snapshot reads are concurrent with hot-path writes — HDR's 64-bit counts are aligned and torn reads are statistically negligible at 1 Hz. We deliberately do **not** mutex the hot path.
 
 ### Warmup-orders exclusion
 

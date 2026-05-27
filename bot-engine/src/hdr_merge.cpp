@@ -64,7 +64,6 @@ static std::vector<SnapshotRow> parse_csv(const std::string& path) {
         SnapshotRow r{};
         std::stringstream ss(line);
         std::string field;
-        int col = 0;
 
         // Strict 15-column parse — if any field is missing, skip the row
         auto next = [&]() -> bool {
