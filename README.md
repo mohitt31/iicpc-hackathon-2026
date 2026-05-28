@@ -54,13 +54,15 @@ All numbers below were produced by the bot in this repository against `null_resp
 | Percentile | Naive (ns) | CO-corrected (ns) | Ratio |
 |---|---|---|---|
 | p50 | 13,455 | 13,583 | 1.0× |
+| p90 | 17,343 | 313,599 | 18.1× |
 | p99 | 52,127 | 4,308,991 | **82.7×** |
 
-**Clean run, 4 bots, 100 µs interval, with all features enabled (Day-late build):**
+**Clean run, 4 bots, 100 µs interval (measured on an otherwise-idle machine; localhost numbers vary with background load):**
 
 | Percentile | Naive (ns) | CO-corrected (ns) |
 |---|---|---|
 | p50 | 23,551 | 23,551 |
+| p90 | 47,903 | 47,903 |
 | p99 | 83,711 | 83,967 |
 | Max | 300,799 | 300,799 |
 
