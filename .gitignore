@@ -80,3 +80,7 @@ bot-engine/build/
 # ── Local scratch / dumps ──
 repo_dump/
 market-storm/
+
+# ── Sandbox binaries (downloaded by setup_deps.sh, not committed) ──
+sandbox/orchestrator/bin/firecracker
+sandbox/orchestrator/bin/vmlinux
