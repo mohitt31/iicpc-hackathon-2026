@@ -67,3 +67,16 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# ── Test outputs & generated artifacts (Role A) ──
+bot-engine/snapshots/
+bot-engine/soak_results/
+bot-engine/integration_results/
+bot-engine/merged_unified.csv
+bot-engine/merged_ranking.csv
+bot-engine/build/
+*.jrn
+
+# ── Local scratch / dumps ──
+repo_dump/
+market-storm/
