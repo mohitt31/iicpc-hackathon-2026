@@ -108,6 +108,17 @@ For sandbox integration or leaderboard integration, see the contract documentati
 
 ---
 
+## Sandbox isolation
+
+Contestant engines run inside a Firecracker microVM with a hardened
+intake pipeline (syscall filtering, attestation, rootfs packing) and
+an orchestrator that provisions the VM, sets up networking, and runs
+the benchmark. The reference engine is also exposed as a TCP server
+for in-sandbox correctness checks, while the offline reference-engine
+binary remains the gold standard for byte-exact diffing.
+
+---
+
 ## What we deliberately did **not** build (and why)
 
 Some optimizations from the research documents would not have improved this submission's score at our scale, and would have introduced risk to the working pipeline. The Architecture Blueprint (`docs/ARCHITECTURE_BLUEPRINT.md`, forthcoming) covers the full deferral list with citations; the short version:
@@ -115,7 +126,6 @@ Some optimizations from the research documents would not have improved this subm
 - **SIMD AVX2 batch ingester** — payoff begins at 1M+ msg/sec receive. Current per-bot rate is 10k/sec. Skipped.
 - **AF_XDP kernel bypass** — needed for sub-µs receive. Current p99 already at 84 µs on TCP + `SO_BUSY_POLL`. Skipped.
 - **Aeron / Chronicle transport** — our topology is N bots → 1 engine TCP fan-in, not 1 publisher → many subscribers. Skipped.
-- **Firecracker microVM sandbox** — Docker provides sufficient isolation for the hackathon judge environment. The sandbox keeps Docker as the primary path.
 
 These are documented as deliberate engineering judgment, not gaps.
 
