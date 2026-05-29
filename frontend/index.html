@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>IICPC 2026 · Track 3 — Real-Time Leaderboard & Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#05070d; --panel:rgba(10,14,22,0.55); --border:rgba(255,255,255,0.07);
+    --text:rgba(255,255,255,0.92); --muted:rgba(255,255,255,0.45); --faint:rgba(255,255,255,0.22);
+    --good:#36d399; --warn:#fbbf24; --bad:#f87171; --accent:#38bdf8; --violet:#a78bfa;
+    --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',sans-serif;
+  }
+  html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden}
+  body{padding-bottom:60px}
+  #stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.5}
+  .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:26px 0 18px;flex-wrap:wrap;gap:12px}
+  .brand{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+  .brand b{color:var(--accent);font-weight:700}
+  .hdr-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .pill{display:flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid var(--border);border-radius:100px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .dot{width:6px;height:6px;border-radius:50%}
+  .blink{animation:blink 1.3s step-start infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+  h1{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:8px 0 2px;font-weight:600}
+  .sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+  .rulebar{display:flex;gap:10px;align-items:flex-start;background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.14);border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:11px;color:var(--muted);line-height:1.5}
+  .rulebar b{color:var(--accent)}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .tab{font-family:var(--mono);font-size:12px;letter-spacing:.08em;padding:9px 18px;border:1px solid var(--border);border-radius:9px;background:rgba(255,255,255,0.015);color:var(--muted);cursor:pointer;transition:.2s;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .tab:hover{color:var(--text);border-color:rgba(255,255,255,0.16)}
+  .tab.active{background:rgba(56,189,248,0.08);border-color:rgba(56,189,248,0.35);color:var(--accent)}
+  .tab .cnt{font-size:10px;color:var(--faint)}
+  .tab.overall.active{background:rgba(251,191,36,0.07);border-color:rgba(251,191,36,0.3);color:var(--warn)}
+  .xwarn{display:none;background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.22);border-radius:9px;padding:9px 14px;margin-bottom:12px;font-size:11px;color:var(--warn);line-height:1.5}
+  .xwarn.show{display:block}
+  .board-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .cols{display:grid;gap:10px;padding:0 16px 8px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);align-items:end}
+  .rows{display:flex;flex-direction:column;gap:6px}
+  .grid{grid-template-columns:34px 1.7fr 2.5fr 0.8fr 1fr 0.7fr 0.6fr}
+  .grid-overall{grid-template-columns:34px 80px 1.6fr 2.5fr 0.8fr 1fr 0.6fr}
+  .row{display:grid;gap:10px;align-items:center;padding:14px 16px;border-radius:11px;background:var(--panel);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);position:relative;transition:border-color .4s, background .4s;cursor:pointer}
+  .row::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)}
+  .row.r1{border-color:rgba(251,191,36,0.22)}
+  .row.r1::before{background:linear-gradient(90deg,transparent,rgba(251,191,36,0.4),transparent)}
+  .row.excluded{opacity:.5;border-color:rgba(255,255,255,0.05);background:rgba(255,255,255,0.012)}
+  .row.failed{border-color:rgba(248,113,113,0.22)}
+  .row.flash{animation:flash .7s ease-out}
+  @keyframes flash{0%{background:rgba(56,189,248,0.08)}100%{}}
+  .rank{font-family:var(--mono);font-weight:700;font-size:16px;text-align:center}
+  .r1 .rank{color:var(--warn)} .r2 .rank{color:#cbd5e1} .r3 .rank{color:#d8a05a}
+  .rank.lo{font-size:13px;color:var(--faint)}
+  .ident .nm{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ident .meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.02em}
+  .ident .meta .sid{color:var(--accent)}
+  .protocol-tag{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--violet)}
+  .ladder{display:flex;gap:0;align-items:flex-end}
+  .lad{flex:1;text-align:center;padding:0 1px}
+  .lad .k{font-family:var(--mono);font-size:8px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
+  .lad .v{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;margin-top:2px}
+  .lad.tail .k{color:var(--warn)}
+  .tps{text-align:right}
+  .tps .v{font-family:var(--mono);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+  .tps .u{font-family:var(--mono);font-size:8px;color:var(--faint);text-transform:uppercase;margin-top:2px}
+  .knee{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:4px;overflow:hidden}
+  .knee .fill{height:100%;border-radius:2px}
+  .corr{text-align:right}
+  .corr .v{font-family:var(--mono);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+  .corr .u{font-family:var(--mono);font-size:8px;color:var(--faint);margin-top:2px}
+  .corr .viol{color:var(--bad)}
+  .score{text-align:right}
+  .score .ring{width:46px;height:46px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:13px;border:1.5px solid var(--border)}
+  .score .fail{font-size:10px;color:var(--bad);letter-spacing:.05em}
+  .ptp{text-align:center}
+  .ptp .badge{display:inline-flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--mono);font-size:9px}
+  .ptp .off{font-weight:700;font-variant-numeric:tabular-nums}
+  .ptp .st{font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .detail{grid-column:1/-1;display:none;padding:16px 4px 4px;border-top:1px solid var(--border);margin-top:12px;gap:24px}
+  .detail.show{display:grid;grid-template-columns:1.4fr 1fr}
+  .detail h4{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+  .hist{display:flex;align-items:flex-end;gap:1px;height:90px}
+  .hist .bar{flex:1;background:linear-gradient(180deg,var(--accent),rgba(56,189,248,0.15));border-radius:1px 1px 0 0;min-height:1px}
+  .hist .bar.tail{background:linear-gradient(180deg,var(--bad),rgba(248,113,113,0.15))}
+  .histx{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--faint);margin-top:4px}
+  .kneeplot{position:relative;height:90px;border-left:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .kneeplot svg{width:100%;height:100%;overflow:visible}
+  .detail .note{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px;line-height:1.5}
+  footer{position:relative;z-index:1;max-width:1280px;margin:40px auto 0;padding:18px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:10px;letter-spacing:.08em;color:var(--faint);flex-wrap:wrap;gap:8px}
+  footer b{color:var(--muted)}
+  @media(max-width:1000px){
+    .ladder{display:none}
+    .grid{grid-template-columns:30px 1.6fr 1fr 1fr 0.7fr 0.6fr}
+    .grid-overall{grid-template-columns:30px 70px 1.6fr 1fr 1fr 0.6fr}
+    .cols-lad{display:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="stars"></canvas>
+<div class="wrap">
+  <header>
+    <div class="brand"><b>IICPC</b> · Summer Hackathon 2026 · <b>Track 3</b> Real-Time Leaderboard</div>
+    <div class="hdr-right">
+      <div class="pill" id="syncPill"><span class="dot" style="background:var(--good)"></span><span id="syncTxt">PTP fabric: locked</span></div>
+      <div class="pill"><span class="dot blink" style="background:var(--good)"></span><span id="srcTxt">Mock source · SBE v1</span></div>
+    </div>
+  </header>
+  <h1>Real-Time Leaderboard &amp; Analytics</h1>
+  <div class="sub">Streaming CO-corrected latency · ranked by composite score · per-protocol, never mixed</div>
+  <div class="rulebar">
+    <span style="font-size:14px">◆</span>
+    <div><b>Cardinal rule — display only.</b> Every percentile shown is read directly from the contract's derived gauges (already CO-corrected and additively merged, §4). The UI performs no averaging, no re-bucketing, no interpolation. The scoring service reads p99 from the <i>merged additive HDR</i>, never from a mean of per-bot values.</div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="xwarn" id="xwarn">⚠ Cross-protocol ranking shown for reference only. FIX, WebSocket and REST are not the same race — the contract forbids cross-protocol comparison (TLS + JSON framing alone add tens of µs). Compare within a protocol board, never across.</div>
+  <div class="board-meta"><span id="boardTitle">FIX BOARD</span><span id="tick">—</span></div>
+  <div class="cols" id="cols"></div>
+  <div class="rows" id="rows"></div>
+</div>
+<footer>
+  <span><b>Display correctness &gt; visual polish.</b> · SBE schema v1 · reads derived gauges + additive HDR only · scoring per Interface Contract §5.</span>
+  <span id="swapState">● MOCK MODE — swap to live VictoriaMetrics + HDR with zero UI change</span>
+</footer>
+
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════════════════
+   IICPC TRACK 3 — REAL-TIME LEADERBOARD & ANALYTICS
+   [ Mock Source ] → [ Scoring Service ] → [ Realtime Gateway ] → [ UI ]
+      gauges+HDR        pure function         delta fan-out       display-only
+
+   CARDINAL RULE (Interface Contract §4): the UI never recomputes a percentile.
+   It displays contract gauges and renders HDR buckets. Only the scoring
+   service reads p99 — from the MERGED additive HDR, never from an average.
+
+   ── ALIGNED TO THE FROZEN INTERFACE CONTRACT (doc 1/4) ──────────────────
+   identity (§1): schema_version(uint16) submission_id(128b ELF hash)
+                  run_id(128b, scopes the row) contestant_version(string)
+                  protocol enum {FIX, WS, REST}  node_id
+   gauges  (§4): p50 p90 p99 p99_9 p99_99 max  (latency, NANOSECONDS, CO-corrected)
+                 tps (max sustained before err threshold, §5)  err (error rate)
+   correctness (§5): diff_pass_rate  invariant_violations
+   hdr:    additive HDR blob per (submission_id,protocol,symbol); merge lossless
+   ptp (§6 / Telemetry §3): max_offset_ns mean_offset_ns sync_state — metadata
+   integrity gate (§5 / Telemetry §6): selftest_p99_ns (>5µs fail)
+                  software_jitter_ns (>1µs fail) → samples EXCLUDED, not penalised
+   join key (§2): seq.  latency = ack_rx − NewOrder.tsSendUserNs for that seq
+                  (computed upstream; the leaderboard never recomputes it)
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── LIVE SWAP POINT ──────────────────────────────────────────────────────
+   To go live, set USE_LIVE=true and subscribe to a WS/SSE feed emitting the
+   SAME delta shape: { changed:[row...], removed:[id...] }. If the contract
+   held, nothing below this line changes. */
+const USE_LIVE=false;
+const LIVE_WS_URL='ws://localhost:8080/track3/deltas';
+
+/* ════════ HDR — additive histogram (HdrHistogram-faithful, NANOSECONDS) ════════
+   Merge = elementwise add (lossless). Percentile = cumulative-count walk. */
+const HDR_MIN=500, HDR_MAX=500000000, HDR_N=80;     // 500ns … 500ms (contract unit: ns)
+const HDR_EDGES=(()=>{const e=[],lo=Math.log(HDR_MIN),hi=Math.log(HDR_MAX);
+  for(let i=0;i<=HDR_N;i++)e.push(Math.exp(lo+(hi-lo)*i/HDR_N));return e;})();
+function hdrNew(){return {c:new Array(HDR_N).fill(0),n:0};}
+function hdrRecord(h,ns){let i=Math.floor(HDR_N*(Math.log(ns)-Math.log(HDR_MIN))/(Math.log(HDR_MAX)-Math.log(HDR_MIN)));
+  i=Math.max(0,Math.min(HDR_N-1,i));h.c[i]++;h.n++;}
+function hdrMerge(a,b){const m=hdrNew();for(let i=0;i<HDR_N;i++)m.c[i]=a.c[i]+b.c[i];m.n=a.n+b.n;return m;}
+function hdrValueAtPercentile(h,p){            // returns ns — used ONLY by scoring
+  if(h.n===0)return 0;const t=h.n*p/100;let cum=0;
+  for(let i=0;i<HDR_N;i++){cum+=h.c[i];if(cum>=t)return HDR_EDGES[i+1];}
+  return HDR_EDGES[HDR_N];
+}
+
+/* ════════ MOCK SOURCE — role of VictoriaMetrics (derived gauges) + HDR store ════════ */
+const PROTOCOLS=['FIX','WS','REST'];
+const PROTO_LABEL={FIX:'FIX',WS:'WebSocket',REST:'REST'};
+const NODES=['node-01','node-02','node-03','node-04'];
+function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function hashId(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16).padStart(8,'0');}
+
+const MockSource=(()=>{
+  const base={FIX:[10000,28000],WS:[35000,90000],REST:[120000,420000]}; // ns
+  const roster=[
+    ['Priya Sharma','FIX'],['Arjun Mehta','FIX'],['Sanya Rao','FIX'],['Dev Kapoor','FIX'],
+    ['Kiran Nair','WS'],['Rohan Gupta','WS'],['Ananya Iyer','WS'],['Vikram Sen','WS'],
+    ['Meera Joshi','REST'],['Aditya Rao','REST'],['Neha Verma','REST'],['Karan Shah','REST'],
+  ];
+  let subs=[];
+  function sampleInto(h,median,tail,count){
+    for(let k=0;k<count;k++){let v=median*Math.exp(0.35*gauss());
+      if(Math.random()<tail.p)v*=tail.mult*(1+Math.random());hdrRecord(h,Math.max(HDR_MIN,v));}
+  }
+  function init(){
+    subs=roster.map((r,i)=>{
+      const [name,proto]=r,[lo,hi]=base[proto];
+      const median=lo+Math.random()*(hi-lo);
+      const tail={p:0.01+Math.random()*0.06,mult:6+Math.random()*30};
+      const hdr=hdrNew();sampleInto(hdr,median,tail,60000);
+      const node=NODES[i%NODES.length];
+      const submission_id=(hashId(name+proto+'a')+hashId(name+proto+'b')).slice(0,16); // 128-bit ELF hash (§1)
+      const run_id=(hashId('run'+i+'x')+hashId('run'+i)).slice(0,12);                  // 128-bit run scope (§1)
+      return {schema_version:1,submission_id,run_id,contestant:name,
+        contestant_version:'v'+(1+i%3)+'.'+(i%5)+'.'+(i%9),
+        protocol:proto,node_id:node,_median:median,_tail:tail,hdr,gauges:{},ptp:{},integrity:{}};
+    });
+    subs.forEach(refreshDerived);
+  }
+  function refreshDerived(s){
+    // SOURCE derives the contract gauges from the merged HDR (role of VictoriaMetrics, §4).
+    // Latency gauges are NANOSECONDS. The UI displays these; it never derives them.
+    s.gauges={
+      p50:hdrValueAtPercentile(s.hdr,50), p90:hdrValueAtPercentile(s.hdr,90),
+      p99:hdrValueAtPercentile(s.hdr,99), p99_9:hdrValueAtPercentile(s.hdr,99.9),
+      p99_99:hdrValueAtPercentile(s.hdr,99.99), max:hdrValueAtPercentile(s.hdr,100),
+      tps:Math.round((s.protocol==='FIX'?180000:s.protocol==='WS'?120000:60000)*(0.6+Math.random()*0.6)), // max sustained before err threshold (§5)
+      err:Math.max(0,Math.min(0.12,0.005+Math.abs(gauss())*0.01)),
+      diff_pass_rate:Math.random()<0.10?0.985+Math.random()*0.012:1.0,         // byte-exact ref-engine diff (§5)
+      invariant_violations:Math.random()<0.08?Math.floor(1+Math.random()*2):0, // price-time-priority etc (§5)
+    };
+    // Integrity gate (§5 / Telemetry §6): bot self-test p99 (>5µs) OR software-jitter (>1µs)
+    // → samples EXCLUDED before scoring. A filter, not a penalty. Independent of PTP.
+    const noisy=(s.node_id==='node-04')&&(Math.random()<0.55);
+    const selftest_p99_ns=noisy?5500+Math.random()*4000:1200+Math.random()*2500;
+    const software_jitter_ns=noisy?1100+Math.random()*1500:200+Math.random()*600;
+    s.integrity={selftest_p99_ns,software_jitter_ns,
+      gate_passed:selftest_p99_ns<=5000&&software_jitter_ns<=1000};
+    // PTP sync quality — first-class metadata on EVERY run (§6 / Telemetry §3). Separate from the gate.
+    const holdover=noisy&&Math.random()<0.7;
+    s.ptp={max_offset_ns:holdover?400+Math.random()*900:18+Math.random()*70,
+      mean_offset_ns:holdover?220+Math.random()*400:9+Math.random()*30,
+      sync_state:holdover?'HOLDOVER':'LOCKED'};
+  }
+  function tick(){
+    subs.forEach(s=>{const d=hdrNew();sampleInto(d,s._median*(0.92+Math.random()*0.18),s._tail,4000);
+      s.hdr=hdrMerge(s.hdr,d);refreshDerived(s);});   // additive merge — lossless
+    return subs;
+  }
+  return {init,tick,all:()=>subs};
+})();
+
+/* ════════ SCORING SERVICE — pure function of contract inputs (§5) ════════
+   composite = 0.40·norm_latency(p99) + 0.30·norm_throughput(tps) + 0.30·norm_correctness
+   • p99 read from MERGED HDR (hdrValueAtPercentile), never an average
+   • hard correctness failure (fill diff mismatch or invariant violation) caps total
+   • integrity-gate failure EXCLUDES the submission before ranking (a filter)
+   • ranked WITHIN protocol; never mixed.  Deterministic. */
+const CAP_FAILED=-1;
+function hardCorrectnessFailure(g){ return g.diff_pass_rate<0.999 || g.invariant_violations>0; }
+function norm(v,lo,hi){ return hi<=lo?1:Math.max(0,Math.min(1,(v-lo)/(hi-lo))); }
+function scoreProtocol(list){
+  // integrity gate FIRST (§5) — exclude failed-self-test/jitter submissions before ranking.
+  const ranked=[],excluded=[];
+  list.forEach(s=> s.integrity.gate_passed?ranked.push(s):excluded.push(s));
+  // p99 from MERGED hdr (not the gauge, not an average) — scoring's own authoritative read.
+  ranked.forEach(s=> s._p99=hdrValueAtPercentile(s.hdr,99));
+  const ok=ranked.filter(s=>!hardCorrectnessFailure(s.gauges));
+  const loL=Math.min(...ok.map(s=>s._p99),Infinity), hiL=Math.max(...ok.map(s=>s._p99),0);
+  const loT=Math.min(...ok.map(s=>s.gauges.tps),Infinity), hiT=Math.max(...ok.map(s=>s.gauges.tps),0);
+  ranked.forEach(s=>{
+    if(hardCorrectnessFailure(s.gauges)){s._score=CAP_FAILED;return;}  // speed never buys back incorrectness
+    const nLat=1-norm(s._p99,loL,hiL);          // lower latency ⇒ higher
+    const nTps=norm(s.gauges.tps,loT,hiT);
+    const nCor=s.gauges.diff_pass_rate;         // 0..1
+    s._score=Math.round((0.40*nLat+0.30*nTps+0.30*nCor)*1000)/10; // 0..100
+  });
+  ranked.sort((a,b)=>{
+    if(a._score===CAP_FAILED&&b._score!==CAP_FAILED)return 1;
+    if(b._score===CAP_FAILED&&a._score!==CAP_FAILED)return -1;
+    return b._score-a._score;});
+  return {ranked,excluded};
+}
+
+/* ════════ REALTIME GATEWAY — diff vs last tick, emit only changed rows (§6) ════════ */
+const Gateway=(()=>{
+  let last={};
+  function rowOf(s,rank,excluded=false){
+    return {id:s.submission_id,rank,excluded,failed:s._score===CAP_FAILED,
+      contestant:s.contestant,contestant_version:s.contestant_version,
+      protocol:s.protocol,node:s.node_id,submission_id:s.submission_id,run_id:s.run_id,
+      g:s.gauges,ptp:s.ptp,integrity:s.integrity,score:s._score,hdr:s.hdr};
+  }
+  function buildRows(subs){
+    const byProto={};
+    PROTOCOLS.forEach(p=>{
+      const {ranked,excluded}=scoreProtocol(subs.filter(s=>s.protocol===p));
+      byProto[p]=ranked.map((s,i)=>rowOf(s,i+1)).concat(excluded.map(s=>rowOf(s,null,true)));
+    });
+    return byProto;
+  }
+  function diff(byProto){
+    const deltas={};
+    PROTOCOLS.forEach(p=>{
+      const prev=last[p]||[],pm={};prev.forEach(r=>pm[r.id]=r);
+      deltas[p]=byProto[p].map(r=>{const o=pm[r.id];
+        const changed=!o||o.rank!==r.rank||o.score!==r.score||o.g.p99!==r.g.p99||o.excluded!==r.excluded;
+        return {...r,_changed:changed};});
+    });
+    last=byProto;return deltas;
+  }
+  return {buildRows,diff};
+})();
+
+/* ════════ UI — display only. Renders gauges + HDR buckets. No statistics here. ════════ */
+const fmtLat=ns=> ns<1000?ns.toFixed(0)+'ns':ns<1e6?(ns/1000).toFixed(ns<10000?2:1)+'µs':(ns/1e6).toFixed(ns<1e7?1:0)+'ms';
+const fmtTps=t=> (t/1000).toFixed(1)+'k';
+let activeProto='FIX', expanded=null, LAST={};
+
+function buildTabs(deltas){
+  const tabs=document.getElementById('tabs');tabs.innerHTML='';
+  PROTOCOLS.forEach(p=>{
+    const n=(deltas[p]||[]).filter(r=>!r.excluded).length;
+    const t=document.createElement('div');
+    t.className='tab'+(activeProto===p?' active':'');
+    t.innerHTML=PROTO_LABEL[p]+' <span class="cnt">'+n+'</span>';
+    t.onclick=()=>{activeProto=p;render(LAST);};tabs.appendChild(t);
+  });
+  const o=document.createElement('div');
+  o.className='tab overall'+(activeProto==='OVERALL'?' active':'');
+  o.innerHTML='Overall <span class="cnt">⚠</span>';
+  o.onclick=()=>{activeProto='OVERALL';render(LAST);};tabs.appendChild(o);
+}
+function colsHTML(overall){
+  if(overall)return '<div></div><div>Protocol</div><div>Run identity</div>'
+    +'<div class="cols-lad">Latency percentile ladder (p50 → max)</div>'
+    +'<div style="text-align:right">Sustained TPS</div><div style="text-align:right">Correctness</div><div style="text-align:right">Score</div>';
+  return '<div></div><div>Run identity</div>'
+    +'<div class="cols-lad">Latency percentile ladder (p50 → max)</div>'
+    +'<div style="text-align:right">Sustained TPS</div><div style="text-align:right">Correctness</div>'
+    +'<div style="text-align:center">PTP sync</div><div style="text-align:right">Score</div>';
+}
+function ladderHTML(g){
+  const items=[['p50',g.p50,0],['p90',g.p90,0],['p99',g.p99,1],['p99.9',g.p99_9,1],['p99.99',g.p99_99,1],['max',g.max,2]];
+  return '<div class="ladder">'+items.map(function(it){var k=it[0],v=it[1],t=it[2];
+    var col=t===2?'var(--bad)':t===1?'var(--warn)':'var(--text)';
+    return '<div class="lad '+(t===1?'tail':'')+'"><div class="k">'+k+'</div><div class="v" style="color:'+col+'">'+fmtLat(v)+'</div></div>';}).join('')+'</div>';
+}
+function ptpHTML(ptp){
+  const off=ptp.max_offset_ns;
+  const col=ptp.sync_state==='LOCKED'&&off<120?'var(--good)':off<400?'var(--warn)':'var(--bad)';
+  return '<div class="ptp"><div class="badge"><span class="off" style="color:'+col+'">±'+Math.round(off)+'ns</span><span class="st">'+ptp.sync_state+'</span></div></div>';
+}
+function scoreHTML(r){
+  if(r.failed)return '<div class="score"><div class="ring" style="border-color:rgba(248,113,113,.4)"><span class="fail">FAIL</span></div></div>';
+  const c=r.score>75?'var(--good)':r.score>50?'var(--warn)':'var(--muted)';
+  return '<div class="score"><div class="ring" style="border-color:'+c+';color:'+c+'">'+r.score+'</div></div>';
+}
+function identHTML(r){
+  return '<div class="ident"><div class="nm">'+r.contestant+'</div>'
+    +'<div class="meta"><span class="sid">'+r.submission_id+'</span> · '+r.contestant_version+' · run '+r.run_id+' · '+r.node+'</div></div>';
+}
+function corrHTML(g){
+  const pc=g.diff_pass_rate>=0.999?'var(--good)':'var(--bad)';
+  return '<div class="corr"><div class="v" style="color:'+pc+'">'+(g.diff_pass_rate*100).toFixed(2)+'%</div>'
+    +'<div class="u">diff pass'+(g.invariant_violations>0?' · <span class="viol">'+g.invariant_violations+' inv</span>':'')+'</div></div>';
+}
+function tpsHTML(g){
+  const kneePct=Math.min(100,(g.err/0.05)*100);
+  const col=g.err<0.02?'var(--good)':g.err<0.05?'var(--warn)':'var(--bad)';
+  return '<div class="tps"><div class="v">'+fmtTps(g.tps)+'</div><div class="u">sustained · err '+(g.err*100).toFixed(2)+'%</div>'
+    +'<div class="knee"><div class="fill" style="width:'+kneePct+'%;background:'+col+'"></div></div></div>';
+}
+function detailHTML(r){
+  const maxc=Math.max.apply(null,r.hdr.c.concat([1]));
+  const p99edge=r.g.p99;let bars='';
+  for(let i=0;i<HDR_N;i++){const h=Math.round((r.hdr.c[i]/maxc)*100);const tail=HDR_EDGES[i]>=p99edge;
+    bars+='<div class="bar '+(tail?'tail':'')+'" style="height:'+Math.max(1,h)+'%"></div>';}
+  const pts=[],tpsMax=r.g.tps*1.4;
+  for(let i=0;i<=10;i++){const x=i/10,tps=x*tpsMax;
+    const err=tps<r.g.tps?0.002+x*0.01:0.012+(x-0.7)*0.18;pts.push([x*100,Math.min(100,err/0.1*100)]);}
+  const poly=pts.map(p=>p[0]+','+(100-p[1])).join(' ');
+  const kneeX=(r.g.tps/tpsMax)*100;
+  return '<div class="detail show"><div>'
+    +'<h4>HDR latency distribution — rendered from additive buckets (500ns → 500ms, log)</h4>'
+    +'<div class="hist">'+bars+'</div>'
+    +'<div class="histx"><span>500ns</span><span>p50 '+fmtLat(r.g.p50)+'</span><span style="color:var(--warn)">p99 '+fmtLat(r.g.p99)+'</span><span style="color:var(--bad)">max '+fmtLat(r.g.max)+'</span><span>500ms</span></div>'
+    +'<div class="note">Red bars are the tail beyond p99 — the part a mean would hide. Rendered straight from the contract HDR; no re-binning.</div></div>'
+    +'<div><h4>Throughput vs error knee</h4>'
+    +'<div class="kneeplot"><svg viewBox="0 0 100 100" preserveAspectRatio="none">'
+    +'<polyline points="'+poly+'" fill="none" stroke="var(--accent)" stroke-width="1.5"/>'
+    +'<line x1="'+kneeX+'" y1="0" x2="'+kneeX+'" y2="100" stroke="var(--warn)" stroke-width="0.8" stroke-dasharray="3 3"/></svg></div>'
+    +'<div class="note">Dashed line = max sustained TPS before the error threshold (§5). Peak TPS to the right is meaningless once errors climb.</div></div></div>';
+}
+
+function render(deltas){
+  LAST=deltas;buildTabs(deltas);
+  const overall=activeProto==='OVERALL';
+  document.getElementById('boardTitle').textContent=overall?'OVERALL (REFERENCE ONLY)':(PROTO_LABEL[activeProto].toUpperCase()+' BOARD');
+  document.getElementById('xwarn').className='xwarn'+(overall?' show':'');
+  document.getElementById('cols').className='cols '+(overall?'grid-overall':'grid');
+  document.getElementById('cols').innerHTML=colsHTML(overall);
+
+  let list;
+  if(overall){list=[];PROTOCOLS.forEach(p=>list.push.apply(list,(deltas[p]||[])));
+    list=list.filter(r=>!r.excluded).sort((a,b)=>b.score-a.score).map((r,i)=>Object.assign({},r,{rank:i+1}));}
+  else list=deltas[activeProto]||[];
+
+  const rows=document.getElementById('rows');
+  const old={};Array.from(rows.children).forEach(el=>old[el.dataset.id]=el.getBoundingClientRect().top);
+  rows.innerHTML='';
+
+  list.forEach(r=>{
+    const el=document.createElement('div');el.dataset.id=r.id;
+    el.className='row '+(overall?'grid-overall':'grid')
+      +(r.rank===1&&!r.excluded?' r1':r.rank===2?' r2':r.rank===3?' r3':'')
+      +(r.excluded?' excluded':'')+(r.failed?' failed':'');
+    const rankCell=r.excluded?'<div class="rank lo" title="Excluded by integrity gate">—</div>'
+      :'<div class="rank '+(r.rank>3?'lo':'')+'">'+String(r.rank).padStart(2,'0')+'</div>';
+    if(overall){
+      el.innerHTML=rankCell+'<div class="protocol-tag">'+PROTO_LABEL[r.protocol]+'</div>'
+        +identHTML(r)+'<div class="cols-lad">'+ladderHTML(r.g)+'</div>'+tpsHTML(r.g)+corrHTML(r.g)+scoreHTML(r);
+    }else{
+      el.innerHTML=rankCell+identHTML(r)+'<div class="cols-lad">'+ladderHTML(r.g)+'</div>'
+        +tpsHTML(r.g)+corrHTML(r.g)+ptpHTML(r.ptp)+scoreHTML(r);
+    }
+    if(r.excluded){
+      const note=document.createElement('div');
+      note.style.cssText='grid-column:1/-1;font-family:var(--mono);font-size:9px;color:var(--bad);margin-top:6px;letter-spacing:.03em';
+      note.textContent='◆ EXCLUDED — integrity gate failed (self-test p99 '+fmtLat(r.integrity.selftest_p99_ns)+' > 5µs or software-jitter '+fmtLat(r.integrity.software_jitter_ns)+' > 1µs). Samples filtered before scoring — not a penalty.';
+      el.appendChild(note);
+    }
+    if(expanded===r.id)el.insertAdjacentHTML('beforeend',detailHTML(r));
+    el.onclick=()=>{expanded=expanded===r.id?null:r.id;render(LAST);};
+    if(r._changed&&!r.excluded)el.classList.add('flash');
+    rows.appendChild(el);
+  });
+
+  Array.from(rows.children).forEach(el=>{const o=old[el.dataset.id];if(o==null)return;
+    const d=o-el.getBoundingClientRect().top;
+    if(Math.abs(d)>1){el.style.transform='translateY('+d+'px)';el.style.transition='none';
+      requestAnimationFrame(()=>{el.style.transition='transform .5s cubic-bezier(.22,.61,.36,1)';el.style.transform='';});}});
+
+  const anyHold=PROTOCOLS.some(p=>(deltas[p]||[]).some(r=>r.ptp.sync_state==='HOLDOVER'));
+  document.getElementById('syncTxt').textContent=anyHold?'PTP fabric: 1 node holdover':'PTP fabric: locked';
+  document.getElementById('syncPill').querySelector('.dot').style.background=anyHold?'var(--warn)':'var(--good)';
+  document.getElementById('tick').textContent='↻ '+new Date().toLocaleTimeString('en-IN',{hour12:false});
+}
+
+function loop(){const subs=MockSource.tick();render(Gateway.diff(Gateway.buildRows(subs)));}
+MockSource.init();
+render(Gateway.diff(Gateway.buildRows(MockSource.all())));
+if(!USE_LIVE)setInterval(loop,2500);   // human-facing cadence 1–5s (Track 3 §6)
+
+/* starfield — atmosphere only, secondary to data */
+(()=>{const c=document.getElementById('stars'),x=c.getContext('2d');
+ function sz(){c.width=innerWidth;c.height=innerHeight;}sz();addEventListener('resize',sz);
+ const st=Array.from({length:140},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.2,a:Math.random()}));
+ (function d(){x.clearRect(0,0,c.width,c.height);st.forEach(s=>{s.a+=(Math.random()-.5)*.05;s.a=Math.max(.1,Math.min(.7,s.a));
+   x.fillStyle='rgba(160,190,230,'+(s.a*0.5)+')';x.beginPath();x.arc(s.x*c.width,s.y*c.height,s.r,0,7);x.fill();});
+   requestAnimationFrame(d);})();})();
+</script>
+</body>
+</html>
