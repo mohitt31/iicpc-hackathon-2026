@@ -474,10 +474,76 @@ function render(deltas){
   document.getElementById('tick').textContent='↻ '+new Date().toLocaleTimeString('en-IN',{hour12:false});
 }
 
-function loop(){render(Gateway.diff(Gateway.buildRows(MockSource.tick())));}
-MockSource.init();
-render(Gateway.diff(Gateway.buildRows(MockSource.all())));
-if(!USE_LIVE)setInterval(loop,2500);
+/* ════════ BOOT — live feed if available, mock otherwise ════════
+   Per the Interface Contract, the backend (scoring service → realtime gateway)
+   does the scoring and ranking; this UI only DISPLAYS. So the live path feeds
+   socket messages straight to render() and never recomputes a percentile.
+
+   Message shapes accepted on LIVE_WS_URL (JSON per frame):
+     A) FINISHED (spec-pure, preferred):
+        { "type":"deltas", "deltas": { "FIX":[row,...], "WS":[...], "REST":[...] } }
+        — each row already scored+ranked by the backend. Passed to render() as-is.
+        A row matches the contract: {id,rank,excluded,failed,contestant,
+        contestant_version,protocol,node,submission_id,run_id,
+        g:{p50,p90,p99,p99_9,p99_99,max,tps,err,diff_pass_rate,invariant_violations},
+        ptp:{max_offset_ns,mean_offset_ns,sync_state},
+        integrity:{selftest_p99_ns,software_jitter_ns,gate_passed}, score, hdr:{c,n} }
+     B) RAW (tolerated fallback):
+        { "type":"subs", "subs":[ submission... ] }
+        — raw per-submission gauges+HDR; UI runs Gateway locally to score/rank.
+   Any parse/connection failure → silent fallback to the mock so the page is
+   never blank during a demo. */
+
+let mockTimer=null;
+function startMock(){
+  MockSource.init();
+  render(Gateway.diff(Gateway.buildRows(MockSource.all())));
+  if(mockTimer) clearInterval(mockTimer);
+  mockTimer=setInterval(()=>render(Gateway.diff(Gateway.buildRows(MockSource.tick()))),2500);
+  document.querySelector('.stat-pill.live span:last-child').textContent='MOCK · SBE v1';
+}
+function stopMock(){ if(mockTimer){clearInterval(mockTimer);mockTimer=null;} }
+
+function markLive(on){
+  const el=document.querySelector('.stat-pill.live span:last-child');
+  if(el) el.textContent = on ? 'LIVE · SBE v1' : 'MOCK · SBE v1';
+}
+
+function connectLive(){
+  let ws, gotData=false, retry=0;
+  function open(){
+    try{ ws=new WebSocket(LIVE_WS_URL); }
+    catch(e){ return fallback(); }
+
+    ws.onopen=()=>{ retry=0; stopMock(); markLive(true); };
+    ws.onmessage=(ev)=>{
+      let msg; try{ msg=JSON.parse(ev.data); }catch(e){ return; }   // ignore malformed frames
+      gotData=true;
+      if(msg && msg.type==='deltas' && msg.deltas){
+        // spec-pure path: backend already scored+ranked. Display only.
+        render(msg.deltas);
+      } else if(msg && msg.type==='subs' && Array.isArray(msg.subs)){
+        // tolerated fallback: raw submissions → score/rank locally via Gateway.
+        render(Gateway.diff(Gateway.buildRows(msg.subs)));
+      }
+      // unknown shapes are ignored rather than crashing the board.
+    };
+    ws.onclose=()=>{ markLive(false); scheduleReconnect(); };
+    ws.onerror=()=>{ try{ws.close();}catch(_){} };
+
+    // if no data arrives within 4s of trying, run mock so the page isn't blank
+    setTimeout(()=>{ if(!gotData) fallback(); }, 4000);
+  }
+  function scheduleReconnect(){
+    retry=Math.min(retry+1,6);
+    setTimeout(open, 500*Math.pow(2,retry));   // exp backoff, cap ~32s
+  }
+  function fallback(){ if(!mockTimer) startMock(); }
+  open();
+}
+
+if(USE_LIVE){ connectLive(); }
+else{ startMock(); }
 </script>
 </body>
 </html>
