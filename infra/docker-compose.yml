@@ -1,0 +1,111 @@
+# ============================================================================
+# IICPC HFT Benchmarking Platform — local orchestration (Docker Compose)
+#
+# This is the "runs on one machine" path. It brings up the full benchmarking
+# loop end-to-end on a developer laptop or a single CI node:
+#
+#   reference-engine  ─ gold-standard matching engine (TCP server)
+#   bot-fleet         ─ open-loop load generator, hammers an engine, emits HDR
+#   telemetry-gateway ─ serves the leaderboard's live WS/SSE feed (display-only)
+#   leaderboard       ─ static frontend (frontend/index.html) on nginx
+#
+# Production isolation (Firecracker microVMs, pinned cores, PTP-synced NICs)
+# is NOT modelled here — that is the Kubernetes + Terraform path under
+# infra/k8s and infra/terraform. Compose is for correctness + demo, not
+# for the low-latency numbers (containers add scheduler + netns jitter).
+#
+# Usage:
+#   docker compose -f infra/docker-compose.yml up --build
+#   open http://localhost:8088        # leaderboard
+#
+# VERIFIED:   file structure, build contexts, port wiring, healthchecks.
+# NOT RUN:    not executed in CI here — bot perf flags (CPU pinning, SO_BUSY_POLL)
+#             are Linux-only and no-op in containers; see caveats in README.
+# ============================================================================
+
+name: iicpc-hft-platform
+
+services:
+
+  # ---- Gold-standard matching engine (reference) -------------------------
+  reference-engine:
+    build:
+      context: ../bot-engine
+      dockerfile: ../infra/docker/Dockerfile.botengine
+    command: ["./build/reference_engine", "--server", "--port", "9000"]
+    networks: [bench]
+    expose: ["9000"]
+    healthcheck:
+      # engine is up once the port accepts connections
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/9000' 2>/dev/null || exit 1"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  # ---- Bot fleet (load generator + HDR telemetry) ------------------------
+  bot-fleet:
+    build:
+      context: ../bot-engine
+      dockerfile: ../infra/docker/Dockerfile.botengine
+    # open-loop run against the reference engine; writes per-second HDR CSV
+    command: >
+      ./build/bot
+      --bots 4
+      --interval-us 100
+      --duration-sec 0
+      --ip reference-engine
+      --port 9000
+      --snapshot-dir /telemetry
+      --no-gate
+    volumes:
+      - telemetry:/telemetry          # HDR CSV snapshots, shared with gateway
+    networks: [bench]
+    depends_on:
+      reference-engine:
+        condition: service_healthy
+    restart: unless-stopped
+    # NOTE: --duration-sec 0 = run continuously (demo mode). In a real
+    # benchmark run this is a fixed window; see DEMO.md.
+
+  # ---- Telemetry gateway (serves the leaderboard's live feed) ------------
+  # Reads the bot fleet's HDR CSV snapshots, scores + ranks per the Interface
+  # Contract §5, and fans out display-ready deltas over WebSocket. This is the
+  # component the frontend's connectLive() subscribes to. The reference
+  # implementation here is the mock in tools/telemetry_server.js (documented),
+  # swapped for the production Rust/Go gateway with zero frontend change.
+  telemetry-gateway:
+    build:
+      context: ../tools
+      dockerfile: ../infra/docker/Dockerfile.gateway
+    command: ["node", "telemetry_server.js", "--port", "8080", "--snapshot-dir", "/telemetry"]
+    volumes:
+      - telemetry:/telemetry:ro
+    networks: [bench]
+    ports:
+      - "8080:8080"                   # ws://localhost:8080/leaderboard/deltas
+    depends_on:
+      - bot-fleet
+    restart: unless-stopped
+
+  # ---- Leaderboard frontend (static, display-only) -----------------------
+  leaderboard:
+    image: nginx:1.27-alpine
+    volumes:
+      - ../frontend:/usr/share/nginx/html:ro
+    networks: [bench]
+    ports:
+      - "8088:80"                     # http://localhost:8088
+    depends_on:
+      - telemetry-gateway
+    restart: unless-stopped
+    # To point the UI at the live gateway, set USE_LIVE=true and
+    # LIVE_WS_URL='ws://localhost:8080/leaderboard/deltas' in index.html.
+
+networks:
+  bench:
+    driver: bridge
+
+volumes:
+  telemetry:
