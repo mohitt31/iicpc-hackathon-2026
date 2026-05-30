@@ -85,7 +85,15 @@ if [[ "$SKIP_DOCKER" == "true" ]]; then
     fi
 
     COMPILER="g++"
-    CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -static -march=x86-64-v2"
+    # On x86 hosts use march=x86-64-v2 (target judging environment).
+    # On non-x86 hosts (Mac arm64) skip -march so local dev still builds.
+    HOST_ARCH="$(uname -m)"
+    if [[ "$HOST_ARCH" == "x86_64" || "$HOST_ARCH" == "amd64" ]]; then
+        CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -static -march=x86-64-v2"
+    else
+        CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra"
+        echo "  ⚠ Non-x86 host ($HOST_ARCH); -march and -static skipped for local build"
+    fi
 
     echo "  Compiler: $($COMPILER --version | head -1)"
     echo "  Flags: $CXX_FLAGS"
@@ -97,7 +105,11 @@ if [[ "$SKIP_DOCKER" == "true" ]]; then
         STATIC="true"
     else
         echo "  ⚠ Static build failed, trying dynamic..."
-        CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -march=x86-64-v2"
+        if [[ "$HOST_ARCH" == "x86_64" || "$HOST_ARCH" == "amd64" ]]; then
+            CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -march=x86-64-v2"
+        else
+            CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra"
+        fi
         # shellcheck disable=SC2086
         $COMPILER $CXX_FLAGS $SOURCES -o "$SUBMISSION_DIR/contestant.elf" 2>&1
         STATIC="false"
@@ -113,7 +125,7 @@ if [[ "$SKIP_DOCKER" == "true" ]]; then
     "cxx_flags": "$CXX_FLAGS",
     "static_linked": $STATIC,
     "elf_hash": "$ELF_HASH",
-    "elf_size_bytes": $(stat -c%s "$SUBMISSION_DIR/contestant.elf"),
+    "elf_size_bytes": $(stat -c%s "$SUBMISSION_DIR/contestant.elf" 2>/dev/null || stat -f%z "$SUBMISSION_DIR/contestant.elf"),
     "build_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
     "build_mode": "local"
 }
