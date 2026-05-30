@@ -1,0 +1,13 @@
+{
+  "name": "iicpc-telemetry-gateway",
+  "version": "1.0.0",
+  "description": "Reference telemetry gateway for the IICPC HFT benchmarking leaderboard — emits display-ready scored+ranked deltas over WebSocket per the Interface Contract.",
+  "main": "telemetry_server.js",
+  "scripts": {
+    "start": "node telemetry_server.js --port 8080"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
+  "license": "MIT"
+}
