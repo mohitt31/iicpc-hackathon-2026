@@ -1,0 +1,14 @@
+# ============================================================================
+# telemetry-gateway image — Node WebSocket server that serves the leaderboard
+# its display-ready delta feed. In this repo it runs the reference/mock
+# implementation (tools/telemetry_server.js). The production gateway (Rust/Go,
+# reading VictoriaMetrics + additive HDR) is a drop-in replacement that speaks
+# the same wire shape; the frontend does not change.
+# ============================================================================
+FROM node:20-alpine
+WORKDIR /app
+COPY package.json /app/package.json
+RUN npm install --omit=dev
+COPY . /app
+EXPOSE 8080
+ENTRYPOINT []
