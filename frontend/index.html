@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>IICPC 2026 · Track 3 — Real-Time Leaderboard</title>
+<title>IICPC 2026 · Real-Time Leaderboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Archivo+Expanded:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -195,7 +195,7 @@
 /* ── LIVE SWAP POINT ── set USE_LIVE=true and subscribe to a WS/SSE feed emitting
    the same delta shape { changed:[...], removed:[...] }; nothing else changes. */
 const USE_LIVE=false;
-const LIVE_WS_URL='ws://localhost:8080/track3/deltas';
+const LIVE_WS_URL='ws://localhost:8080/leaderboard/deltas';
 /* ════════ HDR — additive histogram (HdrHistogram-faithful, NANOSECONDS) ════════
    Merge = elementwise add (lossless). Percentile = cumulative-count walk. */
 const HDR_MIN=500, HDR_MAX=500000000, HDR_N=80;     // 500ns … 500ms (contract unit: ns)
@@ -342,7 +342,7 @@ const Gateway=(()=>{
 })();
 
 
-/* ════════ UI — WorldQuant-inspired: live leader as hero, segmented orange nav, restraint ════════ */
+/* ════════ UI — live leader as hero, segmented protocol nav, cinematic restraint ════════ */
 const fmtLat=ns=> ns<1000?ns.toFixed(0)+'ns':ns<1e6?(ns/1000).toFixed(ns<10000?2:1)+'µs':(ns/1e6).toFixed(ns<1e7?1:0)+'ms';
 const fmtTps=t=> (t/1000).toFixed(1);
 let activeProto='FIX', expanded=null, LAST={}, lastLeaderId=null;
