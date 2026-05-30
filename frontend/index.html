@@ -3,162 +3,199 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>IICPC 2026 · Track 3 — Real-Time Leaderboard & Analytics</title>
+<title>IICPC 2026 · Track 3 — Real-Time Leaderboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Archivo+Expanded:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#05070d; --panel:rgba(10,14,22,0.55); --border:rgba(255,255,255,0.07);
-    --text:rgba(255,255,255,0.92); --muted:rgba(255,255,255,0.45); --faint:rgba(255,255,255,0.22);
-    --good:#36d399; --warn:#fbbf24; --bad:#f87171; --accent:#38bdf8; --violet:#a78bfa;
-    --mono:'JetBrains Mono',ui-monospace,monospace; --sans:'Inter',sans-serif;
+    --bg:#000000; --ink:#ffffff; --dim:rgba(255,255,255,0.52); --faint:rgba(255,255,255,0.30);
+    --hair:rgba(255,255,255,0.12); --hair2:rgba(255,255,255,0.07);
+    --o1:#ff5a1f; --o2:#ff8a3d; --o3:#e63916;           /* orange→red accent */
+    --good:#3ad29f; --warn:#ffb23d; --bad:#ff5c5c; --cool:#36d3ff;
+    --grad:linear-gradient(90deg,#e63916 0%,#ff5a1f 50%,#ff8a3d 100%);
+    --sans:'Archivo',sans-serif; --exp:'Archivo Expanded','Archivo',sans-serif; --mono:'JetBrains Mono',monospace;
   }
-  html,body{width:100%;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden}
-  body{padding-bottom:60px}
-  #stars{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.5}
-  .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 24px}
-  header{display:flex;align-items:center;justify-content:space-between;padding:26px 0 18px;flex-wrap:wrap;gap:12px}
-  .brand{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
-  .brand b{color:var(--accent);font-weight:700}
-  .hdr-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .pill{display:flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid var(--border);border-radius:100px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-  .dot{width:6px;height:6px;border-radius:50%}
-  .blink{animation:blink 1.3s step-start infinite}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-  h1{font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:8px 0 2px;font-weight:600}
-  .sub{font-size:12px;color:var(--muted);margin-bottom:18px}
-  .rulebar{display:flex;gap:10px;align-items:flex-start;background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.14);border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:11px;color:var(--muted);line-height:1.5}
-  .rulebar b{color:var(--accent)}
-  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
-  .tab{font-family:var(--mono);font-size:12px;letter-spacing:.08em;padding:9px 18px;border:1px solid var(--border);border-radius:9px;background:rgba(255,255,255,0.015);color:var(--muted);cursor:pointer;transition:.2s;text-transform:uppercase;display:flex;align-items:center;gap:8px}
-  .tab:hover{color:var(--text);border-color:rgba(255,255,255,0.16)}
-  .tab.active{background:rgba(56,189,248,0.08);border-color:rgba(56,189,248,0.35);color:var(--accent)}
-  .tab .cnt{font-size:10px;color:var(--faint)}
-  .tab.overall.active{background:rgba(251,191,36,0.07);border-color:rgba(251,191,36,0.3);color:var(--warn)}
-  .xwarn{display:none;background:rgba(251,191,36,0.05);border:1px solid rgba(251,191,36,0.22);border-radius:9px;padding:9px 14px;margin-bottom:12px;font-size:11px;color:var(--warn);line-height:1.5}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow-x:hidden;
+       -webkit-font-smoothing:antialiased;line-height:1.1}
+  ::selection{background:var(--o1);color:#000}
+
+  .frame{max-width:1320px;margin:0 auto;padding:0 40px}
+
+  /* ── top bar ── */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:30px 0 0}
+  .brand{display:flex;align-items:center;gap:13px;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--dim);font-weight:600}
+  .logo{width:26px;height:26px;border-radius:5px;background:linear-gradient(135deg,#3ad29f,#36d3ff);position:relative;flex:none}
+  .logo::after{content:'';position:absolute;inset:6px;border-radius:2px;background:#000}
+  .top-right{display:flex;align-items:center;gap:10px}
+  .stat-pill{display:flex;align-items:center;gap:9px;border:1px solid var(--hair);border-radius:100px;padding:8px 16px;
+    font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+  .stat-pill .d{width:6px;height:6px;border-radius:50%}
+  .stat-pill.live .d{background:var(--good);box-shadow:0 0 10px var(--good);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* ── HERO ── */
+  .hero{padding:70px 0 50px;position:relative;min-height:62vh;display:flex;flex-direction:column;justify-content:center}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--o2);margin-bottom:30px;
+    display:flex;align-items:center;gap:14px}
+  .eyebrow .ln{width:54px;height:1px;background:var(--o1)}
+  .hero-name{font-family:var(--exp);font-weight:700;font-size:clamp(48px,10.5vw,150px);line-height:0.92;letter-spacing:-0.02em;
+    margin:0 0 8px;background:linear-gradient(180deg,#fff 55%,rgba(255,255,255,0.6));-webkit-background-clip:text;background-clip:text;color:transparent;
+    transition:opacity .5s}
+  .hero-sub{font-size:clamp(15px,1.6vw,20px);color:var(--dim);font-weight:400;max-width:640px;line-height:1.45;margin-top:18px}
+  .hero-sub b{color:var(--ink);font-weight:600}
+
+  /* big stat pairs */
+  .hero-stats{display:flex;gap:64px;margin-top:54px;flex-wrap:wrap;align-items:flex-end}
+  .bigstat .n{font-family:var(--exp);font-weight:600;font-size:clamp(34px,4.4vw,60px);letter-spacing:-0.02em;line-height:1;font-variant-numeric:tabular-nums}
+  .bigstat .n .u{font-size:0.4em;color:var(--dim);font-weight:500;margin-left:4px;letter-spacing:0}
+  .bigstat .l{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-top:12px}
+  .bigstat .n.lat{color:var(--cool)} .bigstat .n.scr{color:var(--good)}
+  .hero-cta{margin-left:auto;display:flex;align-items:center;gap:11px;border:1px solid var(--good);border-radius:100px;
+    padding:15px 26px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:.3s;background:rgba(58,210,159,0.02)}
+  .hero-cta:hover{box-shadow:0 0 26px rgba(58,210,159,0.28);background:rgba(58,210,159,0.07)}
+  .hero-cta .arr{transition:transform .3s}.hero-cta:hover .arr{transform:translateX(5px)}
+
+  /* ── SIGNATURE BAR : protocol nav as orange gradient strip ── */
+  .protobar{position:relative;display:flex;width:100%;background:var(--grad);overflow:hidden;
+    border-radius:3px;box-shadow:0 12px 50px -12px rgba(230,57,22,0.5)}
+  .seg{position:relative;flex:1;padding:20px 26px;cursor:pointer;border-right:1px solid rgba(0,0,0,0.22);
+    display:flex;align-items:center;gap:14px;transition:background .3s;min-height:62px}
+  .seg:last-child{border-right:none}
+  .seg:hover{background:rgba(0,0,0,0.12)}
+  .seg.on{background:rgba(0,0,0,0.30)}
+  .seg .lab{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;white-space:nowrap}
+  .seg .cnt{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,0.7);font-weight:500}
+  .seg .arr{margin-left:auto;opacity:0;transform:translateX(-8px);transition:.3s;color:#fff}
+  .seg.on .arr{opacity:1;transform:translateX(0)}
+  .seg.warnseg .lab{color:#1a0a00}
+  .seg.warnseg .cnt{color:rgba(0,0,0,0.55)}
+
+  /* ── BOARD ── */
+  .boardhead{display:flex;justify-content:space-between;align-items:baseline;margin:54px 0 6px;padding:0 4px}
+  .boardhead .t{font-family:var(--exp);font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .boardhead .tk{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.1em}
+  .rulenote{font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.6;max-width:880px;margin:0 4px 26px;padding-left:16px;border-left:2px solid var(--o1)}
+  .rulenote b{color:var(--o2)}
+  .xwarn{display:none;font-family:var(--mono);font-size:11px;color:var(--warn);line-height:1.6;margin:0 4px 22px;padding:14px 18px;border:1px solid rgba(255,178,61,0.26);border-radius:8px;background:rgba(255,178,61,0.04)}
   .xwarn.show{display:block}
-  .board-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
-  .cols{display:grid;gap:10px;padding:0 16px 8px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);align-items:end}
-  .rows{display:flex;flex-direction:column;gap:6px}
-  .grid{grid-template-columns:34px 1.7fr 2.5fr 0.8fr 1fr 0.7fr 0.6fr}
-  .grid-overall{grid-template-columns:34px 80px 1.6fr 2.5fr 0.8fr 1fr 0.6fr}
-  .row{display:grid;gap:10px;align-items:center;padding:14px 16px;border-radius:11px;background:var(--panel);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);position:relative;transition:border-color .4s, background .4s;cursor:pointer}
-  .row::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent)}
-  .row.r1{border-color:rgba(251,191,36,0.22)}
-  .row.r1::before{background:linear-gradient(90deg,transparent,rgba(251,191,36,0.4),transparent)}
-  .row.excluded{opacity:.5;border-color:rgba(255,255,255,0.05);background:rgba(255,255,255,0.012)}
-  .row.failed{border-color:rgba(248,113,113,0.22)}
-  .row.flash{animation:flash .7s ease-out}
-  @keyframes flash{0%{background:rgba(56,189,248,0.08)}100%{}}
-  .rank{font-family:var(--mono);font-weight:700;font-size:16px;text-align:center}
-  .r1 .rank{color:var(--warn)} .r2 .rank{color:#cbd5e1} .r3 .rank{color:#d8a05a}
-  .rank.lo{font-size:13px;color:var(--faint)}
-  .ident .nm{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ident .meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.02em}
-  .ident .meta .sid{color:var(--accent)}
-  .protocol-tag{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--violet)}
-  .ladder{display:flex;gap:0;align-items:flex-end}
-  .lad{flex:1;text-align:center;padding:0 1px}
-  .lad .k{font-family:var(--mono);font-size:8px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
-  .lad .v{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;margin-top:2px}
-  .lad.tail .k{color:var(--warn)}
-  .tps{text-align:right}
-  .tps .v{font-family:var(--mono);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
-  .tps .u{font-family:var(--mono);font-size:8px;color:var(--faint);text-transform:uppercase;margin-top:2px}
-  .knee{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:4px;overflow:hidden}
-  .knee .fill{height:100%;border-radius:2px}
-  .corr{text-align:right}
-  .corr .v{font-family:var(--mono);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
-  .corr .u{font-family:var(--mono);font-size:8px;color:var(--faint);margin-top:2px}
-  .corr .viol{color:var(--bad)}
-  .score{text-align:right}
-  .score .ring{width:46px;height:46px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:13px;border:1.5px solid var(--border)}
-  .score .fail{font-size:10px;color:var(--bad);letter-spacing:.05em}
-  .ptp{text-align:center}
-  .ptp .badge{display:inline-flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--mono);font-size:9px}
-  .ptp .off{font-weight:700;font-variant-numeric:tabular-nums}
-  .ptp .st{font-size:7px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-  .detail{grid-column:1/-1;display:none;padding:16px 4px 4px;border-top:1px solid var(--border);margin-top:12px;gap:24px}
-  .detail.show{display:grid;grid-template-columns:1.4fr 1fr}
-  .detail h4{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
-  .hist{display:flex;align-items:flex-end;gap:1px;height:90px}
-  .hist .bar{flex:1;background:linear-gradient(180deg,var(--accent),rgba(56,189,248,0.15));border-radius:1px 1px 0 0;min-height:1px}
-  .hist .bar.tail{background:linear-gradient(180deg,var(--bad),rgba(248,113,113,0.15))}
-  .histx{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--faint);margin-top:4px}
-  .kneeplot{position:relative;height:90px;border-left:1px solid var(--border);border-bottom:1px solid var(--border)}
-  .kneeplot svg{width:100%;height:100%;overflow:visible}
-  .detail .note{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px;line-height:1.5}
-  footer{position:relative;z-index:1;max-width:1280px;margin:40px auto 0;padding:18px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:10px;letter-spacing:.08em;color:var(--faint);flex-wrap:wrap;gap:8px}
-  footer b{color:var(--muted)}
-  @media(max-width:1000px){
+
+  .rows{display:flex;flex-direction:column;padding-bottom:90px}
+  .row{position:relative;display:grid;grid-template-columns:64px 1.7fr 2.6fr 0.9fr 0.8fr 0.7fr 70px;gap:22px;align-items:center;
+    padding:30px 16px;border-top:1px solid var(--hair2);transition:background .35s, border-color .35s;cursor:pointer}
+  .row:hover{background:rgba(255,255,255,0.022)}
+  .row.lead{border-top:1px solid transparent;background:linear-gradient(90deg,rgba(255,90,31,0.06),transparent 60%)}
+  .row.lead::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--grad)}
+  .row.excluded{opacity:.42}
+  .row.flash{animation:fl .8s ease-out}
+  @keyframes fl{0%{background:rgba(255,90,31,0.10)}100%{}}
+
+  .rk{font-family:var(--exp);font-weight:700;font-size:30px;letter-spacing:-0.03em;color:var(--faint);font-variant-numeric:tabular-nums}
+  .row.lead .rk{color:var(--o1)}
+  .rk.ex{font-size:18px}
+
+  .who .nm{font-family:var(--sans);font-size:21px;font-weight:600;letter-spacing:-0.01em;line-height:1.05}
+  .row.lead .who .nm{font-size:24px}
+  .who .meta{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:7px;letter-spacing:.02em}
+  .who .meta .sid{color:var(--cool)}
+  .ptag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--o2)}
+
+  .ladder{display:flex;gap:0}
+  .lad{flex:1;text-align:left;padding-right:10px}
+  .lad .k{font-family:var(--mono);font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  .lad .v{font-family:var(--mono);font-size:12px;margin-top:5px;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .lad.tl .v{color:var(--warn)} .lad.mx .v{color:var(--bad)}
+
+  .tps{text-align:left}
+  .tps .v{font-family:var(--mono);font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+  .tps .u{font-family:var(--mono);font-size:9px;color:var(--faint);text-transform:uppercase;margin-top:5px;letter-spacing:.06em}
+  .tps .bar{height:2px;background:var(--hair);margin-top:7px;overflow:hidden}
+  .tps .bar i{display:block;height:100%}
+
+  .cor{text-align:left}
+  .cor .v{font-family:var(--mono);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums}
+  .cor .u{font-family:var(--mono);font-size:9px;color:var(--faint);margin-top:5px;letter-spacing:.04em}
+  .cor .viol{color:var(--bad)}
+
+  .ptp{text-align:left}
+  .ptp .v{font-family:var(--mono);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+  .ptp .u{font-family:var(--mono);font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-top:5px}
+
+  .scr{text-align:right;font-family:var(--exp);font-weight:700;font-size:34px;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
+  .scr.fail{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--bad);letter-spacing:.04em}
+
+  .exnote{grid-column:1/-1;font-family:var(--mono);font-size:10px;color:var(--bad);margin-top:14px;letter-spacing:.02em;opacity:.85}
+
+  /* detail */
+  .detail{grid-column:1/-1;display:none;gap:40px;padding:30px 0 6px;margin-top:22px;border-top:1px solid var(--hair2)}
+  .detail.show{display:grid;grid-template-columns:1.5fr 1fr}
+  .detail h4{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:14px}
+  .hist{display:flex;align-items:flex-end;gap:2px;height:96px}
+  .hist .b{flex:1;background:var(--cool);opacity:.55;min-height:1px;transition:height .3s}
+  .hist .b.tl{background:var(--bad);opacity:.7}
+  .histx{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--faint);margin-top:7px}
+  .knee{position:relative;height:96px;border-left:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+  .knee svg{width:100%;height:100%;overflow:visible}
+  .dnote{font-family:var(--mono);font-size:9px;color:var(--faint);margin-top:11px;line-height:1.6}
+
+  footer{border-top:1px solid var(--hair2);margin-top:60px;padding:30px 0 50px}
+  .foot{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--faint);flex-wrap:wrap;gap:10px}
+  .foot b{color:var(--dim)}
+
+  /* entrance */
+  .reveal{opacity:0;transform:translateY(22px);animation:rise .9s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  @media(max-width:1080px){
     .ladder{display:none}
-    .grid{grid-template-columns:30px 1.6fr 1fr 1fr 0.7fr 0.6fr}
-    .grid-overall{grid-template-columns:30px 70px 1.6fr 1fr 1fr 0.6fr}
-    .cols-lad{display:none}
+    .row{grid-template-columns:48px 1.5fr 1fr 0.9fr 0.7fr 60px}
+    .hero-stats{gap:38px}
+    .frame{padding:0 22px}
   }
 </style>
 </head>
 <body>
-<canvas id="stars"></canvas>
-<div class="wrap">
-  <header>
-    <div class="brand"><b>IICPC</b> · Summer Hackathon 2026 · <b>Track 3</b> Real-Time Leaderboard</div>
-    <div class="hdr-right">
-      <div class="pill" id="syncPill"><span class="dot" style="background:var(--good)"></span><span id="syncTxt">PTP fabric: locked</span></div>
-      <div class="pill"><span class="dot blink" style="background:var(--good)"></span><span id="srcTxt">Mock source · SBE v1</span></div>
+<div class="frame">
+  <div class="top">
+    <div class="brand"><span class="logo"></span> IICPC · Summer Hackathon 2026</div>
+    <div class="top-right">
+      <div class="stat-pill" id="ptpPill"><span class="d" style="background:var(--good)"></span><span id="ptpTxt">PTP LOCKED</span></div>
+      <div class="stat-pill live"><span class="d"></span><span>LIVE · SBE v1</span></div>
     </div>
-  </header>
-  <h1>Real-Time Leaderboard &amp; Analytics</h1>
-  <div class="sub">Streaming CO-corrected latency · ranked by composite score · per-protocol, never mixed</div>
-  <div class="rulebar">
-    <span style="font-size:14px">◆</span>
-    <div><b>Cardinal rule — display only.</b> Every percentile shown is read directly from the contract's derived gauges (already CO-corrected and additively merged, §4). The UI performs no averaging, no re-bucketing, no interpolation. The scoring service reads p99 from the <i>merged additive HDR</i>, never from a mean of per-bot values.</div>
   </div>
-  <div class="tabs" id="tabs"></div>
-  <div class="xwarn" id="xwarn">⚠ Cross-protocol ranking shown for reference only. FIX, WebSocket and REST are not the same race — the contract forbids cross-protocol comparison (TLS + JSON framing alone add tens of µs). Compare within a protocol board, never across.</div>
-  <div class="board-meta"><span id="boardTitle">FIX BOARD</span><span id="tick">—</span></div>
-  <div class="cols" id="cols"></div>
+
+  <section class="hero">
+    <div class="eyebrow reveal" style="animation-delay:.05s"><span class="ln"></span><span id="eyebrow">NOW LEADING · FIX BOARD</span></div>
+    <h1 class="hero-name reveal" id="heroName" style="animation-delay:.12s">—</h1>
+    <p class="hero-sub reveal" id="heroSub" style="animation-delay:.2s"></p>
+    <div class="hero-stats reveal" style="animation-delay:.3s">
+      <div class="bigstat"><div class="n lat" id="hsLat">—</div><div class="l">p99 latency · CO-corrected</div></div>
+      <div class="bigstat"><div class="n" id="hsTps">—</div><div class="l">sustained throughput</div></div>
+      <div class="bigstat"><div class="n scr" id="hsScore">—</div><div class="l">composite score</div></div>
+      <div class="hero-cta" onclick="document.getElementById('boardAnchor').scrollIntoView({behavior:'smooth'})">
+        <span>View full board</span><span class="arr">↓</span>
+      </div>
+    </div>
+  </section>
+
+  <nav class="protobar reveal" id="protobar" style="animation-delay:.4s"></nav>
+
+  <div id="boardAnchor"></div>
+  <div class="boardhead"><span class="t" id="boardTitle">FIX BOARD</span><span class="tk" id="tick">—</span></div>
+  <div class="rulenote"><b>Display only.</b> Every percentile is read straight from the contract's CO-corrected, additively-merged gauges (§4). No averaging, no re-bucketing, no interpolation — the scoring service reads p99 from the merged additive HDR, never a mean of per-bot values.</div>
+  <div class="xwarn" id="xwarn">⚠ Cross-protocol ranking — reference only. FIX, WebSocket and REST are not the same race; the contract forbids comparing across them. Read within a protocol board.</div>
   <div class="rows" id="rows"></div>
 </div>
-<footer>
-  <span><b>Display correctness &gt; visual polish.</b> · SBE schema v1 · reads derived gauges + additive HDR only · scoring per Interface Contract §5.</span>
-  <span id="swapState">● MOCK MODE — swap to live VictoriaMetrics + HDR with zero UI change</span>
-</footer>
 
 <script>
 "use strict";
-/* ════════════════════════════════════════════════════════════════════════
-   IICPC TRACK 3 — REAL-TIME LEADERBOARD & ANALYTICS
-   [ Mock Source ] → [ Scoring Service ] → [ Realtime Gateway ] → [ UI ]
-      gauges+HDR        pure function         delta fan-out       display-only
 
-   CARDINAL RULE (Interface Contract §4): the UI never recomputes a percentile.
-   It displays contract gauges and renders HDR buckets. Only the scoring
-   service reads p99 — from the MERGED additive HDR, never from an average.
-
-   ── ALIGNED TO THE FROZEN INTERFACE CONTRACT (doc 1/4) ──────────────────
-   identity (§1): schema_version(uint16) submission_id(128b ELF hash)
-                  run_id(128b, scopes the row) contestant_version(string)
-                  protocol enum {FIX, WS, REST}  node_id
-   gauges  (§4): p50 p90 p99 p99_9 p99_99 max  (latency, NANOSECONDS, CO-corrected)
-                 tps (max sustained before err threshold, §5)  err (error rate)
-   correctness (§5): diff_pass_rate  invariant_violations
-   hdr:    additive HDR blob per (submission_id,protocol,symbol); merge lossless
-   ptp (§6 / Telemetry §3): max_offset_ns mean_offset_ns sync_state — metadata
-   integrity gate (§5 / Telemetry §6): selftest_p99_ns (>5µs fail)
-                  software_jitter_ns (>1µs fail) → samples EXCLUDED, not penalised
-   join key (§2): seq.  latency = ack_rx − NewOrder.tsSendUserNs for that seq
-                  (computed upstream; the leaderboard never recomputes it)
-   ════════════════════════════════════════════════════════════════════════ */
-
-/* ── LIVE SWAP POINT ──────────────────────────────────────────────────────
-   To go live, set USE_LIVE=true and subscribe to a WS/SSE feed emitting the
-   SAME delta shape: { changed:[row...], removed:[id...] }. If the contract
-   held, nothing below this line changes. */
+/* ── LIVE SWAP POINT ── set USE_LIVE=true and subscribe to a WS/SSE feed emitting
+   the same delta shape { changed:[...], removed:[...] }; nothing else changes. */
 const USE_LIVE=false;
 const LIVE_WS_URL='ws://localhost:8080/track3/deltas';
-
 /* ════════ HDR — additive histogram (HdrHistogram-faithful, NANOSECONDS) ════════
    Merge = elementwise add (lossless). Percentile = cumulative-count walk. */
 const HDR_MIN=500, HDR_MAX=500000000, HDR_N=80;     // 500ns … 500ms (contract unit: ns)
@@ -304,99 +341,104 @@ const Gateway=(()=>{
   return {buildRows,diff};
 })();
 
-/* ════════ UI — display only. Renders gauges + HDR buckets. No statistics here. ════════ */
-const fmtLat=ns=> ns<1000?ns.toFixed(0)+'ns':ns<1e6?(ns/1000).toFixed(ns<10000?2:1)+'µs':(ns/1e6).toFixed(ns<1e7?1:0)+'ms';
-const fmtTps=t=> (t/1000).toFixed(1)+'k';
-let activeProto='FIX', expanded=null, LAST={};
 
-function buildTabs(deltas){
-  const tabs=document.getElementById('tabs');tabs.innerHTML='';
+/* ════════ UI — WorldQuant-inspired: live leader as hero, segmented orange nav, restraint ════════ */
+const fmtLat=ns=> ns<1000?ns.toFixed(0)+'ns':ns<1e6?(ns/1000).toFixed(ns<10000?2:1)+'µs':(ns/1e6).toFixed(ns<1e7?1:0)+'ms';
+const fmtTps=t=> (t/1000).toFixed(1);
+let activeProto='FIX', expanded=null, LAST={}, lastLeaderId=null;
+
+function buildBar(deltas){
+  const bar=document.getElementById('protobar'); bar.innerHTML='';
   PROTOCOLS.forEach(p=>{
     const n=(deltas[p]||[]).filter(r=>!r.excluded).length;
-    const t=document.createElement('div');
-    t.className='tab'+(activeProto===p?' active':'');
-    t.innerHTML=PROTO_LABEL[p]+' <span class="cnt">'+n+'</span>';
-    t.onclick=()=>{activeProto=p;render(LAST);};tabs.appendChild(t);
+    const s=document.createElement('div');
+    s.className='seg'+(activeProto===p?' on':'');
+    s.innerHTML='<span class="lab">'+PROTO_LABEL[p]+'</span><span class="cnt">'+String(n).padStart(2,'0')+'</span><span class="arr">→</span>';
+    s.onclick=()=>{activeProto=p;render(LAST);};
+    bar.appendChild(s);
   });
   const o=document.createElement('div');
-  o.className='tab overall'+(activeProto==='OVERALL'?' active':'');
-  o.innerHTML='Overall <span class="cnt">⚠</span>';
-  o.onclick=()=>{activeProto='OVERALL';render(LAST);};tabs.appendChild(o);
+  o.className='seg warnseg'+(activeProto==='OVERALL'?' on':'');
+  o.innerHTML='<span class="lab">Overall</span><span class="cnt">⚠</span><span class="arr">→</span>';
+  o.onclick=()=>{activeProto='OVERALL';render(LAST);};
+  bar.appendChild(o);
 }
-function colsHTML(overall){
-  if(overall)return '<div></div><div>Protocol</div><div>Run identity</div>'
-    +'<div class="cols-lad">Latency percentile ladder (p50 → max)</div>'
-    +'<div style="text-align:right">Sustained TPS</div><div style="text-align:right">Correctness</div><div style="text-align:right">Score</div>';
-  return '<div></div><div>Run identity</div>'
-    +'<div class="cols-lad">Latency percentile ladder (p50 → max)</div>'
-    +'<div style="text-align:right">Sustained TPS</div><div style="text-align:right">Correctness</div>'
-    +'<div style="text-align:center">PTP sync</div><div style="text-align:right">Score</div>';
-}
+
 function ladderHTML(g){
   const items=[['p50',g.p50,0],['p90',g.p90,0],['p99',g.p99,1],['p99.9',g.p99_9,1],['p99.99',g.p99_99,1],['max',g.max,2]];
   return '<div class="ladder">'+items.map(function(it){var k=it[0],v=it[1],t=it[2];
-    var col=t===2?'var(--bad)':t===1?'var(--warn)':'var(--text)';
-    return '<div class="lad '+(t===1?'tail':'')+'"><div class="k">'+k+'</div><div class="v" style="color:'+col+'">'+fmtLat(v)+'</div></div>';}).join('')+'</div>';
-}
-function ptpHTML(ptp){
-  const off=ptp.max_offset_ns;
-  const col=ptp.sync_state==='LOCKED'&&off<120?'var(--good)':off<400?'var(--warn)':'var(--bad)';
-  return '<div class="ptp"><div class="badge"><span class="off" style="color:'+col+'">±'+Math.round(off)+'ns</span><span class="st">'+ptp.sync_state+'</span></div></div>';
-}
-function scoreHTML(r){
-  if(r.failed)return '<div class="score"><div class="ring" style="border-color:rgba(248,113,113,.4)"><span class="fail">FAIL</span></div></div>';
-  const c=r.score>75?'var(--good)':r.score>50?'var(--warn)':'var(--muted)';
-  return '<div class="score"><div class="ring" style="border-color:'+c+';color:'+c+'">'+r.score+'</div></div>';
-}
-function identHTML(r){
-  return '<div class="ident"><div class="nm">'+r.contestant+'</div>'
-    +'<div class="meta"><span class="sid">'+r.submission_id+'</span> · '+r.contestant_version+' · run '+r.run_id+' · '+r.node+'</div></div>';
-}
-function corrHTML(g){
-  const pc=g.diff_pass_rate>=0.999?'var(--good)':'var(--bad)';
-  return '<div class="corr"><div class="v" style="color:'+pc+'">'+(g.diff_pass_rate*100).toFixed(2)+'%</div>'
-    +'<div class="u">diff pass'+(g.invariant_violations>0?' · <span class="viol">'+g.invariant_violations+' inv</span>':'')+'</div></div>';
+    return '<div class="lad '+(t===1?'tl':'')+(t===2?' mx':'')+'"><div class="k">'+k+'</div><div class="v">'+fmtLat(v)+'</div></div>';}).join('')+'</div>';
 }
 function tpsHTML(g){
-  const kneePct=Math.min(100,(g.err/0.05)*100);
+  const pct=Math.min(100,(g.err/0.05)*100);
   const col=g.err<0.02?'var(--good)':g.err<0.05?'var(--warn)':'var(--bad)';
-  return '<div class="tps"><div class="v">'+fmtTps(g.tps)+'</div><div class="u">sustained · err '+(g.err*100).toFixed(2)+'%</div>'
-    +'<div class="knee"><div class="fill" style="width:'+kneePct+'%;background:'+col+'"></div></div></div>';
+  return '<div class="tps"><div class="v">'+fmtTps(g.tps)+'<span style="font-size:11px;color:var(--faint)">k</span></div>'
+    +'<div class="u">sustained · err '+(g.err*100).toFixed(2)+'%</div>'
+    +'<div class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></div></div>';
+}
+function corHTML(g){
+  const c=g.diff_pass_rate>=0.999?'var(--good)':'var(--bad)';
+  return '<div class="cor"><div class="v" style="color:'+c+'">'+(g.diff_pass_rate*100).toFixed(2)+'%</div>'
+    +'<div class="u">diff pass'+(g.invariant_violations>0?' · <span class="viol">'+g.invariant_violations+' inv</span>':'')+'</div></div>';
+}
+function ptpHTML(p){
+  const off=p.max_offset_ns,c=p.sync_state==='LOCKED'&&off<120?'var(--good)':off<400?'var(--warn)':'var(--bad)';
+  return '<div class="ptp"><div class="v" style="color:'+c+'">±'+Math.round(off)+'ns</div><div class="u">'+p.sync_state+'</div></div>';
+}
+function scoreHTML(r){
+  if(r.failed)return '<div class="scr fail">FAIL</div>';
+  return '<div class="scr">'+r.score+'</div>';
+}
+function whoHTML(r){
+  return '<div class="who"><div class="nm">'+r.contestant+'</div>'
+    +'<div class="meta"><span class="sid">'+r.submission_id+'</span> · '+r.contestant_version+' · '+r.node+'</div></div>';
 }
 function detailHTML(r){
-  const maxc=Math.max.apply(null,r.hdr.c.concat([1]));
-  const p99edge=r.g.p99;let bars='';
-  for(let i=0;i<HDR_N;i++){const h=Math.round((r.hdr.c[i]/maxc)*100);const tail=HDR_EDGES[i]>=p99edge;
-    bars+='<div class="bar '+(tail?'tail':'')+'" style="height:'+Math.max(1,h)+'%"></div>';}
+  const maxc=Math.max.apply(null,r.hdr.c.concat([1])),p99e=r.g.p99;let bars='';
+  for(let i=0;i<HDR_N;i++){const hh=Math.round((r.hdr.c[i]/maxc)*100),tl=HDR_EDGES[i]>=p99e;
+    bars+='<div class="b '+(tl?'tl':'')+'" style="height:'+Math.max(1,hh)+'%"></div>';}
   const pts=[],tpsMax=r.g.tps*1.4;
-  for(let i=0;i<=10;i++){const x=i/10,tps=x*tpsMax;
-    const err=tps<r.g.tps?0.002+x*0.01:0.012+(x-0.7)*0.18;pts.push([x*100,Math.min(100,err/0.1*100)]);}
-  const poly=pts.map(p=>p[0]+','+(100-p[1])).join(' ');
-  const kneeX=(r.g.tps/tpsMax)*100;
+  for(let i=0;i<=10;i++){const x=i/10,tps=x*tpsMax;const err=tps<r.g.tps?0.002+x*0.01:0.012+(x-0.7)*0.18;pts.push([x*100,Math.min(100,err/0.1*100)]);}
+  const poly=pts.map(p=>p[0]+','+(100-p[1])).join(' '),kneeX=(r.g.tps/tpsMax)*100;
   return '<div class="detail show"><div>'
-    +'<h4>HDR latency distribution — rendered from additive buckets (500ns → 500ms, log)</h4>'
+    +'<h4>HDR latency distribution — rendered from additive buckets · 500ns → 500ms (log)</h4>'
     +'<div class="hist">'+bars+'</div>'
     +'<div class="histx"><span>500ns</span><span>p50 '+fmtLat(r.g.p50)+'</span><span style="color:var(--warn)">p99 '+fmtLat(r.g.p99)+'</span><span style="color:var(--bad)">max '+fmtLat(r.g.max)+'</span><span>500ms</span></div>'
-    +'<div class="note">Red bars are the tail beyond p99 — the part a mean would hide. Rendered straight from the contract HDR; no re-binning.</div></div>'
-    +'<div><h4>Throughput vs error knee</h4>'
-    +'<div class="kneeplot"><svg viewBox="0 0 100 100" preserveAspectRatio="none">'
-    +'<polyline points="'+poly+'" fill="none" stroke="var(--accent)" stroke-width="1.5"/>'
+    +'<div class="dnote">Red bars are the tail beyond p99 — the part a mean would hide. Straight from the contract HDR; no re-binning.</div></div>'
+    +'<div><h4>Throughput vs error knee</h4><div class="knee"><svg viewBox="0 0 100 100" preserveAspectRatio="none">'
+    +'<polyline points="'+poly+'" fill="none" stroke="var(--cool)" stroke-width="1.5"/>'
     +'<line x1="'+kneeX+'" y1="0" x2="'+kneeX+'" y2="100" stroke="var(--warn)" stroke-width="0.8" stroke-dasharray="3 3"/></svg></div>'
-    +'<div class="note">Dashed line = max sustained TPS before the error threshold (§5). Peak TPS to the right is meaningless once errors climb.</div></div></div>';
+    +'<div class="dnote">Dashed line = max sustained TPS before the error threshold (§5).</div></div></div>';
+}
+
+function setHero(leader, proto){
+  const nm=document.getElementById('heroName');
+  if(!leader){ nm.textContent='Awaiting data'; document.getElementById('heroSub').textContent=''; return; }
+  if(leader.id!==lastLeaderId){ nm.style.opacity=0;
+    setTimeout(()=>{nm.textContent=leader.contestant; nm.style.opacity=1;},260);
+    lastLeaderId=leader.id;
+  } else { nm.textContent=leader.contestant; }
+  document.getElementById('eyebrow').textContent='NOW LEADING · '+(proto==='OVERALL'?'OVERALL':PROTO_LABEL[proto].toUpperCase()+' BOARD');
+  document.getElementById('heroSub').innerHTML='Leading the '+PROTO_LABEL[proto]+' board with a CO-corrected <b>p99 of '+fmtLat(leader.g.p99)+'</b> at <b>'+fmtTps(leader.g.tps)+'k sustained TPS</b> — ranked by the contract\u2019s composite of latency, throughput and byte-exact correctness.';
+  document.getElementById('hsLat').textContent=fmtLat(leader.g.p99);
+  document.getElementById('hsTps').innerHTML=fmtTps(leader.g.tps)+'<span class="u">k tps</span>';
+  document.getElementById('hsScore').textContent=leader.failed?'—':leader.score;
 }
 
 function render(deltas){
-  LAST=deltas;buildTabs(deltas);
+  LAST=deltas; buildBar(deltas);
   const overall=activeProto==='OVERALL';
-  document.getElementById('boardTitle').textContent=overall?'OVERALL (REFERENCE ONLY)':(PROTO_LABEL[activeProto].toUpperCase()+' BOARD');
+  document.getElementById('boardTitle').textContent=overall?'OVERALL · REFERENCE ONLY':PROTO_LABEL[activeProto].toUpperCase()+' BOARD';
   document.getElementById('xwarn').className='xwarn'+(overall?' show':'');
-  document.getElementById('cols').className='cols '+(overall?'grid-overall':'grid');
-  document.getElementById('cols').innerHTML=colsHTML(overall);
 
   let list;
   if(overall){list=[];PROTOCOLS.forEach(p=>list.push.apply(list,(deltas[p]||[])));
     list=list.filter(r=>!r.excluded).sort((a,b)=>b.score-a.score).map((r,i)=>Object.assign({},r,{rank:i+1}));}
   else list=deltas[activeProto]||[];
+
+  // hero = current leader of the active board
+  const leader=list.find(r=>!r.excluded&&!r.failed)||list.find(r=>!r.excluded)||null;
+  setHero(leader, activeProto);
 
   const rows=document.getElementById('rows');
   const old={};Array.from(rows.children).forEach(el=>old[el.dataset.id]=el.getBoundingClientRect().top);
@@ -404,24 +446,17 @@ function render(deltas){
 
   list.forEach(r=>{
     const el=document.createElement('div');el.dataset.id=r.id;
-    el.className='row '+(overall?'grid-overall':'grid')
-      +(r.rank===1&&!r.excluded?' r1':r.rank===2?' r2':r.rank===3?' r3':'')
-      +(r.excluded?' excluded':'')+(r.failed?' failed':'');
-    const rankCell=r.excluded?'<div class="rank lo" title="Excluded by integrity gate">—</div>'
-      :'<div class="rank '+(r.rank>3?'lo':'')+'">'+String(r.rank).padStart(2,'0')+'</div>';
+    el.className='row'+(r.rank===1&&!r.excluded?' lead':'')+(r.excluded?' excluded':'');
+    const rk=r.excluded?'<div class="rk ex">—</div>':'<div class="rk">'+String(r.rank).padStart(2,'0')+'</div>';
     if(overall){
-      el.innerHTML=rankCell+'<div class="protocol-tag">'+PROTO_LABEL[r.protocol]+'</div>'
-        +identHTML(r)+'<div class="cols-lad">'+ladderHTML(r.g)+'</div>'+tpsHTML(r.g)+corrHTML(r.g)+scoreHTML(r);
+      el.innerHTML=rk+'<div class="ptag">'+PROTO_LABEL[r.protocol]+'</div>'+whoHTML(r)
+        +ladderHTML(r.g)+tpsHTML(r.g)+corHTML(r.g)+scoreHTML(r);
     }else{
-      el.innerHTML=rankCell+identHTML(r)+'<div class="cols-lad">'+ladderHTML(r.g)+'</div>'
-        +tpsHTML(r.g)+corrHTML(r.g)+ptpHTML(r.ptp)+scoreHTML(r);
+      el.innerHTML=rk+whoHTML(r)+ladderHTML(r.g)+tpsHTML(r.g)+corHTML(r.g)+ptpHTML(r.ptp)+scoreHTML(r);
     }
-    if(r.excluded){
-      const note=document.createElement('div');
-      note.style.cssText='grid-column:1/-1;font-family:var(--mono);font-size:9px;color:var(--bad);margin-top:6px;letter-spacing:.03em';
-      note.textContent='◆ EXCLUDED — integrity gate failed (self-test p99 '+fmtLat(r.integrity.selftest_p99_ns)+' > 5µs or software-jitter '+fmtLat(r.integrity.software_jitter_ns)+' > 1µs). Samples filtered before scoring — not a penalty.';
-      el.appendChild(note);
-    }
+    if(r.excluded){const n=document.createElement('div');n.className='exnote';
+      n.textContent='◆ EXCLUDED — integrity gate failed (self-test p99 '+fmtLat(r.integrity.selftest_p99_ns)+' > 5µs or software-jitter '+fmtLat(r.integrity.software_jitter_ns)+' > 1µs). Filtered before scoring — not a penalty.';
+      el.appendChild(n);}
     if(expanded===r.id)el.insertAdjacentHTML('beforeend',detailHTML(r));
     el.onclick=()=>{expanded=expanded===r.id?null:r.id;render(LAST);};
     if(r._changed&&!r.excluded)el.classList.add('flash');
@@ -431,26 +466,18 @@ function render(deltas){
   Array.from(rows.children).forEach(el=>{const o=old[el.dataset.id];if(o==null)return;
     const d=o-el.getBoundingClientRect().top;
     if(Math.abs(d)>1){el.style.transform='translateY('+d+'px)';el.style.transition='none';
-      requestAnimationFrame(()=>{el.style.transition='transform .5s cubic-bezier(.22,.61,.36,1)';el.style.transform='';});}});
+      requestAnimationFrame(()=>{el.style.transition='transform .55s cubic-bezier(.2,.7,.3,1)';el.style.transform='';});}});
 
   const anyHold=PROTOCOLS.some(p=>(deltas[p]||[]).some(r=>r.ptp.sync_state==='HOLDOVER'));
-  document.getElementById('syncTxt').textContent=anyHold?'PTP fabric: 1 node holdover':'PTP fabric: locked';
-  document.getElementById('syncPill').querySelector('.dot').style.background=anyHold?'var(--warn)':'var(--good)';
+  document.getElementById('ptpTxt').textContent=anyHold?'PTP · 1 HOLDOVER':'PTP LOCKED';
+  document.getElementById('ptpPill').querySelector('.d').style.background=anyHold?'var(--warn)':'var(--good)';
   document.getElementById('tick').textContent='↻ '+new Date().toLocaleTimeString('en-IN',{hour12:false});
 }
 
-function loop(){const subs=MockSource.tick();render(Gateway.diff(Gateway.buildRows(subs)));}
+function loop(){render(Gateway.diff(Gateway.buildRows(MockSource.tick())));}
 MockSource.init();
 render(Gateway.diff(Gateway.buildRows(MockSource.all())));
-if(!USE_LIVE)setInterval(loop,2500);   // human-facing cadence 1–5s (Track 3 §6)
-
-/* starfield — atmosphere only, secondary to data */
-(()=>{const c=document.getElementById('stars'),x=c.getContext('2d');
- function sz(){c.width=innerWidth;c.height=innerHeight;}sz();addEventListener('resize',sz);
- const st=Array.from({length:140},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.2,a:Math.random()}));
- (function d(){x.clearRect(0,0,c.width,c.height);st.forEach(s=>{s.a+=(Math.random()-.5)*.05;s.a=Math.max(.1,Math.min(.7,s.a));
-   x.fillStyle='rgba(160,190,230,'+(s.a*0.5)+')';x.beginPath();x.arc(s.x*c.width,s.y*c.height,s.r,0,7);x.fill();});
-   requestAnimationFrame(d);})();})();
+if(!USE_LIVE)setInterval(loop,2500);
 </script>
 </body>
 </html>
