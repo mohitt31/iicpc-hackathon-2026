@@ -162,7 +162,7 @@
     <div class="brand"><span class="logo"></span> IICPC · Summer Hackathon 2026</div>
     <div class="top-right">
       <div class="stat-pill" id="ptpPill"><span class="d" style="background:var(--good)"></span><span id="ptpTxt">PTP LOCKED</span></div>
-      <div class="stat-pill live"><span class="d"></span><span>LIVE · SBE v1</span></div>
+      <div class="stat-pill live"><span class="d"></span><span>DEMO · SBE v1</span></div>
     </div>
   </div>
 
@@ -184,7 +184,7 @@
 
   <div id="boardAnchor"></div>
   <div class="boardhead"><span class="t" id="boardTitle">FIX BOARD</span><span class="tk" id="tick">—</span></div>
-  <div class="rulenote"><b>Display only.</b> Every percentile is read straight from the contract's CO-corrected, additively-merged gauges (§4). No averaging, no re-bucketing, no interpolation — the scoring service reads p99 from the merged additive HDR, never a mean of per-bot values.</div>
+  <div class="rulenote"><b>Display only.</b> In live mode, every percentile is read straight from the contract's CO-corrected, additively-merged gauges (§4). No averaging, no re-bucketing, no interpolation — the scoring service reads p99 from the merged additive HDR, never a mean of per-bot values. In demo mode, data is synthetic.</div>
   <div class="xwarn" id="xwarn">⚠ Cross-protocol ranking — reference only. FIX, WebSocket and REST are not the same race; the contract forbids comparing across them. Read within a protocol board.</div>
   <div class="rows" id="rows"></div>
 </div>
@@ -195,6 +195,16 @@
 /* ── LIVE SWAP POINT ── set USE_LIVE=true and subscribe to a WS/SSE feed emitting
    the same delta shape { changed:[...], removed:[...] }; nothing else changes. */
 const USE_LIVE=false;
+/* ── DEMO MODE banner ── shown when USE_LIVE=false so judges see it clearly */
+if (!USE_LIVE) {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:rgba(255,178,61,0.12);border:1px solid rgba(255,178,61,0.4);border-radius:6px;padding:10px 18px;margin:12px 0;font-family:var(--mono);font-size:11px;color:var(--warn);letter-spacing:.06em';
+  banner.textContent = '⚠ DEMO MODE — synthetic data matching contract shape. Set USE_LIVE=true and point LIVE_WS_URL at the telemetry gateway for real bot-fleet data.';
+  document.addEventListener('DOMContentLoaded', () => {
+    const frame = document.querySelector('.frame');
+    if (frame) frame.insertBefore(banner, frame.children[1]);
+  });
+}
 const LIVE_WS_URL='ws://localhost:8080/leaderboard/deltas';
 /* ════════ HDR — additive histogram (HdrHistogram-faithful, NANOSECONDS) ════════
    Merge = elementwise add (lossless). Percentile = cumulative-count walk. */
