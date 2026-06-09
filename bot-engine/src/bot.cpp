@@ -74,8 +74,8 @@ constexpr std::size_t hardware_destructive_interference_size = 64;
 // ── Latency record pushed onto the SPSC ring ──────────────────────────────
 // 16 bytes. Fits two records per cache line; ring of 65536 entries = 1 MiB.
 struct LatencyRecord {
-    int64_t  latency_ns;
-    uint64_t interval_ns;  // for hdr_record_corrected_value
+    int64_t  naive_latency_ns;
+    int64_t  co_latency_ns;
 };
 
 // Ring capacity: 65536 records. At 100us interval = 6.5s of buffering.
@@ -179,9 +179,8 @@ static void spsc_consumer(BotResult* result,
     while (!stop_flag->load(std::memory_order_acquire)) {
         bool drained_any = false;
         while (result->spsc_ring->try_pop(rec)) {
-            hdr_record_value(result->naive_hist, rec.latency_ns);
-            hdr_record_corrected_value(result->co_hist,
-                                       rec.latency_ns, rec.interval_ns);
+            hdr_record_value(result->naive_hist, rec.naive_latency_ns);
+            hdr_record_value(result->co_hist, rec.co_latency_ns);
             drained_any = true;
         }
         // Sleep briefly only if ring was empty — keeps tail latency low
@@ -192,9 +191,8 @@ static void spsc_consumer(BotResult* result,
     }
     // Final drain after stop signal — make sure no records are lost.
     while (result->spsc_ring->try_pop(rec)) {
-        hdr_record_value(result->naive_hist, rec.latency_ns);
-        hdr_record_corrected_value(result->co_hist,
-                                   rec.latency_ns, rec.interval_ns);
+        hdr_record_value(result->naive_hist, rec.naive_latency_ns);
+        hdr_record_value(result->co_hist, rec.co_latency_ns);
     }
 }
 
@@ -496,10 +494,11 @@ static void bot_worker(BotConfig config, BotResult* result) {
     constexpr size_t PENDING_MASK  = PENDING_SLOTS - 1;
     struct PendingSlot {
         uint64_t  intended_ts;
+        uint64_t  actual_send_ts;
         uint64_t  seq;
         NewOrder* pool_ptr;
     };
-    std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0, nullptr});
+    std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0, 0, nullptr});
 
     constexpr size_t TX_FRAME_SIZE = sizeof(FrameHeader) + sizeof(NewOrder);
     alignas(hardware_destructive_interference_size) uint8_t tx_buffer[TX_FRAME_SIZE];
@@ -526,17 +525,15 @@ static void bot_worker(BotConfig config, BotResult* result) {
     // Lambda routes each measurement either inline to HDR (default) or
     // through the SPSC ring (--use-spsc). Captured by reference so the
     // hot loop sees the cheapest possible call site.
-    auto record_latency = [&](int64_t latency) {
+    auto record_latency = [&](int64_t naive_latency, int64_t co_latency) {
         if (config.use_spsc) {
-            LatencyRecord rec{latency,
-                              static_cast<uint64_t>(config.interval_ns)};
+            LatencyRecord rec{naive_latency, co_latency};
             if (__builtin_expect(!result->spsc_ring->try_push(rec), 0)) {
                 spsc_dropped_local++;
             }
         } else {
-            hdr_record_value(result->naive_hist, latency);
-            hdr_record_corrected_value(result->co_hist,
-                                       latency, config.interval_ns);
+            hdr_record_value(result->naive_hist, naive_latency);
+            hdr_record_value(result->co_hist, co_latency);
         }
     };
 
@@ -575,6 +572,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
 
             std::memcpy(tx_order, slot, sizeof(NewOrder));
 
+            uint64_t actual_send_time = hft::rdtscp_ns();
             ssize_t sent = send(sock, tx_buffer, TX_FRAME_SIZE, MSG_DONTWAIT);
 
             if (__builtin_expect(sent < 0, 0)) {
@@ -603,7 +601,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
                 if (pending[map_slot].pool_ptr)
                     pool.release(pending[map_slot].pool_ptr);
             }
-            pending[map_slot] = {next_send_time, this_seq, slot};
+            pending[map_slot] = {next_send_time, actual_send_time, this_seq, slot};
             total_sent = this_seq;
             next_send_time += config.interval_ns;
         }
@@ -639,18 +637,20 @@ static void bot_worker(BotConfig config, BotResult* result) {
                     PendingSlot& pslot = pending[ps];
                     if (__builtin_expect(pslot.seq == rx_ack->order_seq &&
                                         pslot.intended_ts > 0, 1)) {
-                        int64_t latency = static_cast<int64_t>(
+                        int64_t naive_latency = static_cast<int64_t>(
+                            ack_time - pslot.actual_send_ts);
+                        int64_t co_latency = static_cast<int64_t>(
                             ack_time - pslot.intended_ts);
                         // Exclude warmup samples from HDR — TCP slow-start,
                         // ARP, cache-warming spikes pollute the first N
                         // samples. Standard practice in serious benchmarks.
                         // We still count the ack so total_acked is honest.
-                        if (latency > 0 &&
+                        if (naive_latency > 0 &&
                             rx_ack->order_seq > config.warmup_orders) {
-                            record_latency(latency);
+                            record_latency(naive_latency, co_latency);
                         }
                         if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
-                        pslot = {0, 0, nullptr};
+                        pslot = {0, 0, 0, nullptr};
                     }
                     total_acked++;
                 } else if (rx_hdr->msg_type == MSG_FILL) {
@@ -662,7 +662,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
                         PendingSlot& pslot = pending[ps];
                         if (pslot.seq == rx_fill->order_seq) {
                             if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
-                            pslot = {0, 0, nullptr};
+                            pslot = {0, 0, 0, nullptr};
                         }
                     }
                 } else if (rx_hdr->msg_type == MSG_REJECT) {
@@ -673,7 +673,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
                     PendingSlot& pslot = pending[ps];
                     if (pslot.seq == rx_rej->order_seq) {
                         if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
-                        pslot = {0, 0, nullptr};
+                        pslot = {0, 0, 0, nullptr};
                     }
                 }
                 offset += frame_size;
@@ -709,13 +709,15 @@ end_run:
                         size_t ps = rx_ack->order_seq & PENDING_MASK;
                         PendingSlot& pslot = pending[ps];
                         if (pslot.seq == rx_ack->order_seq && pslot.intended_ts > 0) {
-                            int64_t latency = static_cast<int64_t>(
+                            int64_t naive_latency = static_cast<int64_t>(
+                                ack_time - pslot.actual_send_ts);
+                            int64_t co_latency = static_cast<int64_t>(
                                 ack_time - pslot.intended_ts);
-                            if (latency > 0) {
-                                record_latency(latency);
+                            if (naive_latency > 0) {
+                                record_latency(naive_latency, co_latency);
                             }
                             if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
-                            pslot = {0, 0, nullptr};
+                            pslot = {0, 0, 0, nullptr};
                         }
                         total_acked++;
                     } else if (rx_hdr->msg_type == MSG_FILL) {
