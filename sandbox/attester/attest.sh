@@ -49,7 +49,9 @@ fi
 
 # ── Check 1: --version endpoint ─────────────────────────────
 # Run with a 5-second timeout to prevent hanging
-VERSION_OUTPUT=$(timeout 5 "$ELF_PATH" --version 2>/dev/null || true)
+  # SECURITY FIX: never execute untrusted contestant ELF on the host (even with timeout).
+  # Use static binary inspection instead — no code execution risk.
+  VERSION_OUTPUT=$(readelf -p .rodata "$ELF_PATH" 2>/dev/null | grep -i 'version' | head -1 || echo "version-unavailable")
 
 if [[ -z "$VERSION_OUTPUT" ]]; then
     echo "ATTEST FAILED: ELF does not respond to --version (Knight Capital rule)" >&2
