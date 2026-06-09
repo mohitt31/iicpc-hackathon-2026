@@ -1,21 +1,24 @@
-[Bot] TSC calibrated.
-[Bot] Interval: 100 us, Duration: 30 s
-[Bot] Connected. Starting open-loop tight-poll.
-[Bot] SO_SNDBUF pinned to 4096 bytes.
+[Main] TSC calibrated.
+[Gate] SKIPPED (--no-gate)
+[Main] Launching 1 bots, interval 100us, duration 30s, target 127.0.0.1:9000
+[Main] CPU pinning DISABLED
 
-[Bot] Run complete. Total Sent: 300000 | Total Acked: 300000 | Send Failures (EAGAIN): 0
+[Main] All bots finished. Connected: 1/1
+[Main] INTEGRITY: UNCHECKED  (gate disabled)
+[Main] Aggregate: Sent=300000 Acked=300000 Fills=0 Rejects=0 EAGAIN=0 PartialAborts=0 Collisions=0 PoolExhausted=0
 
 =================================================================
-        ROUND-TRIP LATENCY — Naive vs CO-Corrected (ns)          
+ AGGREGATE ROUND-TRIP LATENCY — 1 bots — Naive vs CO-Corrected (ns)
 =================================================================
 Percentile               Naive      CO-Corrected       Ratio
 -----------------------------------------------------------------
-p50                      13311             13351        1.0x
-p90                      16863             21855        1.3x
-p99                      28031         4206591      150.1x
-p99.9                  4210687         5685247        1.4x
-p99.99                 6086655         6180863        1.0x
-Max                    6283263         6283263        1.0x
+p50                      20239            327167       16.2x
+p90                      35519          15589375      438.9x
+p99                    2408447          28606463       11.9x
+p99.9                 24428543          33947647        1.4x
+p99.99                34865151          35651583        1.0x
+Max                   36634623          36634623        1.0x
 =================================================================
+
 Naive sample count:  300000
-CO-corrected count:  328128  (backfilled 28128 phantom samples)
+CO-corrected count:  615823  (backfilled 315823 phantom samples)
