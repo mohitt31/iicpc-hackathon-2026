@@ -526,17 +526,17 @@ static void bot_worker(BotConfig config, BotResult* result) {
     // Lambda routes each measurement either inline to HDR (default) or
     // through the SPSC ring (--use-spsc). Captured by reference so the
     // hot loop sees the cheapest possible call site.
-    auto record_latency = [&](int64_t latency) {
+    auto record_latency = [&](int64_t naive_latency, int64_t co_latency) {
         if (config.use_spsc) {
-            LatencyRecord rec{latency,
+            LatencyRecord rec{naive_latency, co_latency,
                               static_cast<uint64_t>(config.interval_ns)};
             if (__builtin_expect(!result->spsc_ring->try_push(rec), 0)) {
                 spsc_dropped_local++;
             }
         } else {
-            hdr_record_value(result->naive_hist, latency);
+            hdr_record_value(result->naive_hist, naive_latency);
             hdr_record_corrected_value(result->co_hist,
-                                       latency, config.interval_ns);
+                                       co_latency, config.interval_ns);
         }
     };
 
@@ -640,15 +640,15 @@ static void bot_worker(BotConfig config, BotResult* result) {
                     PendingSlot& pslot = pending[ps];
                     if (__builtin_expect(pslot.seq == rx_ack->order_seq &&
                                         pslot.intended_ts > 0, 1)) {
-                        int64_t latency = static_cast<int64_t>(
-                            ack_time - pslot.intended_ts);
+                        int64_t naive_latency = static_cast<int64_t>(ack_time - pslot.actual_send_ts);
+                        int64_t co_latency    = static_cast<int64_t>(ack_time - pslot.intended_ts);
                         // Exclude warmup samples from HDR — TCP slow-start,
                         // ARP, cache-warming spikes pollute the first N
                         // samples. Standard practice in serious benchmarks.
                         // We still count the ack so total_acked is honest.
-                        if (latency > 0 &&
+                        if (naive_latency > 0 &&
                             rx_ack->order_seq > config.warmup_orders) {
-                            record_latency(latency);
+                            record_latency(naive_latency, co_latency);
                         }
                         if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
                         pslot = {0, 0, nullptr};
@@ -710,10 +710,10 @@ end_run:
                         size_t ps = rx_ack->order_seq & PENDING_MASK;
                         PendingSlot& pslot = pending[ps];
                         if (pslot.seq == rx_ack->order_seq && pslot.intended_ts > 0) {
-                            int64_t latency = static_cast<int64_t>(
-                                ack_time - pslot.intended_ts);
-                            if (latency > 0) {
-                                record_latency(latency);
+                            int64_t naive_latency = static_cast<int64_t>(ack_time - pslot.actual_send_ts);
+                            int64_t co_latency    = static_cast<int64_t>(ack_time - pslot.intended_ts);
+                            if (naive_latency > 0) {
+                                record_latency(naive_latency, co_latency);
                             }
                             if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
                             pslot = {0, 0, nullptr};
