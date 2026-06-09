@@ -51,8 +51,9 @@ static void handle_client(int client_socket, uint32_t client_id,
     uint64_t monotonic_seq = 0;
     uint64_t orders_seen   = 0;
 
-    constexpr size_t EXPECTED_BYTES = sizeof(FrameHeader) + sizeof(NewOrder);
-    alignas(64) uint8_t rx_buffer[EXPECTED_BYTES];
+    constexpr size_t MAX_PAYLOAD = 64; // largest msg payload (Fill=56B)
+   alignas(64) uint8_t rx_hdr_buf[sizeof(FrameHeader)];
+    alignas(64) uint8_t rx_buffer[sizeof(FrameHeader) + MAX_PAYLOAD];
     alignas(64) uint8_t tx_buffer[sizeof(FrameHeader) + sizeof(OrderAck)];
 
     auto* tx_hdr     = reinterpret_cast<FrameHeader*>(tx_buffer);
@@ -62,8 +63,18 @@ static void handle_client(int client_socket, uint32_t client_id,
     auto* tx_ack     = reinterpret_cast<OrderAck*>(tx_buffer + sizeof(FrameHeader));
 
     while (true) {
-        ssize_t bytes_read = recv(client_socket, rx_buffer,
-                                  EXPECTED_BYTES, MSG_WAITALL);
+        // Two-step framing: read header, then exactly msg_len bytes (handles any type)
+        ssize_t hr = recv(client_socket, rx_hdr_buf, sizeof(FrameHeader), MSG_WAITALL);
+        if (__builtin_expect(hr <= 0, 0)) {
+            if (hr == 0) std::cout << "[Responder] Client " << client_id
+                << " disconnected. Served " << orders_seen << " orders.\n";
+            break;
+        }
+        const FrameHeader* rx_hdr_peek = reinterpret_cast<const FrameHeader*>(rx_hdr_buf);
+        if (rx_hdr_peek->msg_len > MAX_PAYLOAD) break; // safety: unknown oversized message
+        std::memcpy(rx_buffer, rx_hdr_buf, sizeof(FrameHeader));
+        ssize_t bytes_read = recv(client_socket, rx_buffer + sizeof(FrameHeader),
+                                  rx_hdr_peek->msg_len, MSG_WAITALL);
 
         // recv with MSG_WAITALL returns:
         //   == EXPECTED_BYTES: success
@@ -71,19 +82,9 @@ static void handle_client(int client_socket, uint32_t client_id,
         //   < 0: error (EINTR, ECONNRESET, etc)
         //   0 < n < EXPECTED_BYTES: peer closed mid-frame (partial)
         // We treat anything other than full-frame as disconnect.
-        if (__builtin_expect(bytes_read <= 0, 0)) {
-            std::cout << "[Responder] Client " << client_id
-                      << " disconnected. Served " << orders_seen << " orders.\n";
-            break;
-        }
-        if (__builtin_expect(static_cast<size_t>(bytes_read) != EXPECTED_BYTES, 0)) {
-            std::cerr << "[Responder] Client " << client_id
-                      << " sent truncated frame (" << bytes_read
-                      << "/" << EXPECTED_BYTES << "). Closing.\n";
-            break;
-        }
+        // (error handling already done in two-step recv above)
 
-        auto* rx_hdr = reinterpret_cast<const FrameHeader*>(rx_buffer);
+        const auto* rx_hdr = reinterpret_cast<const FrameHeader*>(rx_buffer);
 
         // null_responder is intentionally minimal: it only acks NewOrder.
         // Receiving any other message type (CancelOrder, etc) means the

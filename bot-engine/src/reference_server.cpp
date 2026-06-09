@@ -146,7 +146,7 @@ int main(int argc, char* argv[]) {
         close(server_fd);
         return 1;
     }
-    if (listen(server_fd, 1) < 0) {
+    if (listen(server_fd, 32) < 0) {
         std::cerr << "[RefServer] listen() failed\n";
         close(server_fd);
         return 1;
@@ -154,166 +154,91 @@ int main(int argc, char* argv[]) {
 
     std::cout << "[RefServer] Listening on port " << port << "...\n";
 
-    int client_socket = accept(server_fd, nullptr, nullptr);
-    if (client_socket < 0) {
-        std::cerr << "[RefServer] accept() failed\n";
-        close(server_fd);
-        return 1;
-    }
-    std::cout << "[RefServer] Client connected.\n";
 
-    // TCP tuning — same as null_responder
-    setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, &opt, sizeof(opt));
-#ifdef SO_QUICKACK
-    setsockopt(client_socket, SOL_SOCKET, SO_QUICKACK, &opt, sizeof(opt));
-#endif
-
-    // ── OrderBook + processing loop ────────────────────────────
-    OrderBook book;
-    ServerStats stats;
-
-    // rx_buffer for incoming messages; large enough for batching
-    constexpr size_t RX_BUF_SIZE = 65536;
-    alignas(64) uint8_t rx_buffer[RX_BUF_SIZE];
-    size_t residual_len = 0;
-
-    // We use a stringstream to capture OrderBook output, then
-    // send it over TCP and write to journal. This keeps the
-    // OrderBook interface unchanged from the journal-replay path.
-    std::ostringstream response_buf;
-
-    uint64_t last_report_time = hft::rdtscp_ns();
+    // Multi-client accept loop — one thread per connection (H3 fix)
+    std::vector<std::thread> client_threads;
+    std::atomic<uint32_t> next_client_id{0};
+    std::cout << "[RefServer] Accepting connections on port " << port << "...\n";
 
     while (g_running) {
-        // ── Receive ────────────────────────────────────────────
-        ssize_t bytes_read = recv(client_socket,
-                                  rx_buffer + residual_len,
-                                  RX_BUF_SIZE - residual_len,
-                                  0);  // blocking recv
-
-        if (bytes_read <= 0) {
-            if (bytes_read == 0) {
-                std::cout << "[RefServer] Client disconnected.\n";
-            } else if (errno == EINTR) {
-                continue;
-            } else {
-                std::cerr << "[RefServer] recv() error: " << strerror(errno) << "\n";
-            }
+        int client_socket = accept(server_fd, nullptr, nullptr);
+        if (client_socket < 0) {
+            if (errno == EINTR) continue;
+            if (!g_running) break;
+            std::cerr << "[RefServer] accept() failed: " << strerror(errno) << "\n";
             break;
         }
-
-        stats.bytes_rx += static_cast<uint64_t>(bytes_read);
-        size_t available = residual_len + static_cast<size_t>(bytes_read);
-        size_t offset = 0;
-
-        // ── Process all complete messages ──────────────────────
-        while (offset + sizeof(FrameHeader) <= available) {
-            const auto* hdr = reinterpret_cast<const FrameHeader*>(rx_buffer + offset);
-
-            // Check if full payload is available
-            size_t frame_size = sizeof(FrameHeader) + hdr->msg_len;
-            if (offset + frame_size > available) break;
-
-            // Clear the response buffer for this message
-            response_buf.str(std::string());
-            response_buf.clear();
-
-            switch (hdr->msg_type) {
-                case MSG_NEWORDER: {
-                    if (hdr->msg_len < sizeof(NewOrder)) break;
-                    NewOrder o;
-                    std::memcpy(&o, rx_buffer + offset + sizeof(FrameHeader), sizeof(o));
-
-                    // Journal the inbound message
-                    input_journal.write(reinterpret_cast<const char*>(rx_buffer + offset), frame_size);
-
-                    book.on_new_order(o, response_buf);
-                    stats.new_orders++;
-                    break;
-                }
-                case MSG_CANCEL: {
-                    if (hdr->msg_len < sizeof(CancelOrder)) break;
-                    CancelOrder c;
-                    std::memcpy(&c, rx_buffer + offset + sizeof(FrameHeader), sizeof(c));
-
-                    // Journal the inbound message
-                    input_journal.write(reinterpret_cast<const char*>(rx_buffer + offset), frame_size);
-
-                    book.on_cancel(c, response_buf);
-                    stats.cancels++;
-                    break;
-                }
-                default: {
-                    stats.unknown_msgs++;
-                    break;
-                }
-            }
-
-            // ── Send response over TCP + journal ───────────────
-            const std::string& resp = response_buf.str();
-            if (!resp.empty()) {
-                const auto* resp_data = reinterpret_cast<const uint8_t*>(resp.data());
-                size_t resp_len = resp.size();
-
-                // Count outbound message types for stats
-                count_responses(resp_data, resp_len, stats);
-
-                // Send to client
-                if (!send_all(client_socket, resp_data, resp_len)) {
-                    std::cerr << "[RefServer] send() failed, client gone?\n";
-                    g_running = 0;
-                    break;
-                }
-                stats.bytes_tx += resp_len;
-
-                // Write to journal (for offline diff)
-                journal.write(resp.data(), static_cast<std::streamsize>(resp_len));
-            }
-
+        uint32_t cid = next_client_id.fetch_add(1);
+        std::cout << "[RefServer] Client " << cid << " connected.\n";
+        client_threads.emplace_back([client_socket, cid, &journal, &input_journal, port]() {
+            int opt2 = 1;
+            setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, &opt2, sizeof(opt2));
 #ifdef SO_QUICKACK
-            setsockopt(client_socket, SOL_SOCKET, SO_QUICKACK, &opt, sizeof(opt));
+            setsockopt(client_socket, SOL_SOCKET, SO_QUICKACK, &opt2, sizeof(opt2));
 #endif
+            OrderBook book;
+            ServerStats stats;
+            constexpr size_t RX_BUF_SIZE = 65536;
+            alignas(64) uint8_t rx_buffer[RX_BUF_SIZE];
+            size_t residual_len = 0;
+            std::ostringstream response_buf;
+            uint64_t last_report_time = hft::rdtscp_ns();
 
-            offset += frame_size;
-        }
-
-        // ── Preserve residual partial message ──────────────────
-        residual_len = available - offset;
-        if (residual_len > 0 && offset > 0) {
-            std::memmove(rx_buffer, rx_buffer + offset, residual_len);
-        }
-
-        // ── Periodic report (every 2s) ─────────────────────────
-        uint64_t now = hft::rdtscp_ns();
-        if (now - last_report_time >= 2'000'000'000ULL) {
-            std::cout << "[RefServer] Orders: " << stats.new_orders
-                      << " | Cancels: " << stats.cancels
-                      << " | Acks: " << stats.acks_sent
-                      << " | Fills: " << stats.fills_sent
-                      << " | Rejects: " << stats.rejects_sent
-                      << " | Unknown: " << stats.unknown_msgs
-                      << "\n";
-            last_report_time = now;
-        }
+            while (true) {
+                ssize_t bytes_read = recv(client_socket, rx_buffer + residual_len,
+                                         RX_BUF_SIZE - residual_len, 0);
+                if (bytes_read <= 0) {
+                    if (bytes_read == 0) std::cout << "[RefServer] Client " << cid << " disconnected.\n";
+                    else if (errno == EINTR) continue;
+                    else std::cerr << "[RefServer] Client " << cid << " recv error.\n";
+                    break;
+                }
+                stats.bytes_rx += static_cast<uint64_t>(bytes_read);
+                size_t available = residual_len + static_cast<size_t>(bytes_read);
+                size_t offset = 0;
+                while (offset + sizeof(FrameHeader) <= available) {
+                    const auto* hdr = reinterpret_cast<const FrameHeader*>(rx_buffer + offset);
+                    size_t frame_size = sizeof(FrameHeader) + hdr->msg_len;
+                    if (offset + frame_size > available) break;
+                    response_buf.str(std::string()); response_buf.clear();
+                    switch (hdr->msg_type) {
+                        case MSG_NEWORDER: {
+                            if (hdr->msg_len < sizeof(NewOrder)) break;
+                            NewOrder o; std::memcpy(&o, rx_buffer + offset + sizeof(FrameHeader), sizeof(o));
+                            input_journal.write(reinterpret_cast<const char*>(rx_buffer + offset), frame_size);
+                            book.on_new_order(o, response_buf); stats.new_orders++; break;
+                        }
+                        case MSG_CANCEL: {
+                            if (hdr->msg_len < sizeof(CancelOrder)) break;
+                            CancelOrder c; std::memcpy(&c, rx_buffer + offset + sizeof(FrameHeader), sizeof(c));
+                            input_journal.write(reinterpret_cast<const char*>(rx_buffer + offset), frame_size);
+                            book.on_cancel(c, response_buf); stats.cancels++; break;
+                        }
+                        default: stats.unknown_msgs++; break;
+                    }
+                    const std::string& resp = response_buf.str();
+                    if (!resp.empty()) {
+                        const auto* rd = reinterpret_cast<const uint8_t*>(resp.data());
+                        count_responses(rd, resp.size(), stats);
+                        send_all(client_socket, rd, resp.size());
+                        stats.bytes_tx += resp.size();
+                        journal.write(resp.data(), static_cast<std::streamsize>(resp.size()));
+                    }
+                    offset += frame_size;
+                }
+                residual_len = available - offset;
+                if (residual_len > 0 && offset > 0)
+                    std::memmove(rx_buffer, rx_buffer + offset, residual_len);
+            }
+            close(client_socket);
+            std::cout << "[RefServer] Client " << cid << " stats: orders=" << stats.new_orders
+                      << " acks=" << stats.acks_sent << " fills=" << stats.fills_sent << "\n";
+        });
+        client_threads.back().detach();
     }
 
-    // ── Final report ───────────────────────────────────────────
-    journal.flush();
-    input_journal.flush();
-
-    std::cout << "\n[RefServer] === FINAL STATS ===\n"
-              << "  NewOrders received: " << stats.new_orders << "\n"
-              << "  Cancels received:   " << stats.cancels << "\n"
-              << "  OrderAcks sent:     " << stats.acks_sent << "\n"
-              << "  Fills sent:         " << stats.fills_sent << "\n"
-              << "  Rejects sent:       " << stats.rejects_sent << "\n"
-              << "  Unknown msgs:       " << stats.unknown_msgs << "\n"
-              << "  Bytes RX:           " << stats.bytes_rx << "\n"
-              << "  Bytes TX:           " << stats.bytes_tx << "\n"
-              << "  Output journal:     " << journal_path << "\n"
-              << "  Input journal:      " << input_journal_path << "\n";
-
-    close(client_socket);
+    journal.flush(); input_journal.flush();
+    for (auto& t : client_threads) if (t.joinable()) t.join();
     close(server_fd);
     return 0;
 }

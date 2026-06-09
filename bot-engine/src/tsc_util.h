@@ -38,7 +38,7 @@ inline void calibrate_tsc() {
 static inline uint64_t rdtscp_ns() {
     uint32_t aux;
     uint64_t tsc = __builtin_ia32_rdtscp(&aux);
-    return static_cast<uint64_t>(tsc * g_tsc_to_ns_ratio);
+    return static_cast<uint64_t>(static_cast<double>(tsc) * g_tsc_to_ns_ratio);
 }
 #elif defined(__aarch64__)
 // ARM64 hardware counter
@@ -62,7 +62,7 @@ inline void calibrate_tsc() {
 static inline uint64_t rdtscp_ns() {
     uint64_t tsc;
     asm volatile("mrs %0, cntvct_el0" : "=r" (tsc));
-    return static_cast<uint64_t>(tsc * g_tsc_to_ns_ratio);
+    return static_cast<uint64_t>(static_cast<double>(tsc) * g_tsc_to_ns_ratio);
 }
 #else
 // Fallback for other architectures
