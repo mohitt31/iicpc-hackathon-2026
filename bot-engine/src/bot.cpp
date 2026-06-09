@@ -654,7 +654,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
                             record_latency(naive_latency, co_latency);
                         }
                         if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
-                        pslot = {0, 0, nullptr};
+                        pslot = {0, 0, 0, nullptr};
                     }
                     total_acked++;
                 } else if (rx_hdr->msg_type == MSG_FILL) {
@@ -666,7 +666,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
                         PendingSlot& pslot = pending[ps];
                         if (pslot.seq == rx_fill->order_seq) {
                             if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
-                            pslot = {0, 0, nullptr};
+                            pslot = {0, 0, 0, nullptr};
                         }
                     }
                 } else if (rx_hdr->msg_type == MSG_REJECT) {
@@ -677,7 +677,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
                     PendingSlot& pslot = pending[ps];
                     if (pslot.seq == rx_rej->order_seq) {
                         if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
-                        pslot = {0, 0, nullptr};
+                        pslot = {0, 0, 0, nullptr};
                     }
                 }
                 offset += frame_size;
@@ -719,7 +719,7 @@ end_run:
                                 record_latency(naive_latency, co_latency);
                             }
                             if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
-                            pslot = {0, 0, nullptr};
+                            pslot = {0, 0, 0, nullptr};
                         }
                         total_acked++;
                     } else if (rx_hdr->msg_type == MSG_FILL) {
