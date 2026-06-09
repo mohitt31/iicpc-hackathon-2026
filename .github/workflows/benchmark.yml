@@ -16,33 +16,43 @@ jobs:
   build-and-benchmark:
     name: Build + CO proof + clean run
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install build tools
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq --no-install-recommends \
-            build-essential cmake g++ python3 \
-            libhdrhistogram-dev procps psmisc
+            build-essential cmake g++ python3 git autoconf libtool \
+            zlib1g-dev procps psmisc
+
+      - name: Build hdr_histogram_c from source
+        run: |
+          git clone --depth 1 --branch 0.11.8 \
+            https://github.com/HdrHistogram/HdrHistogram_c.git /tmp/hdr_c
+          cd /tmp/hdr_c
+          mkdir build && cd build
+          cmake .. -DHDR_HISTOGRAM_BUILD_PROGRAMS=OFF \
+                   -DHDR_HISTOGRAM_BUILD_SHARED=OFF
+          make -j
+          sudo make install
+          sudo ldconfig
+          find /usr/local -name 'hdr_histogram.h' 2>/dev/null
+          find /usr/local -name 'libhdr_histogram*' 2>/dev/null
 
       - name: Show environment
         run: |
           uname -a
-          echo "--- CPU ---"
           lscpu | head -25
-          echo "--- HDR library ---"
-          dpkg -l libhdrhistogram-dev | tail -1
-          find /usr -name 'hdr_histogram.h' 2>/dev/null | head -3
-          find /usr -name 'libhdr_histogram*' 2>/dev/null | head -3
-          echo "--- CMake ---"
           cmake --version | head -1
 
       - name: Build bot-engine
         working-directory: bot-engine
+        env:
+          CMAKE_PREFIX_PATH: /usr/local
         run: |
           mkdir -p build && cd build
           cmake ..
@@ -55,71 +65,41 @@ jobs:
       - name: CO proof — stall run (1 bot, 30s, 100us, 5ms stall every 20k)
         working-directory: bot-engine
         run: |
-          # Start stall-mode responder in background
           ./build/null_responder --stall-mode --stall-every 20000 --stall-ms 5 \
             > /tmp/null_responder_stall.log 2>&1 &
           NR_PID=$!
           sleep 2
-
-          # Run bot with CPU pinning (start-core 1 — skip core 0 for IRQs)
-          ./build/bot \
-            --bots 1 \
-            --start-core 1 \
-            --interval-us 100 \
-            --duration-sec 30 \
-            --no-gate \
+          ./build/bot --bots 1 --start-core 1 --interval-us 100 \
+            --duration-sec 30 --no-gate \
             > demo_results/stall_run_20k_5ms.txt 2>&1 || true
-
-          # Cleanup
           kill -9 $NR_PID 2>/dev/null || true
           wait $NR_PID 2>/dev/null || true
-
           echo "=== stall_run_20k_5ms.txt ==="
           cat demo_results/stall_run_20k_5ms.txt
-          echo "=== null_responder stall log (last 20 lines) ==="
-          tail -20 /tmp/null_responder_stall.log
 
       - name: Clean run (4 bots, 10s, 100us, no stall)
         working-directory: bot-engine
         run: |
-          # Make sure nothing leftover
           pkill -f null_responder 2>/dev/null || true
           sleep 1
-
-          # Start clean responder
           ./build/null_responder > /tmp/null_responder_clean.log 2>&1 &
           NR_PID=$!
           sleep 2
-
-          # Run bot — 4 bots pinned starting at core 1
-          ./build/bot \
-            --bots 4 \
-            --start-core 1 \
-            --interval-us 100 \
-            --duration-sec 10 \
-            --no-gate \
+          ./build/bot --bots 4 --start-core 1 --interval-us 100 \
+            --duration-sec 10 --no-gate \
             > demo_results/clean_run_10s.txt 2>&1 || true
-
-          # Cleanup
           kill -9 $NR_PID 2>/dev/null || true
           wait $NR_PID 2>/dev/null || true
-
           echo "=== clean_run_10s.txt ==="
           cat demo_results/clean_run_10s.txt
-          echo "=== null_responder clean log (last 20 lines) ==="
-          tail -20 /tmp/null_responder_clean.log
 
       - name: Smoke-test correctness validator (demo)
         working-directory: bot-engine
         run: |
-          # Generate demo journal + replay through ref + buggy engines + diff
           mkdir -p /tmp/demo_artifacts
           python3 demo/make_demo_journal.py /tmp/demo_artifacts/input.jrn
-          ./build/refengine     replay /tmp/demo_artifacts/input.jrn /tmp/demo_artifacts/correct.jrn
-          ./build/buggy_engine  replay /tmp/demo_artifacts/input.jrn /tmp/demo_artifacts/buggy.jrn
-          echo "=== Sizes (should be identical) ==="
-          ls -la /tmp/demo_artifacts/
-          echo "=== Diff output (should report DIVERGE at byte N) ==="
+          ./build/refengine    replay /tmp/demo_artifacts/input.jrn /tmp/demo_artifacts/correct.jrn
+          ./build/buggy_engine replay /tmp/demo_artifacts/input.jrn /tmp/demo_artifacts/buggy.jrn
           ./build/refengine diff /tmp/demo_artifacts/correct.jrn /tmp/demo_artifacts/buggy.jrn || true
 
       - name: Upload benchmark artifacts
@@ -137,7 +117,7 @@ jobs:
         run: |
           echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Runner: \`$(uname -m) $(uname -s) $(uname -r)\`" >> $GITHUB_STEP_SUMMARY
+          echo "Runner: \`$(uname -m) $(uname -s)\`" >> $GITHUB_STEP_SUMMARY
           echo "Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### CO Proof (stall run)" >> $GITHUB_STEP_SUMMARY
