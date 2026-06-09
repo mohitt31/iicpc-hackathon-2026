@@ -501,7 +501,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
         uint64_t  actual_send_ts;
         NewOrder* pool_ptr;
     };
-    std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0, nullptr});
+    std::vector<PendingSlot> pending(PENDING_SLOTS, {0, 0, 0, nullptr});
 
     constexpr size_t TX_FRAME_SIZE = sizeof(FrameHeader) + sizeof(NewOrder);
     alignas(hardware_destructive_interference_size) uint8_t tx_buffer[TX_FRAME_SIZE];
