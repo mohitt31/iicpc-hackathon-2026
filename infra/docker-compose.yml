@@ -30,8 +30,8 @@ services:
   # ---- Gold-standard matching engine (reference) -------------------------
   reference-engine:
     build:
-      context: ../bot-engine
-      dockerfile: ../infra/docker/Dockerfile.botengine
+      context: ..
+      dockerfile: infra/docker/Dockerfile.botengine
     command: ["./build/reference_engine", "--server", "--port", "9000"]
     networks: [bench]
     expose: ["9000"]
@@ -47,8 +47,8 @@ services:
   # ---- Bot fleet (load generator + HDR telemetry) ------------------------
   bot-fleet:
     build:
-      context: ../bot-engine
-      dockerfile: ../infra/docker/Dockerfile.botengine
+      context: ..
+      dockerfile: infra/docker/Dockerfile.botengine
     # open-loop run against the reference engine; writes per-second HDR CSV
     command: >
       ./build/bot

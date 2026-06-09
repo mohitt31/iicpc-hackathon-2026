@@ -1,6 +1,9 @@
 # ============================================================================
 # bot-engine build image — compiles bot, reference_engine, null_responder, etc.
 # Multi-stage: build with full toolchain, run on a slim base.
+#
+# Build context: repo root (..). The Dockerfile expects bot-engine/ as a
+# subdirectory of the context so it can build via cmake.
 # ============================================================================
 
 # ---- build stage --------------------------------------------------------
@@ -11,10 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
-# bot-engine sources are the build context (see docker-compose context: ../bot-engine)
+# Repo root is the build context (so /src/bot-engine, /src/contracts both exist)
 COPY . /src
 
-RUN mkdir -p build && cd build && cmake .. && make -j"$(nproc)"
+RUN cd bot-engine && mkdir -p build && cd build && cmake .. && make -j"$(nproc)"
 
 # ---- runtime stage ------------------------------------------------------
 FROM ubuntu:24.04 AS runtime
@@ -23,9 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=build /src/build /app/build
-COPY --from=build /src/demo  /app/demo
-COPY --from=build /src/test  /app/test
+COPY --from=build /src/bot-engine/build /app/build
+COPY --from=build /src/bot-engine/demo  /app/demo
+COPY --from=build /src/bot-engine/test  /app/test
 
 # Containers cannot CPU-pin or SO_BUSY_POLL without extra caps; the bot
 # detects this and degrades gracefully (logs a warning, continues). For
