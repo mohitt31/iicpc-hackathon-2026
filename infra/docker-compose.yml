@@ -32,7 +32,7 @@ services:
     build:
       context: ..
       dockerfile: infra/docker/Dockerfile.botengine
-    command: ["./build/reference_engine", "--server", "--port", "9000"]
+    command: ["./build/refserver", "--port", "9000", "--journal", "/tmp/refserver_output.jrn"]
     networks: [bench]
     expose: ["9000"]
     healthcheck:
