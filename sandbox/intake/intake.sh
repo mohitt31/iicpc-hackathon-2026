@@ -1,5 +1,9 @@
 #!/bin/bash
 # intake.sh — Submission intake stage (§7 stage 1)
+# SECURITY NOTE: The source-scan syscall check below is a LINT HEURISTIC, not a security
+# boundary. It can be bypassed via syscall(2) by number, inline asm, or dlopen.
+# The enforced security boundary is the runtime seccomp profile loaded by run_vm.sh.
+
 #
 # Accepts a contestant submission tarball, validates it, and produces
 # a submission_id (sha256 hash) for downstream stages.
@@ -19,7 +23,7 @@
 #
 # Per doc §7 stage 1:
 #   tarball/binary uploaded → sha256 → submission_id (immutable identity)
-#   → reject if > size cap or banned syscalls in static scan
+#   → reject if > size cap or banned syscalls in static scan  # NOTE: source-scan is a lint heuristic only — defeated by syscall(2) by number, inline asm, dlopen. Runtime seccomp is the enforced boundary.
 
 set -euo pipefail
 
@@ -84,7 +88,7 @@ tar xf "$TARBALL" -C "$SUBMISSION_DIR/src" 2>/dev/null || {
     exit 1
 }
 
-# ── Check 3: Banned syscall scan ────────────────────────────
+# ── Check 3: Banned syscall scan ────────────────────────────  # NOTE: source-scan is a lint heuristic only — defeated by syscall(2) by number, inline asm, dlopen. Runtime seccomp is the enforced boundary.
 if [[ ! -f "$BANNED_FILE" ]]; then
     echo "WARNING: Banned syscalls file not found at $BANNED_FILE, skipping scan" >&2
 else
