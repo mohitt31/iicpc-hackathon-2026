@@ -16,8 +16,8 @@
  * replacement that emits the same JSON — the frontend never changes.
  *
  * Two data sources:
- *   --snapshot-dir <path>   read the bot fleet's per-second HDR CSV snapshots
- *                           (real telemetry). If absent/empty, falls back to:
+ *   --snapshot-dir <path>  (reserved — CSV ingestion not yet implemented;
+ *                           falls back to synthetic generator).
  *   (default)               synthetic generator (contract-faithful mock) so a
  *                           demo works with zero backend.
  *
