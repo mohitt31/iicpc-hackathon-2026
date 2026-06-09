@@ -598,8 +598,9 @@ static void bot_worker(BotConfig config, BotResult* result) {
 
             size_t map_slot = this_seq & PENDING_MASK;
             if (__builtin_expect(pending[map_slot].seq != 0, 0)) {
-                uint64_t age = this_seq - pending[map_slot].seq;
-                if (age <= PENDING_SLOTS / 2) pending_collisions++;
+                uint64_t age = (this_seq > pending[map_slot].seq)
+                         ? (this_seq - pending[map_slot].seq) : 0;
+                if (age > 0 && age <= PENDING_SLOTS / 2) pending_collisions++;
                 if (pending[map_slot].pool_ptr)
                     pool.release(pending[map_slot].pool_ptr);
             }
