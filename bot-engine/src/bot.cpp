@@ -77,6 +77,7 @@ struct LatencyRecord {
     int64_t  naive_latency_ns;
     int64_t  co_latency_ns;
     int64_t  interval_ns;  // for hdr_record_corrected_value
+};
 
 // Ring capacity: 65536 records. At 100us interval = 6.5s of buffering.
 // More than enough to absorb scheduling hiccups in the cold consumer.
