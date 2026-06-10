@@ -38,6 +38,8 @@
 #include <csignal>
 #include <thread>
 #include <chrono>
+#include <atomic>
+#include <mutex>
 #include <poll.h>
 #include <fcntl.h>
 
@@ -160,6 +162,11 @@ int main(int argc, char* argv[]) {
     // Multi-client accept loop — one thread per connection (H3 fix)
     std::vector<std::thread> client_threads;
     std::atomic<uint32_t> next_client_id{0};
+    // The journal ofstreams are shared by every client thread; ofstream
+    // is not thread-safe and unsynchronized writes interleave frames,
+    // corrupting the journal for the byte-exact diff. One mutex, taken
+    // only on the journal write (cold path), keeps frames atomic.
+    std::mutex journal_mtx;
     std::cout << "[RefServer] Accepting connections on port " << port << "...\n";
 
     int flags = fcntl(server_fd, F_GETFL, 0);
@@ -185,7 +192,8 @@ int main(int argc, char* argv[]) {
             }
             uint32_t cid = next_client_id.fetch_add(1);
             std::cout << "[RefServer] Client " << cid << " connected.\n";
-            client_threads.emplace_back([client_socket, cid, &journal, &input_journal, port]() {
+            client_threads.emplace_back([client_socket, cid, &journal, &input_journal,
+                                         &journal_mtx]() {
             int opt2 = 1;
             setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, &opt2, sizeof(opt2));
 #ifdef SO_QUICKACK
@@ -197,7 +205,6 @@ int main(int argc, char* argv[]) {
             alignas(64) uint8_t rx_buffer[RX_BUF_SIZE];
             size_t residual_len = 0;
             std::ostringstream response_buf;
-            uint64_t last_report_time = hft::rdtscp_ns();
 
             while (true) {
                 ssize_t bytes_read = recv(client_socket, rx_buffer + residual_len,
@@ -220,13 +227,19 @@ int main(int argc, char* argv[]) {
                         case MSG_NEWORDER: {
                             if (hdr->msg_len < sizeof(NewOrder)) break;
                             NewOrder o; std::memcpy(&o, rx_buffer + offset + sizeof(FrameHeader), sizeof(o));
-                            input_journal.write(reinterpret_cast<const char*>(rx_buffer + offset), frame_size);
+                            {
+                                std::lock_guard<std::mutex> lk(journal_mtx);
+                                input_journal.write(reinterpret_cast<const char*>(rx_buffer + offset), frame_size);
+                            }
                             book.on_new_order(o, response_buf); stats.new_orders++; break;
                         }
                         case MSG_CANCEL: {
                             if (hdr->msg_len < sizeof(CancelOrder)) break;
                             CancelOrder c; std::memcpy(&c, rx_buffer + offset + sizeof(FrameHeader), sizeof(c));
-                            input_journal.write(reinterpret_cast<const char*>(rx_buffer + offset), frame_size);
+                            {
+                                std::lock_guard<std::mutex> lk(journal_mtx);
+                                input_journal.write(reinterpret_cast<const char*>(rx_buffer + offset), frame_size);
+                            }
                             book.on_cancel(c, response_buf); stats.cancels++; break;
                         }
                         default: stats.unknown_msgs++; break;
@@ -237,7 +250,10 @@ int main(int argc, char* argv[]) {
                         count_responses(rd, resp.size(), stats);
                         send_all(client_socket, rd, resp.size());
                         stats.bytes_tx += resp.size();
-                        journal.write(resp.data(), static_cast<std::streamsize>(resp.size()));
+                        {
+                            std::lock_guard<std::mutex> lk(journal_mtx);
+                            journal.write(resp.data(), static_cast<std::streamsize>(resp.size()));
+                        }
                     }
                     offset += frame_size;
                 }
