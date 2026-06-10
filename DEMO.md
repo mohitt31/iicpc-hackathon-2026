@@ -21,7 +21,7 @@ python3 -m http.server 8088
 #   → http://localhost:8088
 ```
 
-To show the **live** path, open `frontend/index.html` and set near the top:
+To show the **live** path, open `frontend/leaderboard.html` and set near the top:
 ```js
 const USE_LIVE = true;
 const LIVE_WS_URL = 'ws://localhost:8080/leaderboard/deltas';
