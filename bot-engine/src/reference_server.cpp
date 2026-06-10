@@ -190,6 +190,8 @@ int main(int argc, char* argv[]) {
                 std::cerr << "[RefServer] accept() failed: " << strerror(errno) << "\n";
                 goto accept_fatal;
             }
+            int cflags = fcntl(client_socket, F_GETFL, 0);
+            fcntl(client_socket, F_SETFL, cflags & ~O_NONBLOCK);
             uint32_t cid = next_client_id.fetch_add(1);
             std::cout << "[RefServer] Client " << cid << " connected.\n";
             client_threads.emplace_back([client_socket, cid, &journal, &input_journal,
@@ -211,8 +213,7 @@ int main(int argc, char* argv[]) {
                                          RX_BUF_SIZE - residual_len, 0);
                 if (bytes_read <= 0) {
                     if (bytes_read == 0) std::cout << "[RefServer] Client " << cid << " disconnected.\n";
-                    else if (errno == EINTR) continue;
-                    else std::cerr << "[RefServer] Client " << cid << " recv error.\n";
+                    else std::cerr << "[RefServer] Client " << cid << " recv error: " << strerror(errno) << ".\n";
                     break;
                 }
                 stats.bytes_rx += static_cast<uint64_t>(bytes_read);
