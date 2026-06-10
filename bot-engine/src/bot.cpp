@@ -137,10 +137,13 @@ struct BotResult {
     struct hdr_histogram* naive_hist = nullptr;
     struct hdr_histogram* co_hist    = nullptr;
     LatencyRing* spsc_ring        = nullptr;  // null unless --use-spsc
-    uint64_t total_sent           = 0;
-    uint64_t total_acked          = 0;
-    uint64_t total_fills          = 0;
-    uint64_t total_rejects        = 0;
+    // Live counters: single-writer (the worker) publishes with relaxed
+    // stores — a plain MOV on x86, zero hot-path cost — so the snapshot
+    // thread can read them concurrently without a data race.
+    std::atomic<uint64_t> total_sent{0};
+    std::atomic<uint64_t> total_acked{0};
+    std::atomic<uint64_t> total_fills{0};
+    std::atomic<uint64_t> total_rejects{0};
     uint64_t send_failures        = 0;
     uint64_t partial_send_aborts  = 0;
     uint64_t pending_collisions   = 0;
@@ -365,13 +368,17 @@ static void snapshot_writer(uint32_t thread_id,
 
     auto t_start = std::chrono::steady_clock::now();
 
+    // Histogram reads here race benignly with hot-path records: HDR is a
+    // fixed array of counts, so a concurrent read yields a slightly stale
+    // but structurally valid snapshot. The exact, race-free numbers are
+    // computed in main() after the workers are joined.
     auto write_row = [&](int64_t elapsed) {
         struct hdr_histogram* nh = result->naive_hist;
         struct hdr_histogram* ch = result->co_hist;
         if (!nh || !ch) return;
         csv << elapsed << ","
-            << result->total_sent << ","
-            << result->total_acked << ","
+            << result->total_sent.load(std::memory_order_relaxed) << ","
+            << result->total_acked.load(std::memory_order_relaxed) << ","
             << hdr_value_at_percentile(nh, 50.0)    << ","
             << hdr_value_at_percentile(nh, 90.0)    << ","
             << hdr_value_at_percentile(nh, 99.0)    << ","
@@ -519,10 +526,12 @@ static void bot_worker(BotConfig config, BotResult* result) {
     alignas(hardware_destructive_interference_size) uint8_t rx_buffer[RX_BUFFER_SIZE];
     size_t residual_bytes = 0;
 
-    uint64_t& total_sent          = result->total_sent;
-    uint64_t& total_acked         = result->total_acked;
-    uint64_t& total_fills         = result->total_fills;
-    uint64_t& total_rejects       = result->total_rejects;
+    // Counters live in locals on the hot path; each update is published
+    // to the shared BotResult with a relaxed store (plain MOV on x86).
+    uint64_t  total_sent          = 0;
+    uint64_t  total_acked         = 0;
+    uint64_t  total_fills         = 0;
+    uint64_t  total_rejects       = 0;
     uint64_t  send_failures       = 0;
     uint64_t  partial_send_aborts = 0;
     uint64_t  pending_collisions  = 0;
@@ -612,6 +621,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
             }
             pending[map_slot] = {next_send_time, this_seq, actual_send_time, slot};
             total_sent = this_seq;
+            result->total_sent.store(total_sent, std::memory_order_relaxed);
             next_send_time += config.interval_ns;
         }
 
@@ -671,11 +681,11 @@ static void bot_worker(BotConfig config, BotResult* result) {
                         if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
                         pslot = {0, 0, 0, nullptr};
                     }
-                    total_acked++;
+                    result->total_acked.store(++total_acked, std::memory_order_relaxed);
                 } else if (rx_hdr->msg_type == MSG_FILL) {
                     auto* rx_fill = reinterpret_cast<Fill*>(
                         rx_buffer + offset + sizeof(FrameHeader));
-                    total_fills++;
+                    result->total_fills.store(++total_fills, std::memory_order_relaxed);
                     if (rx_fill->leaves_qty == 0) {
                         size_t ps = rx_fill->order_seq & PENDING_MASK;
                         PendingSlot& pslot = pending[ps];
@@ -687,7 +697,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
                 } else if (rx_hdr->msg_type == MSG_REJECT) {
                     auto* rx_rej = reinterpret_cast<Reject*>(
                         rx_buffer + offset + sizeof(FrameHeader));
-                    total_rejects++;
+                    result->total_rejects.store(++total_rejects, std::memory_order_relaxed);
                     size_t ps = rx_rej->order_seq & PENDING_MASK;
                     PendingSlot& pslot = pending[ps];
                     if (pslot.seq == rx_rej->order_seq) {
@@ -736,11 +746,11 @@ end_run:
                             if (pslot.pool_ptr) pool.release(pslot.pool_ptr);
                             pslot = {0, 0, 0, nullptr};
                         }
-                        total_acked++;
+                        result->total_acked.store(++total_acked, std::memory_order_relaxed);
                     } else if (rx_hdr->msg_type == MSG_FILL) {
-                        total_fills++;
+                        result->total_fills.store(++total_fills, std::memory_order_relaxed);
                     } else if (rx_hdr->msg_type == MSG_REJECT) {
-                        total_rejects++;
+                        result->total_rejects.store(++total_rejects, std::memory_order_relaxed);
                     }
                     offset += frame_size;
                 }
@@ -922,10 +932,10 @@ int main(int argc, char* argv[]) {
         connected_count++;
         if (results[i].naive_hist) hdr_add(unified_naive, results[i].naive_hist);
         if (results[i].co_hist)    hdr_add(unified_co,    results[i].co_hist);
-        agg_sent         += results[i].total_sent;
-        agg_acked        += results[i].total_acked;
-        agg_fills        += results[i].total_fills;
-        agg_rejects      += results[i].total_rejects;
+        agg_sent         += results[i].total_sent.load(std::memory_order_relaxed);
+        agg_acked        += results[i].total_acked.load(std::memory_order_relaxed);
+        agg_fills        += results[i].total_fills.load(std::memory_order_relaxed);
+        agg_rejects      += results[i].total_rejects.load(std::memory_order_relaxed);
         agg_send_fail    += results[i].send_failures;
         agg_partial      += results[i].partial_send_aborts;
         agg_collisions   += results[i].pending_collisions;

@@ -123,7 +123,9 @@ const Source = (() => {
   }
   function tick() {
     if (SNAPSHOT_DIR && fs.existsSync(SNAPSHOT_DIR)) {
-      const files = fs.readdirSync(SNAPSHOT_DIR).filter(f => f.endsWith('.csv'));
+      // sort() — readdir order is filesystem-dependent; keep the
+      // file→contestant mapping deterministic across platforms.
+      const files = fs.readdirSync(SNAPSHOT_DIR).filter(f => f.endsWith('.csv')).sort();
       files.forEach((f, i) => {
         if (i < 4 && i < subs.length) { // Map to first 4 contestants
           try {
