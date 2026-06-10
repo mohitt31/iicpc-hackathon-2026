@@ -3,7 +3,7 @@
  * IICPC HFT Benchmarking Platform — Telemetry Gateway (reference / mock)
  *
  * Serves the leaderboard's LIVE feed. Speaks the exact wire shape the frontend
- * subscriber (frontend/index.html → connectLive()) expects:
+ * subscriber (frontend/leaderboard.html → connectLive()) expects:
  *
  *     { "type": "deltas", "deltas": { "FIX":[row,...], "WS":[...], "REST":[...] } }
  *
