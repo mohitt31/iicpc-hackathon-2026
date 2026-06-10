@@ -7,7 +7,7 @@
 #   reference-engine  ─ gold-standard matching engine (TCP server)
 #   bot-fleet         ─ open-loop load generator, hammers an engine, emits HDR
 #   telemetry-gateway ─ serves the leaderboard's live WS/SSE feed (display-only)
-#   leaderboard       ─ static frontend (frontend/leaderboard.html) on nginx
+#   leaderboard       ─ static frontend (frontend/index.html) on nginx
 #
 # Production isolation (Firecracker microVMs, pinned cores, PTP-synced NICs)
 # is NOT modelled here — that is the Kubernetes + Terraform path under
@@ -101,7 +101,7 @@ services:
       - telemetry-gateway
     restart: unless-stopped
     # To point the UI at the live gateway, set USE_LIVE=true and
-    # LIVE_WS_URL='ws://localhost:8080/leaderboard/deltas' in leaderboard.html.
+    # LIVE_WS_URL='ws://localhost:8080/leaderboard/deltas' in index.html.
 
 networks:
   bench:
