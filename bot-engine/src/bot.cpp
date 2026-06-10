@@ -33,6 +33,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -210,7 +211,12 @@ static uint64_t integrity_gate_test(const std::string& ip_addr, uint16_t port,
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port   = htons(port);
-    inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr);
+    struct hostent *he = gethostbyname(ip_addr.c_str());
+    if (he) {
+        std::memcpy(&serv_addr.sin_addr, he->h_addr, he->h_length);
+    } else {
+        inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr);
+    }
 
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         close(sock);
@@ -444,7 +450,12 @@ static void bot_worker(BotConfig config, BotResult* result) {
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port   = htons(config.port);
-    inet_pton(AF_INET, config.ip_addr.c_str(), &serv_addr.sin_addr);
+    struct hostent *he = gethostbyname(config.ip_addr.c_str());
+    if (he) {
+        std::memcpy(&serv_addr.sin_addr, he->h_addr, he->h_length);
+    } else {
+        inet_pton(AF_INET, config.ip_addr.c_str(), &serv_addr.sin_addr);
+    }
 
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         std::cerr << "[Bot " << config.thread_id << "] connect() failed: "
@@ -544,7 +555,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
 
     const uint64_t start_time = hft::rdtscp_ns();
     uint64_t next_send_time   = start_time;
-    const uint64_t end_time   = start_time + config.duration_ns;
+    const uint64_t end_time   = (config.duration_ns == 0) ? UINT64_MAX : (start_time + config.duration_ns);
 
     while (true) {
         uint64_t now = hft::rdtscp_ns();
@@ -601,9 +612,8 @@ static void bot_worker(BotConfig config, BotResult* result) {
 
             size_t map_slot = this_seq & PENDING_MASK;
             if (__builtin_expect(pending[map_slot].seq != 0, 0)) {
-                uint64_t age = (this_seq > pending[map_slot].seq)
-                         ? (this_seq - pending[map_slot].seq) : 0;
-                if (age > 0 && age <= PENDING_SLOTS / 2) pending_collisions++;
+                uint64_t age = this_seq - pending[map_slot].seq;
+                if (age > 0 && age <= PENDING_SLOTS) pending_collisions++;
                 if (pending[map_slot].pool_ptr)
                     pool.release(pending[map_slot].pool_ptr);
             }

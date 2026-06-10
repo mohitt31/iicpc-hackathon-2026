@@ -9,20 +9,24 @@
 # ---- build stage --------------------------------------------------------
 FROM ubuntu:24.04 AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential cmake g++ git ca-certificates \
-        libhdrhistogram-dev \
+        build-essential cmake g++ git ca-certificates zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --branch 0.11.8 https://github.com/HdrHistogram/HdrHistogram_c.git /tmp/hdr_c \
+    && cd /tmp/hdr_c && mkdir build && cd build \
+    && cmake .. -DHDR_HISTOGRAM_BUILD_PROGRAMS=OFF -DHDR_HISTOGRAM_BUILD_SHARED=OFF \
+    && make -j && make install
 
 WORKDIR /src
 # Repo root is the build context (so /src/bot-engine, /src/contracts both exist)
 COPY . /src
 
-RUN cd bot-engine && mkdir -p build && cd build && cmake .. && make -j"$(nproc)"
+RUN cd bot-engine && rm -rf build && mkdir -p build && cd build && cmake .. && make -j"$(nproc)"
 
 # ---- runtime stage ------------------------------------------------------
 FROM ubuntu:24.04 AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        libhdrhistogram-dev bash \
+        bash \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

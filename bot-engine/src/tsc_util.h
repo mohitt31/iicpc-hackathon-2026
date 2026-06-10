@@ -14,7 +14,8 @@ static_assert(std::endian::native == std::endian::little,
 
 namespace hft {
 
-inline double g_tsc_to_ns_ratio = 1.0;  // inline = one shared instance across all TUs (C++17)
+inline uint64_t g_tsc_ns_num = 1;
+inline uint64_t g_tsc_ns_den = 1;
 
 #if defined(__x86_64__) || defined(__i386__)
 inline void calibrate_tsc() {
@@ -32,13 +33,14 @@ inline void calibrate_tsc() {
     auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
     uint64_t elapsed_tsc = tsc1 - tsc0;
     
-    g_tsc_to_ns_ratio = static_cast<double>(elapsed_ns) / static_cast<double>(elapsed_tsc);
+    g_tsc_ns_num = static_cast<uint64_t>(elapsed_ns);
+    g_tsc_ns_den = elapsed_tsc;
 }
 
 static inline uint64_t rdtscp_ns() {
     uint32_t aux;
     uint64_t tsc = __builtin_ia32_rdtscp(&aux);
-    return static_cast<uint64_t>(static_cast<double>(tsc) * g_tsc_to_ns_ratio);
+    return static_cast<uint64_t>( (static_cast<unsigned __int128>(tsc) * g_tsc_ns_num) / g_tsc_ns_den );
 }
 #elif defined(__aarch64__)
 // ARM64 hardware counter
@@ -56,18 +58,20 @@ inline void calibrate_tsc() {
     auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
     uint64_t elapsed_tsc = tsc1 - tsc0;
     
-    g_tsc_to_ns_ratio = static_cast<double>(elapsed_ns) / static_cast<double>(elapsed_tsc);
+    g_tsc_ns_num = static_cast<uint64_t>(elapsed_ns);
+    g_tsc_ns_den = elapsed_tsc;
 }
 
 static inline uint64_t rdtscp_ns() {
     uint64_t tsc;
     asm volatile("mrs %0, cntvct_el0" : "=r" (tsc));
-    return static_cast<uint64_t>(static_cast<double>(tsc) * g_tsc_to_ns_ratio);
+    return static_cast<uint64_t>( (static_cast<unsigned __int128>(tsc) * g_tsc_ns_num) / g_tsc_ns_den );
 }
 #else
 // Fallback for other architectures
 inline void calibrate_tsc() {
-    g_tsc_to_ns_ratio = 1.0;
+    g_tsc_ns_num = 1;
+    g_tsc_ns_den = 1;
 }
 
 static inline uint64_t rdtscp_ns() {

@@ -75,6 +75,9 @@ static void handle_client(int client_socket, uint32_t client_id,
         std::memcpy(rx_buffer, rx_hdr_buf, sizeof(FrameHeader));
         ssize_t bytes_read = recv(client_socket, rx_buffer + sizeof(FrameHeader),
                                   rx_hdr_peek->msg_len, MSG_WAITALL);
+        if (__builtin_expect(bytes_read < 0 || (bytes_read == 0 && rx_hdr_peek->msg_len > 0), 0)) {
+            break;
+        }
 
         // recv with MSG_WAITALL returns:
         //   == EXPECTED_BYTES: success
