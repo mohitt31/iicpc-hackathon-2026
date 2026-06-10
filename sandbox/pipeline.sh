@@ -85,7 +85,7 @@ if [[ "$SKIP_DOCKER" == "true" ]]; then
     fi
 
     COMPILER="g++"
-    CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -static -march=x86-64-v2"
+    CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -static -march=native"
 
     echo "  Compiler: $($COMPILER --version | head -1)"
     echo "  Flags: $CXX_FLAGS"
@@ -97,7 +97,7 @@ if [[ "$SKIP_DOCKER" == "true" ]]; then
         STATIC="true"
     else
         echo "  ⚠ Static build failed, trying dynamic..."
-        CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -march=x86-64-v2"
+        CXX_FLAGS="-std=c++20 -O2 -Wall -Wextra -march=native"
         # shellcheck disable=SC2086
         $COMPILER $CXX_FLAGS $SOURCES -o "$SUBMISSION_DIR/contestant.elf" 2>&1
         STATIC="false"
@@ -113,7 +113,7 @@ if [[ "$SKIP_DOCKER" == "true" ]]; then
     "cxx_flags": "$CXX_FLAGS",
     "static_linked": $STATIC,
     "elf_hash": "$ELF_HASH",
-    "elf_size_bytes": $(stat -c%s "$SUBMISSION_DIR/contestant.elf"),
+    "elf_size_bytes": $(wc -c < "$SUBMISSION_DIR/contestant.elf" | tr -d ' '),
     "build_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
     "build_mode": "local"
 }

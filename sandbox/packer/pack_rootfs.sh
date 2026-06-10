@@ -106,8 +106,8 @@ SECCOMP_EOF
 dd if=/dev/zero of="$OUTPUT_FILE" bs=1M count="$SIZE_MB" status=none
 mkfs.ext4 -d "$MOUNT_DIR" -F -q "$OUTPUT_FILE"
 
-ELF_SIZE=$(stat -c%s "$ELF_PATH")
-IMG_SIZE=$(stat -c%s "$OUTPUT_FILE")
+ELF_SIZE=$(wc -c < "$ELF_PATH" | tr -d ' ')
+IMG_SIZE=$(wc -c < "$OUTPUT_FILE" | tr -d ' ')
 
 echo "[Packer] ✓ Rootfs image created: $OUTPUT_FILE"
 echo "[Packer]   ELF size: $ELF_SIZE bytes"

@@ -63,7 +63,7 @@ echo "[Attest] Version: $VERSION_STRING" >&2
 
 # ── Check 2: Compute SHA-256 hash ──────────────────────────
 ELF_HASH=$(sha256sum "$ELF_PATH" | awk '{print $1}')
-ELF_SIZE=$(stat -c%s "$ELF_PATH")
+ELF_SIZE=$(wc -c < "$ELF_PATH" | tr -d ' ')
 echo "[Attest] SHA-256: $ELF_HASH" >&2
 echo "[Attest] Size: $ELF_SIZE bytes" >&2
 

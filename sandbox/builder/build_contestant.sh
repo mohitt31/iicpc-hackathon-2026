@@ -103,7 +103,7 @@ cat > "$OUTPUT_DIR/run_metadata.json" <<EOF
     "cxx_flags": "$CXX_FLAGS",
     "static_linked": $STATIC,
     "elf_hash": "$ELF_HASH",
-    "elf_size_bytes": $(stat -c%s "$OUTPUT_DIR/contestant.elf"),
+    "elf_size_bytes": $(wc -c < "$OUTPUT_DIR/contestant.elf" | tr -d ' '),
     "build_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF

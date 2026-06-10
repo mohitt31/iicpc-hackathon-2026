@@ -64,7 +64,7 @@ fi
 
 # ── Check 2: Size cap ──────────────────────────────────────
 SIZE_CAP_BYTES=$((SIZE_CAP_MB * 1024 * 1024))
-FILE_SIZE=$(stat -c%s "$TARBALL")
+FILE_SIZE=$(wc -c < "$TARBALL" | tr -d ' ')
 
 if [[ "$FILE_SIZE" -gt "$SIZE_CAP_BYTES" ]]; then
     echo "REJECTED: File size ${FILE_SIZE} bytes exceeds cap of ${SIZE_CAP_BYTES} bytes (${SIZE_CAP_MB}MB)" >&2

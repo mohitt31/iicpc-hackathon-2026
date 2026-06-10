@@ -72,12 +72,27 @@ echo "▸ Step 3: Starting reference_server..."
     --input-journal "$TEST_TMP/server_input.jrn" \
     > "$TEST_TMP/server.log" 2>&1 &
 SERVER_PID=$!
-sleep 0.5  # wait for listen()
 
-if kill -0 "$SERVER_PID" 2>/dev/null; then
+# Wait until the server is actually accepting on the port before launching
+# the bot. A fixed sleep races with TSC calibration + listen(): if the bot's
+# one-shot connect() fires first it fails hard and the run produces empty
+# journals (a false "0 bytes identical" pass). Poll for readiness instead.
+SERVER_READY=0
+for _ in $(seq 1 100); do  # up to ~10s
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+        break  # server died; reported below
+    fi
+    if lsof -nP -iTCP:9000 -sTCP:LISTEN >/dev/null 2>&1; then
+        SERVER_READY=1
+        break
+    fi
+    perl -e 'select(undef,undef,undef,0.1)'  # portable 100ms sleep
+done
+
+if [[ "$SERVER_READY" -eq 1 ]]; then
     pass "Reference server started (PID=$SERVER_PID)"
 else
-    fail "Reference server failed to start"
+    fail "Reference server failed to start / never listened on port 9000"
     cat "$TEST_TMP/server.log"
     exit 1
 fi
@@ -102,7 +117,7 @@ pass "Bot run complete"
 echo "▸ Step 5: Checking bot results..."
 
 # Check bot acked some messages
-BOT_ACKED=$(grep -oP 'Total Acked: \K[0-9]+' "$TEST_TMP/bot.log" || echo "0")
+BOT_ACKED=$(grep -o 'Total Acked: [0-9]*' "$TEST_TMP/bot.log" | grep -o '[0-9]*$' || echo "0")
 if [[ "$BOT_ACKED" -gt 0 ]]; then
     pass "Bot received $BOT_ACKED acks"
 else
@@ -110,7 +125,7 @@ else
 fi
 
 # Check bot received fills (real engine should produce them)
-BOT_FILLS=$(grep -oP 'Total Fills: \K[0-9]+' "$TEST_TMP/bot.log" || echo "0")
+BOT_FILLS=$(grep -o 'Total Fills: [0-9]*' "$TEST_TMP/bot.log" | grep -o '[0-9]*$' || echo "0")
 if [[ "$BOT_FILLS" -gt 0 ]]; then
     pass "Bot received $BOT_FILLS fills"
 else
@@ -124,8 +139,8 @@ fi
 # ── Step 6: Verify journals are non-empty ──────────────────
 echo "▸ Step 6: Checking journals..."
 
-INPUT_SIZE=$(stat -c%s "$TEST_TMP/server_input.jrn" 2>/dev/null || echo "0")
-OUTPUT_SIZE=$(stat -c%s "$TEST_TMP/server_output.jrn" 2>/dev/null || echo "0")
+INPUT_SIZE=$(wc -c < "$TEST_TMP/server_input.jrn" 2>/dev/null | tr -d ' ' || echo "0")
+OUTPUT_SIZE=$(wc -c < "$TEST_TMP/server_output.jrn" 2>/dev/null | tr -d ' ' || echo "0")
 
 if [[ "$INPUT_SIZE" -gt 0 ]]; then
     pass "Input journal: $INPUT_SIZE bytes"
@@ -153,8 +168,14 @@ DIFF_RESULT=$("$BUILD_DIR/refengine" diff \
     2>&1) || true
 
 if echo "$DIFF_RESULT" | grep -q "IDENTICAL"; then
-    MATCH_BYTES=$(echo "$DIFF_RESULT" | grep -oP 'IDENTICAL: \K[0-9]+')
-    pass "DETERMINISM VERIFIED: live server and offline replay are byte-identical ($MATCH_BYTES bytes)"
+    MATCH_BYTES=$(echo "$DIFF_RESULT" | grep -o 'IDENTICAL: [0-9]*' | grep -o '[0-9]*$')
+    if [[ -z "$MATCH_BYTES" || "$MATCH_BYTES" -eq 0 ]]; then
+        # Two empty journals diff as "IDENTICAL: 0 bytes" — a false pass.
+        # Real determinism requires actual matched output.
+        fail "DETERMINISM INCONCLUSIVE: 0 bytes compared (empty journals)"
+    else
+        pass "DETERMINISM VERIFIED: live server and offline replay are byte-identical ($MATCH_BYTES bytes)"
+    fi
 else
     fail "DETERMINISM FAILURE: live server output differs from offline replay"
     echo "  Diff output: $DIFF_RESULT"
