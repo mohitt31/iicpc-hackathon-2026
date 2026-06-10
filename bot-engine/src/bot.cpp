@@ -617,7 +617,7 @@ static void bot_worker(BotConfig config, BotResult* result) {
                 if (pending[map_slot].pool_ptr)
                     pool.release(pending[map_slot].pool_ptr);
             }
-            pending[map_slot] = {next_send_time, actual_send_time, this_seq, slot};
+            pending[map_slot] = {next_send_time, this_seq, actual_send_time, slot};
             total_sent = this_seq;
             next_send_time += config.interval_ns;
         }
