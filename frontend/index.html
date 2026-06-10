@@ -167,7 +167,7 @@
   </div>
 
   <section class="hero">
-    <div class="eyebrow reveal" style="animation-delay:.05s"><span class="ln"></span><span id="eyebrow">NOW LEADING · FIX BOARD</span></div>
+    <div class="eyebrow reveal" style="animation-delay:.05s"><span class="ln"></span><span id="eyebrow">NOW LEADING · BINARY TCP BOARD</span></div>
     <h1 class="hero-name reveal" id="heroName" style="animation-delay:.12s">—</h1>
     <p class="hero-sub reveal" id="heroSub" style="animation-delay:.2s"></p>
     <div class="hero-stats reveal" style="animation-delay:.3s">
@@ -183,9 +183,9 @@
   <nav class="protobar reveal" id="protobar" style="animation-delay:.4s"></nav>
 
   <div id="boardAnchor"></div>
-  <div class="boardhead"><span class="t" id="boardTitle">FIX BOARD</span><span class="tk" id="tick">—</span></div>
+  <div class="boardhead"><span class="t" id="boardTitle">BINARY TCP BOARD</span><span class="tk" id="tick">—</span></div>
   <div class="rulenote"><b>Display only.</b> In live mode, every percentile is read straight from the contract's CO-corrected, additively-merged gauges (§4). No averaging, no re-bucketing, no interpolation — the scoring service reads p99 from the merged additive HDR, never a mean of per-bot values. In demo mode, data is synthetic.</div>
-  <div class="xwarn" id="xwarn">⚠ Cross-protocol ranking — reference only. FIX, WebSocket and REST are not the same race; the contract forbids comparing across them. Read within a protocol board.</div>
+  <div class="xwarn" id="xwarn">⚠ Cross-protocol ranking — reference only. BINARY TCP, WebSocket and REST are not the same race; the contract forbids comparing across them. Read within a protocol board.</div>
   <div class="rows" id="rows"></div>
 </div>
 
@@ -194,7 +194,7 @@
 
 /* ── LIVE SWAP POINT ── set USE_LIVE=true and subscribe to a WS/SSE feed emitting
    the same delta shape { changed:[...], removed:[...] }; nothing else changes. */
-const USE_LIVE=false;
+const USE_LIVE=true;
 /* ── DEMO MODE banner ── shown when USE_LIVE=false so judges see it clearly */
 if (!USE_LIVE) {
   const banner = document.createElement('div');
@@ -222,19 +222,19 @@ function hdrValueAtPercentile(h,p){            // returns ns — used ONLY by sc
 }
 
 /* ════════ MOCK SOURCE — role of VictoriaMetrics (derived gauges) + HDR store ════════ */
-const PROTOCOLS=['FIX','WS','REST'];
-const PROTO_LABEL={FIX:'FIX',WS:'WebSocket',REST:'REST'};
+const PROTOCOLS=['BINARY TCP','WEBSOCKET (Roadmap)','REST (Roadmap)'];
+const PROTO_LABEL={'BINARY TCP':'BINARY TCP','WEBSOCKET (Roadmap)':'WEBSOCKET (Roadmap)','REST (Roadmap)':'REST (Roadmap)'};
 const NODES=['node-01','node-02','node-03','node-04'];
 function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();
   return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 function hashId(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16).padStart(8,'0');}
 
 const MockSource=(()=>{
-  const base={FIX:[10000,28000],WS:[35000,90000],REST:[120000,420000]}; // ns
+  const base={'BINARY TCP':[10000,28000],'WEBSOCKET (Roadmap)':[35000,90000],'REST (Roadmap)':[120000,420000]}; // ns
   const roster=[
-    ['Priya Sharma','FIX'],['Arjun Mehta','FIX'],['Sanya Rao','FIX'],['Dev Kapoor','FIX'],
-    ['Kiran Nair','WS'],['Rohan Gupta','WS'],['Ananya Iyer','WS'],['Vikram Sen','WS'],
-    ['Meera Joshi','REST'],['Aditya Rao','REST'],['Neha Verma','REST'],['Karan Shah','REST'],
+    ['Priya Sharma','BINARY TCP'],['Arjun Mehta','BINARY TCP'],['Sanya Rao','BINARY TCP'],['Dev Kapoor','BINARY TCP'],
+    ['Kiran Nair','WEBSOCKET (Roadmap)'],['Rohan Gupta','WEBSOCKET (Roadmap)'],['Ananya Iyer','WEBSOCKET (Roadmap)'],['Vikram Sen','WEBSOCKET (Roadmap)'],
+    ['Meera Joshi','REST (Roadmap)'],['Aditya Rao','REST (Roadmap)'],['Neha Verma','REST (Roadmap)'],['Karan Shah','REST (Roadmap)'],
   ];
   let subs=[];
   function sampleInto(h,median,tail,count){
@@ -263,7 +263,7 @@ const MockSource=(()=>{
       p50:hdrValueAtPercentile(s.hdr,50), p90:hdrValueAtPercentile(s.hdr,90),
       p99:hdrValueAtPercentile(s.hdr,99), p99_9:hdrValueAtPercentile(s.hdr,99.9),
       p99_99:hdrValueAtPercentile(s.hdr,99.99), max:hdrValueAtPercentile(s.hdr,100),
-      tps:Math.round((s.protocol==='FIX'?180000:s.protocol==='WS'?120000:60000)*(0.6+Math.random()*0.6)), // max sustained before err threshold (§5)
+      tps:Math.round((s.protocol==='BINARY TCP'?180000:s.protocol==='WEBSOCKET (Roadmap)'?120000:60000)*(0.6+Math.random()*0.6)), // max sustained before err threshold (§5)
       err:Math.max(0,Math.min(0.12,0.005+Math.abs(gauss())*0.01)),
       diff_pass_rate:Math.random()<0.10?0.985+Math.random()*0.012:1.0,         // byte-exact ref-engine diff (§5)
       invariant_violations:Math.random()<0.08?Math.floor(1+Math.random()*2):0, // price-time-priority etc (§5)
@@ -355,7 +355,7 @@ const Gateway=(()=>{
 /* ════════ UI — live leader as hero, segmented protocol nav, cinematic restraint ════════ */
 const fmtLat=ns=> ns<1000?ns.toFixed(0)+'ns':ns<1e6?(ns/1000).toFixed(ns<10000?2:1)+'µs':(ns/1e6).toFixed(ns<1e7?1:0)+'ms';
 const fmtTps=t=> (t/1000).toFixed(1);
-let activeProto='FIX', expanded=null, LAST={}, lastLeaderId=null;
+let activeProto='BINARY TCP', expanded=null, LAST={}, lastLeaderId=null;
 
 function buildBar(deltas){
   const bar=document.getElementById('protobar'); bar.innerHTML='';

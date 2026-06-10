@@ -38,6 +38,8 @@
 #include <csignal>
 #include <thread>
 #include <chrono>
+#include <poll.h>
+#include <fcntl.h>
 
 static volatile sig_atomic_t g_running = 1;
 
@@ -160,17 +162,30 @@ int main(int argc, char* argv[]) {
     std::atomic<uint32_t> next_client_id{0};
     std::cout << "[RefServer] Accepting connections on port " << port << "...\n";
 
+    int flags = fcntl(server_fd, F_GETFL, 0);
+    fcntl(server_fd, F_SETFL, flags | O_NONBLOCK);
+
     while (g_running) {
-        int client_socket = accept(server_fd, nullptr, nullptr);
-        if (client_socket < 0) {
-            if (errno == EINTR) continue;
-            if (!g_running) break;
-            std::cerr << "[RefServer] accept() failed: " << strerror(errno) << "\n";
-            break;
+        struct pollfd pfd{};
+        pfd.fd = server_fd;
+        pfd.events = POLLIN;
+        int pret = poll(&pfd, 1, 100);
+        if (pret <= 0) {
+            if (pret < 0 && errno != EINTR) break;
+            continue;
         }
-        uint32_t cid = next_client_id.fetch_add(1);
-        std::cout << "[RefServer] Client " << cid << " connected.\n";
-        client_threads.emplace_back([client_socket, cid, &journal, &input_journal, port]() {
+
+        while (g_running) {
+            int client_socket = accept(server_fd, nullptr, nullptr);
+            if (client_socket < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) break;
+                if (!g_running) break;
+                std::cerr << "[RefServer] accept() failed: " << strerror(errno) << "\n";
+                goto accept_fatal;
+            }
+            uint32_t cid = next_client_id.fetch_add(1);
+            std::cout << "[RefServer] Client " << cid << " connected.\n";
+            client_threads.emplace_back([client_socket, cid, &journal, &input_journal, port]() {
             int opt2 = 1;
             setsockopt(client_socket, IPPROTO_TCP, TCP_NODELAY, &opt2, sizeof(opt2));
 #ifdef SO_QUICKACK
@@ -235,7 +250,9 @@ int main(int argc, char* argv[]) {
                       << " acks=" << stats.acks_sent << " fills=" << stats.fills_sent << "\n";
         });
         client_threads.back().detach();
+        }
     }
+accept_fatal:
 
     journal.flush(); input_journal.flush();
     for (auto& t : client_threads) if (t.joinable()) t.join();
