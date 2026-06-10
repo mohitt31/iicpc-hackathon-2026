@@ -3,7 +3,7 @@
  * IICPC HFT Benchmarking Platform — Telemetry Gateway (reference / mock)
  *
  * Serves the leaderboard's LIVE feed. Speaks the exact wire shape the frontend
- * subscriber (frontend/index.html → connectLive()) expects:
+ * subscriber (frontend/leaderboard.html → connectLive()) expects:
  *
  *     { "type": "deltas", "deltas": { "FIX":[row,...], "WS":[...], "REST":[...] } }
  *
@@ -123,7 +123,9 @@ const Source = (() => {
   }
   function tick() {
     if (SNAPSHOT_DIR && fs.existsSync(SNAPSHOT_DIR)) {
-      const files = fs.readdirSync(SNAPSHOT_DIR).filter(f => f.endsWith('.csv'));
+      // sort() — readdir order is filesystem-dependent; keep the
+      // file→contestant mapping deterministic across platforms.
+      const files = fs.readdirSync(SNAPSHOT_DIR).filter(f => f.endsWith('.csv')).sort();
       files.forEach((f, i) => {
         if (i < 4 && i < subs.length) { // Map to first 4 contestants
           try {

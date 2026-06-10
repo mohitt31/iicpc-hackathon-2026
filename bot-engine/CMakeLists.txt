@@ -16,6 +16,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # HFT optimization flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -flto -Wall -Wextra -Wpedantic")
 
+# Sanitizer build for testing (never for benchmarking — ASan skews timing).
+#   cmake -B build-asan -DENABLE_SANITIZERS=ON && cmake --build build-asan
+option(ENABLE_SANITIZERS "Build with AddressSanitizer + UBSan (testing only)" OFF)
+if(ENABLE_SANITIZERS)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1 -fno-lto)
+    add_link_options(-fsanitize=address,undefined -fno-lto)
+endif()
+
 # Include the contracts directory at the repo root
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/)
