@@ -182,8 +182,11 @@ static void spsc_consumer(BotResult* result,
         bool drained_any = false;
         while (result->spsc_ring->try_pop(rec)) {
             hdr_record_value(result->naive_hist, rec.naive_latency_ns);
+            // CO histogram must see latency vs INTENDED send time —
+            // feeding it the naive (actual-send) latency here would
+            // silently undo the Tene/Snyder correction on this path.
             hdr_record_corrected_value(result->co_hist,
-                                       rec.naive_latency_ns, rec.interval_ns);
+                                       rec.co_latency_ns, rec.interval_ns);
             drained_any = true;
         }
         // Sleep briefly only if ring was empty — keeps tail latency low
@@ -196,7 +199,7 @@ static void spsc_consumer(BotResult* result,
     while (result->spsc_ring->try_pop(rec)) {
         hdr_record_value(result->naive_hist, rec.naive_latency_ns);
         hdr_record_corrected_value(result->co_hist,
-                                   rec.naive_latency_ns, rec.interval_ns);
+                                   rec.co_latency_ns, rec.interval_ns);
     }
 }
 
@@ -417,18 +420,8 @@ static void bot_worker(BotConfig config, BotResult* result) {
         }
     }
 
-    hdr_init(1, 30000000000LL, 3, &result->naive_hist);
-    hdr_init(1, 30000000000LL, 3, &result->co_hist);
-
-    // Lazy-allocate the SPSC ring only if requested. The ring is ~1 MiB
-    // per bot — not worth allocating when --use-spsc is off (default).
-    if (config.use_spsc) {
-        result->spsc_ring = new LatencyRing();
-        if (config.thread_id == 0)
-            std::cout << "[Bot 0] SPSC ring enabled (capacity "
-                      << LatencyRing::capacity() << ")\n";
-    }
-
+    // Histograms and the optional SPSC ring are allocated by main()
+    // BEFORE any thread is spawned — no cross-thread init races here.
     OrderPool pool;
     uint64_t rng_state = 42 + config.thread_id;
 
@@ -632,6 +625,18 @@ static void bot_worker(BotConfig config, BotResult* result) {
     if (__builtin_expect(bytes_read == 0, 0)) {
         std::cerr << "[Bot " << config.thread_id
                   << "] Peer closed connection. Stopping.\n";
+        goto end_run;
+    }
+
+    // recv() < 0 with a real error (ECONNRESET, EPIPE, ...) means the
+    // socket is dead. EAGAIN/EWOULDBLOCK is just "no data yet" and
+    // EINTR is a benign signal interruption — everything else would
+    // leave us busy-spinning on a corpse until the duration expires.
+    if (__builtin_expect(bytes_read < 0 && errno != EAGAIN &&
+                         errno != EWOULDBLOCK && errno != EINTR, 0)) {
+        std::cerr << "[Bot " << config.thread_id
+                  << "] recv() fatal error: " << strerror(errno)
+                  << ". Stopping.\n";
         goto end_run;
     }
 
@@ -858,6 +863,10 @@ int main(int argc, char* argv[]) {
     spsc_threads.reserve(num_bots);
     work_threads.reserve(num_bots);
 
+    // Allocate every histogram (and SPSC ring, if enabled) up front, on
+    // the main thread, BEFORE any worker/consumer/snapshot thread exists.
+    // Threads then only ever see fully-constructed pointers — no lazy
+    // init, no publication race, no sleep-and-hope synchronization.
     for (uint32_t i = 0; i < num_bots; i++) {
         configs[i] = BotConfig{
             .thread_id     = i,
@@ -870,28 +879,21 @@ int main(int argc, char* argv[]) {
             .use_spsc      = use_spsc,
             .warmup_orders = warmup_orders,
         };
+        hdr_init(1, 30000000000LL, 3, &results[i].naive_hist);
+        hdr_init(1, 30000000000LL, 3, &results[i].co_hist);
+        if (use_spsc) results[i].spsc_ring = new LatencyRing();
+    }
+
+    for (uint32_t i = 0; i < num_bots; i++) {
         if (!snapshot_dir.empty()) {
             snap_threads.emplace_back(snapshot_writer,
                                       i, snapshot_dir,
                                       &results[i], &stop_flag);
         }
-    }
-
-    for (uint32_t i = 0; i < num_bots; i++) {
-        work_threads.emplace_back(bot_worker, configs[i], &results[i]);
-    }
-
-    // SPSC consumer threads are spawned AFTER workers start, because
-    // the worker is what lazy-creates the ring. We wait briefly so the
-    // pointers are visible.
-    if (use_spsc) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        for (uint32_t i = 0; i < num_bots; i++) {
-            if (results[i].spsc_ring) {
-                spsc_threads.emplace_back(spsc_consumer,
-                                          &results[i], &stop_flag);
-            }
+        if (use_spsc) {
+            spsc_threads.emplace_back(spsc_consumer, &results[i], &stop_flag);
         }
+        work_threads.emplace_back(bot_worker, configs[i], &results[i]);
     }
 
     for (auto& t : work_threads) t.join();
