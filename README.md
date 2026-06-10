@@ -123,7 +123,7 @@ binary remains the gold standard for byte-exact diffing.
 
 ## What we deliberately did **not** build (and why)
 
-Some optimizations from the research documents would not have improved this submission's score at our scale, and would have introduced risk to the working pipeline. The Architecture Blueprint (`docs/ARCHITECTURE_BLUEPRINT.md`, forthcoming) covers the full deferral list with citations; the short version:
+Some optimizations from the research documents would not have improved this submission's score at our scale, and would have introduced risk to the working pipeline. The Architecture Blueprint ([`ARCHITECTURE.md`](ARCHITECTURE.md), section "Deliberate deferrals") covers the full deferral list with citations; the short version:
 
 - **SIMD AVX2 batch ingester** — payoff begins at 1M+ msg/sec receive. Current per-bot rate is 10k/sec. Skipped.
 - **AF_XDP kernel bypass** — needed for sub-µs receive. Current p99 already at 84 µs on TCP + `SO_BUSY_POLL`. Skipped.
