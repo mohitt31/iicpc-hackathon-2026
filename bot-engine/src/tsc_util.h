@@ -17,6 +17,13 @@ namespace hft {
 inline uint64_t g_tsc_ns_num = 1;
 inline uint64_t g_tsc_ns_den = 1;
 
+#if defined(__SIZEOF_INT128__)
+// 128-bit intermediate for tick→ns scaling: (tsc * num) overflows u64
+// after ~minutes of uptime at GHz rates; widening makes it exact.
+// __extension__ keeps -Wpedantic quiet about the GCC/Clang extension.
+__extension__ typedef unsigned __int128 u128;
+#endif
+
 #if defined(__x86_64__) || defined(__i386__)
 inline void calibrate_tsc() {
     uint32_t aux;
@@ -40,7 +47,7 @@ inline void calibrate_tsc() {
 static inline uint64_t rdtscp_ns() {
     uint32_t aux;
     uint64_t tsc = __builtin_ia32_rdtscp(&aux);
-    return static_cast<uint64_t>( (static_cast<unsigned __int128>(tsc) * g_tsc_ns_num) / g_tsc_ns_den );
+    return static_cast<uint64_t>( (static_cast<u128>(tsc) * g_tsc_ns_num) / g_tsc_ns_den );
 }
 #elif defined(__aarch64__)
 // ARM64 hardware counter
@@ -65,7 +72,7 @@ inline void calibrate_tsc() {
 static inline uint64_t rdtscp_ns() {
     uint64_t tsc;
     asm volatile("mrs %0, cntvct_el0" : "=r" (tsc));
-    return static_cast<uint64_t>( (static_cast<unsigned __int128>(tsc) * g_tsc_ns_num) / g_tsc_ns_den );
+    return static_cast<uint64_t>( (static_cast<u128>(tsc) * g_tsc_ns_num) / g_tsc_ns_den );
 }
 #else
 // Fallback for other architectures
