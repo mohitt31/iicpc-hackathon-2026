@@ -65,7 +65,9 @@ static void handle_client(int client_socket, uint32_t client_id,
     while (true) {
         // Two-step framing: read header, then exactly msg_len bytes (handles any type)
         ssize_t hr = recv(client_socket, rx_hdr_buf, sizeof(FrameHeader), MSG_WAITALL);
-        if (__builtin_expect(hr <= 0, 0)) {
+        if (__builtin_expect(hr != static_cast<ssize_t>(sizeof(FrameHeader)), 0)) {
+            // 0 = clean close, <0 = error, 0<hr<4 = peer died mid-header.
+            // Anything but a complete header means this stream is done.
             if (hr == 0) std::cout << "[Responder] Client " << client_id
                 << " disconnected. Served " << orders_seen << " orders.\n";
             break;
@@ -116,7 +118,12 @@ static void handle_client(int client_socket, uint32_t client_id,
             tx_ack->symbol_id    = rx_order->symbol_id;
             tx_ack->order_seq    = rx_order->seq;
 
-            send(client_socket, tx_buffer, sizeof(tx_buffer), 0);
+            // Blocking send on a 36-byte ack either completes in full or
+            // fails — a short/failed send means the peer is gone.
+            ssize_t sw = send(client_socket, tx_buffer, sizeof(tx_buffer),
+                              MSG_NOSIGNAL);
+            if (__builtin_expect(sw != static_cast<ssize_t>(sizeof(tx_buffer)), 0))
+                break;
 
 #ifdef SO_QUICKACK
             setsockopt(client_socket, SOL_SOCKET, SO_QUICKACK, &opt, sizeof(opt));
