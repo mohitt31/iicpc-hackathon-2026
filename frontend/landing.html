@@ -629,7 +629,9 @@ try {
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.3, 0.6, 0.08);
+  /* threshold 0.22 keeps bloom SELECTIVE — only the hottest pixels bloom,
+     so the core glows without washing the whole frame to white */
+  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.6, 0.22);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
@@ -663,7 +665,7 @@ try {
 
   /* ── Nucleus: animated plasma shader ── */
   const nucleusMat=new THREE.ShaderMaterial({
-    uniforms:{uTime:{value:0}},
+    uniforms:{uTime:{value:0},uDim:{value:1.0}},
     transparent:true,
     depthWrite:false,
     blending:THREE.AdditiveBlending,
@@ -680,6 +682,7 @@ try {
       }`,
     fragmentShader:`
       uniform float uTime;
+      uniform float uDim;
       varying vec3 vNormal;
       varying vec3 vViewDir;
       varying vec2 vUv;
@@ -703,10 +706,10 @@ try {
         vec3 green=vec3(0.227,0.824,0.624);
         vec3 white=vec3(1.0,1.0,1.0);
         vec3 col=mix(cyan,green,plasma*0.7);
-        col=mix(col,white,arc*0.75);
-        col+=fresnel*cyan*3.2;
-        float alpha=0.72+fresnel*0.28+arc*0.18;
-        gl_FragColor=vec4(col*(1.0+arc*0.9),alpha);
+        col=mix(col,white,arc*0.55);
+        col+=fresnel*cyan*1.5;
+        float alpha=(0.58+fresnel*0.28+arc*0.14)*uDim;
+        gl_FragColor=vec4(col*(1.0+arc*0.45)*uDim,alpha);
       }`
   });
   core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1.15,4),nucleusMat));
@@ -807,6 +810,7 @@ try {
   const tmpV=new THREE.Vector3();
 
   /* ── volumetric halo sprites (4 layers) ── */
+  const halos=[];
   {
     const c2d=document.createElement('canvas'); c2d.width=c2d.height=256;
     const g2=c2d.getContext('2d');
@@ -817,11 +821,11 @@ try {
     grad.addColorStop(1,'rgba(0,0,0,0)');
     g2.fillStyle=grad; g2.fillRect(0,0,256,256);
     const tex=new THREE.CanvasTexture(c2d);
-    [[4.5,0.52],[8.5,0.30],[15,0.14],[24,0.07]].forEach(([sz,op])=>{
+    [[4.5,0.34],[8,0.18],[14,0.09],[21,0.045]].forEach(([sz,op])=>{
       const sp=new THREE.Sprite(new THREE.SpriteMaterial({
         map:tex,color:0x36d3ff,transparent:true,opacity:op,
         blending:THREE.AdditiveBlending,depthWrite:false}));
-      sp.scale.setScalar(sz); core.add(sp);
+      sp.scale.setScalar(sz); sp.userData.baseOp=op; core.add(sp); halos.push(sp);
     });
   }
 
@@ -868,11 +872,16 @@ try {
     camera.position.z=26-p*12.5;
     camera.position.y=0.7-p*0.4;
     camera.lookAt(core.position.x*(1-p*0.85),0,0);
-    bloom.strength=1.3+p*1.55;
+    /* bloom EASES DOWN as the core fills the screen — prevents white-out
+       washout so the glass HUD stays readable over it */
+    bloom.strength=1.0-p*0.45;
     flowMat.opacity=0.95*(1-p*0.55);
 
-    /* ── plasma shader time ── */
+    /* ── plasma shader time + dim-as-background ── */
     nucleusMat.uniforms.uTime.value=t;
+    nucleusMat.uniforms.uDim.value=1.0-p*0.6;
+    /* fade the additive halo stack so it doesn't blow out when zoomed in */
+    for(const sp of halos) sp.material.opacity=sp.userData.baseOp*(1-p*0.7);
 
     /* ── ring rotation ── */
     rings.forEach((r,i)=>{
@@ -916,9 +925,9 @@ try {
       }
     }
 
-    /* ── heart + green pulse ── */
-    heart.intensity=70+Math.sin(t*1.8)*28+p*60;
-    greenLight.intensity=35+Math.sin(t*2.3+1.5)*15;
+    /* ── heart + green pulse (no scroll boost — avoids over-bright core) ── */
+    heart.intensity=(70+Math.sin(t*1.8)*28)*(1-p*0.4);
+    greenLight.intensity=(35+Math.sin(t*2.3+1.5)*15)*(1-p*0.4);
 
     /* ── flow streams ── */
     const fp=flowGeo.attributes.position.array;
