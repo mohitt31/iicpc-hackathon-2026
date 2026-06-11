@@ -24,7 +24,7 @@
 
   #gl{position:fixed;inset:0;z-index:0;display:block}
 
-  /* CRT scanlines + vignette over the whole experience — subtle */
+  /* CRT scanlines + vignette */
   .fx{position:fixed;inset:0;z-index:1;pointer-events:none;
       background:
         repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 3px),
@@ -94,9 +94,85 @@
   @keyframes drip{0%{transform:scaleY(0);transform-origin:top}55%{transform:scaleY(1);transform-origin:top}
             56%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 
+  /* ── HERO VIDEO / POSTER WRAP ── */
+  /* Fixed overlay: starts offset-right in hero state, GSAP zooms it to center on scroll */
+  #hero-vid-wrap{
+    position:fixed;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%);
+    width:min(40vw,480px);
+    aspect-ratio:1/1;
+    z-index:2;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .8s ease;
+    will-change:transform,width;
+  }
+  #hero-vid-wrap.vid-active{opacity:1}
+  #hero-vid-wrap video,#hero-vid-wrap img{
+    width:100%;height:100%;
+    object-fit:cover;
+    mix-blend-mode:screen;
+    display:block;
+  }
+  #hero-vid-wrap img{display:none}
+  #hero-vid-wrap.poster-only video{display:none}
+  #hero-vid-wrap.poster-only img{display:block}
+  @media(max-width:760px){#hero-vid-wrap{width:min(78vw,320px)}}
+
+  /* ── HERO TARGETING RETICLE (decorative rings framing the core area) ── */
+  #hero-frame{
+    position:absolute;
+    right:clamp(8px,7vw,90px);
+    top:50%;
+    transform:translateY(-50%);
+    width:min(42vw,500px);
+    aspect-ratio:1/1;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity 1s ease 1.6s;
+    z-index:3;
+  }
+  #hero-frame.vis{opacity:1}
+  @media(max-width:760px){#hero-frame{display:none}}
+
+  .hf-r{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(54,211,255,.14)}
+  .hf-r::before,.hf-r::after{
+    content:'';position:absolute;left:50%;transform:translateX(-50%);
+    width:1px;height:9px;background:var(--cool);opacity:.7;
+    box-shadow:0 0 7px var(--cool);top:0;
+  }
+  .hf-r::after{top:auto;bottom:0}
+  .hf-r1{animation:hfSpin 22s linear infinite}
+  .hf-r2{inset:11%;border-color:rgba(58,210,159,.20);animation:hfSpin 15s linear infinite reverse}
+  .hf-r3{inset:23%;border-color:rgba(54,211,255,.26);animation:hfSpin 9s linear infinite}
+  .hf-dot{
+    position:absolute;inset:43%;border-radius:50%;
+    background:rgba(54,211,255,.06);
+    box-shadow:0 0 50px rgba(54,211,255,.25),0 0 100px rgba(54,211,255,.10);
+  }
+  @keyframes hfSpin{to{transform:rotate(360deg)}}
+
+  /* corner tick marks on outer ring */
+  .hf-tick{
+    position:absolute;font-family:var(--mono);font-size:8px;
+    letter-spacing:.14em;color:rgba(54,211,255,.38);white-space:nowrap;
+  }
+  .hf-tick-t{top:-20px;left:50%;transform:translateX(-50%)}
+  .hf-tick-b{bottom:-20px;left:50%;transform:translateX(-50%)}
+  .hf-tick-l{left:-76px;top:50%;transform:translateY(-50%)}
+  .hf-tick-r{right:-76px;top:50%;transform:translateY(-50%)}
+
+  /* crosshair lines */
+  .hf-cross{position:absolute;inset:0;pointer-events:none}
+  .hf-cross::before,.hf-cross::after{
+    content:'';position:absolute;background:rgba(54,211,255,.08);
+  }
+  .hf-cross::before{left:50%;top:0;width:1px;height:100%;transform:translateX(-50%)}
+  .hf-cross::after{top:50%;left:0;height:1px;width:100%;transform:translateY(-50%)}
+
   /* ── SECTION 2 · COMMAND-CENTER HUD ── */
   .lb-sec{min-height:240vh;position:relative}
-  /* glass metric cards — the SpaceX moment */
   .metric-row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
   .metric{border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:26px 26px 22px;
           background:rgba(10,16,22,.38);backdrop-filter:blur(18px) saturate(1.4);
@@ -121,7 +197,6 @@
   .hud-grid{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:30px}
   .panel{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(8,13,18,.42);backdrop-filter:blur(18px) saturate(1.4);
          position:relative;box-shadow:0 0 90px rgba(54,211,255,.08),inset 0 1px 0 rgba(255,255,255,.05)}
-  /* HUD corner brackets */
   .panel::before,.panel::after{content:'';position:absolute;width:18px;height:18px;border-color:var(--cool);border-style:solid;opacity:.7}
   .panel::before{top:-1px;left:-1px;border-width:1px 0 0 1px;border-radius:12px 0 0 0}
   .panel::after{bottom:-1px;right:-1px;border-width:0 1px 1px 0;border-radius:0 0 12px 0}
@@ -155,7 +230,6 @@
   tr.failed td{color:var(--bad);opacity:.6}
   td.spark{padding:6px 18px 4px} td.spark canvas{display:block;opacity:.9}
 
-  /* right column gauges */
   .g-stack{display:flex;flex-direction:column;gap:18px}
   .g-pad{padding:18px 20px}
   .big-n{font-family:var(--exp);font-weight:700;font-size:42px;letter-spacing:-.02em;color:var(--ink);
@@ -210,6 +284,8 @@
     .hero-h1 .w>span{transform:none}
     .eyebrow,.hero-proof,.hud{opacity:1!important;transform:none!important}
     #boot{display:none}
+    .hf-r,.hf-r1,.hf-r2,.hf-r3{animation:none!important}
+    #hero-vid-wrap{opacity:1}
   }
 </style>
 </head>
@@ -217,6 +293,16 @@
 
 <canvas id="gl" aria-hidden="true"></canvas>
 <div class="fx" aria-hidden="true"></div>
+
+<!-- ── HIGGSFIELD HERO VIDEO / POSTER (fixed, GSAP-zoomed on scroll) ── -->
+<!-- Drop assets/hero-loop.mp4 and assets/hero-poster.jpg to activate -->
+<div id="hero-vid-wrap" aria-hidden="true">
+  <video id="hero-vid" autoplay muted loop playsinline preload="none"
+         poster="assets/hero-poster.jpg">
+    <source src="assets/hero-loop.mp4" type="video/mp4">
+  </video>
+  <img id="hero-poster-img" src="assets/hero-poster.jpg" alt="" loading="lazy">
+</div>
 
 <!-- ── BOOT SEQUENCE ── -->
 <div id="boot" aria-hidden="true">
@@ -254,6 +340,20 @@
       <div class="hp"><div class="n orange">600k/600k</div><div class="l">orders acked ·<br>zero lost, zero collisions</div></div>
     </div>
   </div>
+
+  <!-- Decorative targeting reticle — frames the 3D core / video area -->
+  <div id="hero-frame" aria-hidden="true">
+    <div class="hf-r hf-r1"></div>
+    <div class="hf-r hf-r2"></div>
+    <div class="hf-r hf-r3"></div>
+    <div class="hf-dot"></div>
+    <div class="hf-cross"></div>
+    <span class="hf-tick hf-tick-t">ψ 0.000 · φ 0.000</span>
+    <span class="hf-tick hf-tick-b">QUANTUM CORE · ACTIVE</span>
+    <span class="hf-tick hf-tick-l">2.9941 GHz</span>
+    <span class="hf-tick hf-tick-r">32/32 NODES</span>
+  </div>
+
   <div class="scroll-hint"><span class="bar"></span>SCROLL · ENTER THE CORE</div>
 </header>
 
@@ -272,7 +372,6 @@
         </div>
 
         <div class="hud-grid">
-          <!-- left: ranked table -->
           <div class="panel">
             <div class="p-head">
               <span class="p-title">RANKED · 0.40·LAT + 0.30·TPS + 0.30·CORRECTNESS</span>
@@ -288,7 +387,6 @@
             </table>
           </div>
 
-          <!-- right: gauges -->
           <div class="g-stack">
             <div class="panel g-pad">
               <div class="big-n"><span id="fleetTps">0</span><span class="u">orders/s</span></div>
@@ -349,18 +447,19 @@
 
 <script>
 /* ════════════════════════════════════════════════════════════════════
-   CHOREOGRAPHY — runs with or without GSAP, with or without the 3D
-   module. A watchdog guarantees the boot overlay can never trap the
-   page: whatever happens, content is visible within ~3 seconds.
+   CHOREOGRAPHY — boot overlay, hero reveal, GSAP scroll, video integration.
+   Watchdog guarantees boot overlay can never trap the page (3s max).
+   window.S is shared scroll state read by the 3D module and video logic.
    ════════════════════════════════════════════════════════════════════ */
 (function(){
   var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var hasGsap = typeof gsap !== 'undefined';
   var hasST   = hasGsap && typeof ScrollTrigger !== 'undefined';
-  var HOME_X  = innerWidth < 760 ? 0 : 8.4;
+  var mobile  = innerWidth < 760;
+  var HOME_X  = mobile ? 0 : 8.4;
 
-  /* shared scroll state — the 3D module reads this if it loads */
-  window.S = { p: 0, introX: 34 };
+  /* shared state: 3D module + video layer both read this */
+  window.S = { p: 0, introX: 34, vidActive: false };
 
   /* H1 word build */
   var h1 = document.getElementById('h1');
@@ -393,7 +492,10 @@
       el.style.transform='translateY(14px)';
       requestAnimationFrame(function(){ el.style.opacity='1'; el.style.transform='translateY(0)'; });
     });
-    /* core float-in: gsap if present, rAF lerp otherwise */
+    /* show targeting reticle */
+    var hframe=document.getElementById('hero-frame');
+    if (hframe) hframe.classList.add('vis');
+    /* core float-in */
     if (hasGsap){
       gsap.to(window.S, {introX:HOME_X, duration:2.4, ease:'power3.out'});
     } else {
@@ -403,6 +505,11 @@
         window.S.introX = 34 + (HOME_X-34)*e;
         if (u<1) requestAnimationFrame(step);
       })(t0);
+    }
+    /* position video wrap: offset right to match 3D core */
+    if (!mobile) {
+      var vw = document.getElementById('hero-vid-wrap');
+      if (vw && hasGsap) gsap.set(vw, {x: innerWidth * 0.26});
     }
     typeSub();
   }
@@ -428,21 +535,41 @@
     bar.style.transition='transform .6s ease .6s'; bar.style.transform='scaleX(1)';
     setTimeout(bootDone, 1400);
   }
-  /* WATCHDOG — no matter what, the page opens */
+  /* WATCHDOG — page must never be trapped */
   setTimeout(bootDone, 3000);
 
-  /* scroll scrub: hero recedes, HUD assembles, 3D dives (via window.S.p) */
+  /* scroll scrub */
   var hud=document.getElementById('hud');
   if (hasST && !reduced){
     gsap.registerPlugin(ScrollTrigger);
+
+    /* global scroll progress (read by 3D module) */
     gsap.to(window.S,{p:1,ease:'none',
       scrollTrigger:{trigger:'#telemetry',start:'top bottom',end:'top -40%',scrub:0.6}});
+
+    /* hero text recede */
     gsap.to('#hero .frame',{opacity:0,y:-70,ease:'none',
       scrollTrigger:{trigger:'#telemetry',start:'top bottom',end:'top 40%',scrub:0.6}});
+
+    /* hero frame (reticle) fades with text */
+    gsap.to('#hero-frame',{opacity:0,ease:'none',
+      scrollTrigger:{trigger:'#telemetry',start:'top bottom',end:'top 50%',scrub:0.6}});
+
+    /* video wrap: zoom from right to full-screen background */
+    gsap.to('#hero-vid-wrap',{
+      x:0, y:'-50%',
+      width: Math.max(innerWidth,innerHeight)*1.3,
+      ease:'none',
+      scrollTrigger:{trigger:'#telemetry',start:'top bottom',end:'top -40%',scrub:0.6}
+    });
+
+    /* HUD assembles */
     gsap.fromTo('#hud',{opacity:0,y:90,scale:.95},{opacity:1,y:0,scale:1,ease:'power1.out',
       scrollTrigger:{trigger:'#telemetry',start:'top 25%',end:'top -35%',scrub:0.6}});
     gsap.from('.metric',{y:40,opacity:0,stagger:.12,ease:'power2.out',
       scrollTrigger:{trigger:'#telemetry',start:'top 5%',end:'top -30%',scrub:0.6}});
+
+    /* proof counters */
     document.querySelectorAll('.cnt').forEach(function(el){
       var to=parseFloat(el.dataset.to), dec=parseInt(el.dataset.dec||'0',10), suf=el.dataset.suf||'';
       var o={v:0};
@@ -474,11 +601,10 @@
 
 <script type="module">
 /* ════════════════════════════════════════════════════════════════════
-   3D LAYER — strictly optional. Everything visible on this page works
-   without it; if any import or GL call fails (blocked CDN, old GPU),
-   we hide the canvas and the site degrades to a clean static page.
-   The shared scroll state lives on window.S (owned by the classic
-   script) so choreography never depends on this module loading.
+   3D LAYER — strictly optional fallback. All content works without it.
+   Upgraded: custom plasma ShaderMaterial nucleus, pulse shockwave rings,
+   electric arc lightning between satellites, 7 orbital rings, 96 sats,
+   outer data shells, 4-layer volumetric halo, doubled stream density.
    ════════════════════════════════════════════════════════════════════ */
 try {
   const THREE = await import('three');
@@ -493,203 +619,382 @@ try {
   const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.15;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
-  scene.fog = new THREE.FogExp2(0x000000, 0.014);
+  scene.fog = new THREE.FogExp2(0x000000, 0.011);
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
   camera.position.set(0, 0.7, 26);
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.15, 0.7, 0.12);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.3, 0.6, 0.08);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
-  /* star dust */
+  /* ── star field ── */
   {
-    const N = mobile ? 700 : 1600, g = new THREE.BufferGeometry();
-    const p = new Float32Array(N*3);
-    for (let i=0;i<N*3;i+=3){ p[i]=(Math.random()-.5)*160; p[i+1]=(Math.random()-.5)*90; p[i+2]=-30-Math.random()*120; }
-    g.setAttribute('position', new THREE.BufferAttribute(p,3));
-    scene.add(new THREE.Points(g, new THREE.PointsMaterial({color:0x88c8e8, size:0.14, transparent:true, opacity:0.55, depthWrite:false})));
+    const N=mobile?900:2600, g=new THREE.BufferGeometry();
+    const p=new Float32Array(N*3);
+    for(let i=0;i<N*3;i+=3){ p[i]=(Math.random()-.5)*190; p[i+1]=(Math.random()-.5)*110; p[i+2]=-30-Math.random()*130; }
+    g.setAttribute('position',new THREE.BufferAttribute(p,3));
+    scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0x88c8e8,size:0.13,transparent:true,opacity:0.5,depthWrite:false})));
   }
 
-  /* waving data-grid floor */
-  const GW=96, GH=42, gridGeo = new THREE.BufferGeometry();
+  /* ── waving data-grid floor ── */
+  const GW=96, GH=42, gridGeo=new THREE.BufferGeometry();
   {
-    const p = new Float32Array(GW*GH*3);
-    for (let i=0,k=0;i<GW;i++) for (let j=0;j<GH;j++,k+=3){
+    const p=new Float32Array(GW*GH*3);
+    for(let i=0,k=0;i<GW;i++) for(let j=0;j<GH;j++,k+=3){
       p[k]=(i/(GW-1)-.5)*120; p[k+1]=-8.5; p[k+2]=(j/(GH-1)-.82)*78;
     }
-    gridGeo.setAttribute('position', new THREE.BufferAttribute(p,3));
+    gridGeo.setAttribute('position',new THREE.BufferAttribute(p,3));
   }
-  const gridPts = new THREE.Points(gridGeo, new THREE.PointsMaterial({
-    color:0x36d3ff, size:0.08, transparent:true, opacity:0.42, depthWrite:false}));
+  const gridPts=new THREE.Points(gridGeo,new THREE.PointsMaterial({color:0x36d3ff,size:0.08,transparent:true,opacity:0.38,depthWrite:false}));
   scene.add(gridPts);
 
-  /* THE CORE */
-  const core = new THREE.Group();
+  /* ══════════════════════════════════════════════════════════
+     THE CORE
+  ══════════════════════════════════════════════════════════ */
+  const core=new THREE.Group();
   scene.add(core);
-  core.position.set(34, 0.3, 0);
+  core.position.set(34,0.3,0);
 
-  core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1.15, 1),
-    new THREE.MeshStandardMaterial({color:0x031018, emissive:0x36d3ff, emissiveIntensity:2.6, metalness:.9, roughness:.2, flatShading:true})));
-  core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(2.05, 1),
-    new THREE.MeshBasicMaterial({color:0x36d3ff, wireframe:true, transparent:true, opacity:0.5})));
+  /* ── Nucleus: animated plasma shader ── */
+  const nucleusMat=new THREE.ShaderMaterial({
+    uniforms:{uTime:{value:0}},
+    transparent:true,
+    depthWrite:false,
+    blending:THREE.AdditiveBlending,
+    vertexShader:`
+      varying vec3 vNormal;
+      varying vec3 vViewDir;
+      varying vec2 vUv;
+      void main(){
+        vUv=uv;
+        vNormal=normalize(normalMatrix*normal);
+        vec4 mvPos=modelViewMatrix*vec4(position,1.0);
+        vViewDir=normalize(-mvPos.xyz);
+        gl_Position=projectionMatrix*mvPos;
+      }`,
+    fragmentShader:`
+      uniform float uTime;
+      varying vec3 vNormal;
+      varying vec3 vViewDir;
+      varying vec2 vUv;
+      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+      float noise(vec2 p){
+        vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+        return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+      }
+      float fbm(vec2 p){
+        float v=0.0,a=0.5;
+        for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}
+        return v;
+      }
+      void main(){
+        float fresnel=pow(1.0-clamp(dot(vNormal,vViewDir),0.0,1.0),2.5);
+        vec2 p=vUv*5.0;
+        float plasma=fbm(p+vec2(uTime*0.28,uTime*0.19));
+        plasma+=fbm(p*1.7-vec2(uTime*0.13,uTime*0.22))*0.55;
+        float arc=smoothstep(0.72,1.0,plasma);
+        vec3 cyan=vec3(0.208,0.827,1.0);
+        vec3 green=vec3(0.227,0.824,0.624);
+        vec3 white=vec3(1.0,1.0,1.0);
+        vec3 col=mix(cyan,green,plasma*0.7);
+        col=mix(col,white,arc*0.75);
+        col+=fresnel*cyan*3.2;
+        float alpha=0.72+fresnel*0.28+arc*0.18;
+        gl_FragColor=vec4(col*(1.0+arc*0.9),alpha);
+      }`
+  });
+  core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1.15,4),nucleusMat));
 
-  const rings = [];
+  /* ── inner wireframe cage ── */
+  core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(2.05,1),
+    new THREE.MeshBasicMaterial({color:0x36d3ff,wireframe:true,transparent:true,opacity:0.45,depthWrite:false})));
+
+  /* ── outer data shells (3 nested wireframes) ── */
+  [[3.9,0x36d3ff,0.17],[5.4,0x3ad29f,0.11],[7.2,0x36d3ff,0.06]].forEach(([r,c,o])=>{
+    core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),
+      new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:o,depthWrite:false})));
+  });
+
+  /* ── orbital rings (7) ── */
+  const rings=[];
   [[2.9,0,0],[0,0,Math.PI/2.2],[Math.PI/2.4,Math.PI/4,0],
-   [Math.PI/3,0,Math.PI/5],[0,Math.PI/2.6,Math.PI/2.8]].forEach((rot,i)=>{
-    const r = new THREE.Mesh(new THREE.TorusGeometry(2.7+i*0.5, i<3?0.022:0.012, 8, 140),
-      new THREE.MeshBasicMaterial({color: i%2===1 ? 0x3ad29f : 0x36d3ff, transparent:true, opacity:i<3?0.9:0.5}));
+   [Math.PI/3,0,Math.PI/5],[0,Math.PI/2.6,Math.PI/2.8],
+   [Math.PI/5,Math.PI/3.5,0],[0,Math.PI/1.9,Math.PI/4]].forEach((rot,i)=>{
+    const r=new THREE.Mesh(
+      new THREE.TorusGeometry(2.7+i*0.5,i<3?0.022:0.014,8,160),
+      new THREE.MeshBasicMaterial({color:i%2===1?0x3ad29f:0x36d3ff,transparent:true,
+        opacity:i<3?0.85:0.45,blending:THREE.AdditiveBlending,depthWrite:false}));
     r.rotation.set(rot[0],rot[1],rot[2]);
     rings.push(r); core.add(r);
   });
+  const rSpeeds=[[0.004,0.002,0],[0,0.005,0.002],[-0.003,0,0.004],
+                 [0.006,-0.003,0],[0,-0.005,0.004],[-0.004,0.003,0],[0,0.007,-0.003]];
 
-  /* volumetric-feel halo: layered additive glow sprites around the nucleus */
-  {
-    const c2d = document.createElement('canvas'); c2d.width=c2d.height=128;
-    const g2 = c2d.getContext('2d');
-    const grad = g2.createRadialGradient(64,64,0,64,64,64);
-    grad.addColorStop(0,'rgba(190,240,255,.9)'); grad.addColorStop(.4,'rgba(54,211,255,.32)');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-    g2.fillStyle=grad; g2.fillRect(0,0,128,128);
-    const tex = new THREE.CanvasTexture(c2d);
-    [4.5, 8, 13].forEach((s,i)=>{
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, color:0x36d3ff,
-        transparent:true, opacity:0.42-i*0.12, blending:THREE.AdditiveBlending, depthWrite:false}));
-      sp.scale.setScalar(s); core.add(sp);
-    });
+  /* ── pulse shockwave rings (4 recycled) ── */
+  const pulseRings=[];
+  for(let i=0;i<4;i++){
+    const pr=new THREE.Mesh(
+      new THREE.TorusGeometry(1,0.018,8,100),
+      new THREE.MeshBasicMaterial({color:i%2===0?0x36d3ff:0x3ad29f,
+        transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+    pr.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,0);
+    pr.userData={offset:i*(3.0/4)};
+    core.add(pr); pulseRings.push(pr);
   }
 
-  const SATS = mobile ? 36 : 64, satGeo = new THREE.SphereGeometry(0.075, 8, 8);
-  const sats = [], linkPts = [];
-  for (let i=0;i<SATS;i++){
-    const shell = 4.4 + (i%3)*0.9;
-    const y = 1-(i/(SATS-1))*2, r = Math.sqrt(1-y*y), th = i*2.39996;
-    const pos = new THREE.Vector3(Math.cos(th)*r*shell, y*shell*0.8, Math.sin(th)*r*shell);
-    const green = i%4===0;
-    const m = new THREE.Mesh(satGeo, new THREE.MeshBasicMaterial({color: green?0x3ad29f:0xaee9ff}));
+  /* ── satellites ── */
+  const SATS=mobile?48:96, satGeo=new THREE.SphereGeometry(0.075,8,8);
+  const sats=[], linkPts=[];
+  for(let i=0;i<SATS;i++){
+    const shell=4.4+(i%3)*0.9;
+    const y=1-(i/(SATS-1))*2, r=Math.sqrt(1-y*y), th=i*2.39996;
+    const pos=new THREE.Vector3(Math.cos(th)*r*shell,y*shell*0.8,Math.sin(th)*r*shell);
+    const m=new THREE.Mesh(satGeo,
+      new THREE.MeshBasicMaterial({color:i%4===0?0x3ad29f:0xaee9ff}));
     m.position.copy(pos); core.add(m);
-    sats.push({m, base:pos.clone(), ph:i*0.61});
-    if (i%2===0) linkPts.push(new THREE.Vector3(0,0,0), pos.clone());
+    sats.push({m,base:pos.clone(),ph:i*0.61});
+    if(i%2===0) linkPts.push(new THREE.Vector3(0,0,0),pos.clone());
   }
-  core.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(linkPts),
-    new THREE.LineBasicMaterial({color:0x36d3ff, transparent:true, opacity:0.16, depthWrite:false})));
+  core.add(new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(linkPts),
+    new THREE.LineBasicMaterial({color:0x36d3ff,transparent:true,opacity:0.13,depthWrite:false})));
 
-  /* order-flow streams */
-  const STREAMS = mobile ? 4 : 7, PER = mobile ? 40 : 70;
-  const flowGeo = new THREE.BufferGeometry();
-  const flowPos = new Float32Array(STREAMS*PER*3);
-  const flowCol = new Float32Array(STREAMS*PER*3);
-  const curves = [];
-  const cCool = new THREE.Color(0x36d3ff), cHot = new THREE.Color(0xff8a3d);
-  for (let s=0;s<STREAMS;s++){
-    const a = (s/STREAMS)*Math.PI*2 + 0.4;
-    const start = new THREE.Vector3(Math.cos(a)*26, (Math.random()-.4)*14, Math.sin(a)*22-6);
-    const mid1  = start.clone().multiplyScalar(0.55).add(new THREE.Vector3(0,(Math.random()-.5)*8,0));
-    const mid2  = new THREE.Vector3((Math.random()-.5)*6,(Math.random()-.5)*6,(Math.random()-.5)*6);
-    curves.push(new THREE.CubicBezierCurve3(start, mid1, mid2, new THREE.Vector3(0,0,0)));
-    const col = s%3===0 ? cHot : cCool;
-    for (let k=0;k<PER;k++){
+  /* ── electric arc lightning between satellites ── */
+  const ARC_N=mobile?3:6;
+  const arcMeshes=[];
+  for(let i=0;i<ARC_N;i++){
+    const SEGS=12, pts=new Float32Array(SEGS*3);
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.BufferAttribute(pts,3));
+    const line=new THREE.Line(geo,
+      new THREE.LineBasicMaterial({color:i%2===0?0x36d3ff:0x3ad29f,
+        transparent:true,opacity:0,blending:THREE.AdditiveBlending}));
+    core.add(line);
+    arcMeshes.push({line,geo,timer:i*(0.7/ARC_N),life:0});
+  }
+
+  /* ── order-flow streams (8 on desktop) ── */
+  const STREAMS=mobile?4:8, PER=mobile?40:80;
+  const flowGeo=new THREE.BufferGeometry();
+  const flowPos=new Float32Array(STREAMS*PER*3);
+  const flowCol=new Float32Array(STREAMS*PER*3);
+  const curves=[];
+  const cCool=new THREE.Color(0x36d3ff),cHot=new THREE.Color(0xff8a3d),cGreen=new THREE.Color(0x3ad29f);
+  for(let s=0;s<STREAMS;s++){
+    const a=(s/STREAMS)*Math.PI*2+0.4;
+    const start=new THREE.Vector3(Math.cos(a)*28,(Math.random()-.4)*16,Math.sin(a)*24-6);
+    const mid1=start.clone().multiplyScalar(0.5).add(new THREE.Vector3(0,(Math.random()-.5)*10,0));
+    const mid2=new THREE.Vector3((Math.random()-.5)*7,(Math.random()-.5)*7,(Math.random()-.5)*7);
+    curves.push(new THREE.CubicBezierCurve3(start,mid1,mid2,new THREE.Vector3(0,0,0)));
+    const col=s%4===0?cHot:s%3===0?cGreen:cCool;
+    for(let k=0;k<PER;k++){
       const idx=(s*PER+k)*3;
       flowCol[idx]=col.r; flowCol[idx+1]=col.g; flowCol[idx+2]=col.b;
     }
   }
-  flowGeo.setAttribute('position', new THREE.BufferAttribute(flowPos,3));
-  flowGeo.setAttribute('color',    new THREE.BufferAttribute(flowCol,3));
-  const flowMat = new THREE.PointsMaterial({
-    size:0.16, vertexColors:true, transparent:true, opacity:0.95,
-    blending:THREE.AdditiveBlending, depthWrite:false});
-  core.add(new THREE.Points(flowGeo, flowMat));
-  const tmpV = new THREE.Vector3();
+  flowGeo.setAttribute('position',new THREE.BufferAttribute(flowPos,3));
+  flowGeo.setAttribute('color',new THREE.BufferAttribute(flowCol,3));
+  const flowMat=new THREE.PointsMaterial({
+    size:0.18,vertexColors:true,transparent:true,opacity:0.95,
+    blending:THREE.AdditiveBlending,depthWrite:false});
+  core.add(new THREE.Points(flowGeo,flowMat));
+  const tmpV=new THREE.Vector3();
 
-  scene.add(new THREE.AmbientLight(0x16242e, 1.6));
-  const heart = new THREE.PointLight(0x36d3ff, 70, 60); core.add(heart);
+  /* ── volumetric halo sprites (4 layers) ── */
+  {
+    const c2d=document.createElement('canvas'); c2d.width=c2d.height=256;
+    const g2=c2d.getContext('2d');
+    const grad=g2.createRadialGradient(128,128,0,128,128,128);
+    grad.addColorStop(0,'rgba(220,248,255,.95)');
+    grad.addColorStop(0.2,'rgba(54,211,255,.6)');
+    grad.addColorStop(0.55,'rgba(54,211,255,.14)');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    g2.fillStyle=grad; g2.fillRect(0,0,256,256);
+    const tex=new THREE.CanvasTexture(c2d);
+    [[4.5,0.52],[8.5,0.30],[15,0.14],[24,0.07]].forEach(([sz,op])=>{
+      const sp=new THREE.Sprite(new THREE.SpriteMaterial({
+        map:tex,color:0x36d3ff,transparent:true,opacity:op,
+        blending:THREE.AdditiveBlending,depthWrite:false}));
+      sp.scale.setScalar(sz); core.add(sp);
+    });
+  }
 
-  const mouse = {x:0, y:0, tx:0, ty:0};
-  addEventListener('pointermove', e => {
-    mouse.tx = (e.clientX/innerWidth - .5);
-    mouse.ty = (e.clientY/innerHeight - .5);
-  }, {passive:true});
+  /* ── lights ── */
+  scene.add(new THREE.AmbientLight(0x16242e,1.8));
+  const heart=new THREE.PointLight(0x36d3ff,80,70); core.add(heart);
+  const greenLight=new THREE.PointLight(0x3ad29f,40,50);
+  greenLight.position.set(2,1,0); core.add(greenLight);
+
+  /* ── mouse parallax ── */
+  const mouse={x:0,y:0,tx:0,ty:0};
+  addEventListener('pointermove',e=>{
+    mouse.tx=(e.clientX/innerWidth-.5);
+    mouse.ty=(e.clientY/innerHeight-.5);
+  },{passive:true});
 
   function resize(){
-    renderer.setSize(innerWidth, innerHeight, false);
-    composer.setSize(innerWidth, innerHeight);
-    camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight,false);
+    composer.setSize(innerWidth,innerHeight);
+    bloom.resolution.set(innerWidth,innerHeight);
+    camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   }
-  addEventListener('resize', resize); resize();
+  addEventListener('resize',resize); resize();
 
-  let hidden=false;
-  document.addEventListener('visibilitychange', ()=>{ hidden=document.hidden; });
+  let hidden=false, lastT=0;
+  document.addEventListener('visibilitychange',()=>{hidden=document.hidden;});
 
   renderer.setAnimationLoop((now)=>{
-    if (hidden) return;
-    const t = now*0.001, p = S.p;
+    if(hidden) return;
+    const t=now*0.001, dt=Math.min(0.05,t-lastT); lastT=t;
+    const p=S.p;
 
-    mouse.x += (mouse.tx-mouse.x)*0.05;
-    mouse.y += (mouse.ty-mouse.y)*0.05;
+    mouse.x+=(mouse.tx-mouse.x)*0.05;
+    mouse.y+=(mouse.ty-mouse.y)*0.05;
 
-    core.position.x = S.introX*(1-p);
-    core.position.y = 0.3 + Math.sin(t*0.8)*0.22*(1-p*0.7);
-    core.rotation.y = t*0.14 + mouse.x*0.7;
-    core.rotation.x = Math.sin(t*0.22)*0.07 + mouse.y*0.45 + p*0.1;
+    /* ── core transform (mirrors GSAP scroll state) ── */
+    core.position.x=S.introX*(1-p);
+    core.position.y=0.3+Math.sin(t*0.8)*0.24*(1-p*0.7);
+    core.rotation.y=t*0.14+mouse.x*0.7;
+    core.rotation.x=Math.sin(t*0.22)*0.07+mouse.y*0.45+p*0.1;
+    core.scale.setScalar(1+p*3);
+    /* reduce WebGL core opacity when Higgsfield video is active (they composite) */
+    core.visible = true;
+    camera.position.z=26-p*12.5;
+    camera.position.y=0.7-p*0.4;
+    camera.lookAt(core.position.x*(1-p*0.85),0,0);
+    bloom.strength=1.3+p*1.55;
+    flowMat.opacity=0.95*(1-p*0.55);
 
-    // the SpaceX move: core scales to 400% while the camera closes in,
-    // so by full scrub it IS the background the glass HUD floats over
-    core.scale.setScalar(1 + p*3);
-    camera.position.z = 26 - p*12.5;
-    camera.position.y = 0.7 - p*0.4;
-    camera.lookAt(core.position.x*(1-p*0.85), 0, 0);
-    bloom.strength = 1.15 + p*1.35;
-    flowMat.opacity = 0.95*(1 - p*0.55);
+    /* ── plasma shader time ── */
+    nucleusMat.uniforms.uTime.value=t;
 
-    rings[0].rotation.x += 0.004; rings[0].rotation.y += 0.002;
-    rings[1].rotation.y += 0.005; rings[1].rotation.z += 0.002;
-    rings[2].rotation.x -= 0.003; rings[2].rotation.z += 0.004;
-    rings[3].rotation.x += 0.006; rings[3].rotation.y -= 0.003;
-    rings[4].rotation.z -= 0.005; rings[4].rotation.y += 0.004;
+    /* ── ring rotation ── */
+    rings.forEach((r,i)=>{
+      r.rotation.x+=rSpeeds[i][0]; r.rotation.y+=rSpeeds[i][1]; r.rotation.z+=rSpeeds[i][2];
+    });
 
-    for (const s of sats){
-      const k = 1 + Math.sin(t*2.0 + s.ph)*0.12;
+    /* ── pulse shockwave rings ── */
+    for(const pr of pulseRings){
+      const phase=((t*0.75+pr.userData.offset)%3.0);
+      pr.scale.setScalar(1+phase*5.5);
+      pr.material.opacity=Math.max(0,0.65*(1-phase/3.0));
+      if(phase<dt*0.75) pr.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,0);
+    }
+
+    /* ── satellite orbit ── */
+    for(const s of sats){
+      const k=1+Math.sin(t*2.0+s.ph)*0.12;
       s.m.position.copy(s.base).multiplyScalar(k);
     }
-    heart.intensity = 60 + Math.sin(t*1.8)*22 + p*50;
 
-    const fp = flowGeo.attributes.position.array;
-    for (let s=0;s<STREAMS;s++){
-      for (let k=0;k<PER;k++){
-        const u = ((t*0.22) + k/PER + s*0.13) % 1;
-        curves[s].getPoint(u, tmpV);
+    /* ── electric arcs ── */
+    for(const arc of arcMeshes){
+      arc.timer+=dt;
+      if(arc.timer>arc.life){
+        const SEGS=12;
+        const i1=Math.floor(Math.random()*sats.length), i2=Math.floor(Math.random()*sats.length);
+        const p1=sats[i1].m.position, p2=sats[i2].m.position;
+        const pts=arc.geo.attributes.position.array;
+        for(let k=0;k<SEGS;k++){
+          const u=k/(SEGS-1), j=k>0&&k<SEGS-1?0.85:0;
+          pts[k*3]   =p1.x*(1-u)+p2.x*u+(Math.random()-.5)*j;
+          pts[k*3+1] =p1.y*(1-u)+p2.y*u+(Math.random()-.5)*j;
+          pts[k*3+2] =p1.z*(1-u)+p2.z*u+(Math.random()-.5)*j;
+        }
+        arc.geo.attributes.position.needsUpdate=true;
+        arc.line.material.opacity=0.88;
+        arc.timer=0;
+        arc.life=0.06+Math.random()*0.12;
+      } else {
+        arc.line.material.opacity*=0.88;
+      }
+    }
+
+    /* ── heart + green pulse ── */
+    heart.intensity=70+Math.sin(t*1.8)*28+p*60;
+    greenLight.intensity=35+Math.sin(t*2.3+1.5)*15;
+
+    /* ── flow streams ── */
+    const fp=flowGeo.attributes.position.array;
+    for(let s=0;s<STREAMS;s++){
+      for(let k=0;k<PER;k++){
+        const u=((t*0.22)+k/PER+s*0.13)%1;
+        curves[s].getPoint(u,tmpV);
         const idx=(s*PER+k)*3;
         fp[idx]=tmpV.x; fp[idx+1]=tmpV.y; fp[idx+2]=tmpV.z;
       }
     }
-    flowGeo.attributes.position.needsUpdate = true;
+    flowGeo.attributes.position.needsUpdate=true;
 
-    const ga = gridGeo.attributes.position.array;
-    for (let i=0,k=0;i<GW;i++) for (let j=0;j<GH;j++,k+=3)
-      ga[k+1] = -8.5 + Math.sin(i*0.32+t*0.9)*0.5 + Math.cos(j*0.45+t*0.6)*0.35;
-    gridGeo.attributes.position.needsUpdate = true;
-    gridPts.material.opacity = 0.42*(1-p*0.85);
+    /* ── grid wave ── */
+    const ga=gridGeo.attributes.position.array;
+    for(let i=0,k=0;i<GW;i++) for(let j=0;j<GH;j++,k+=3)
+      ga[k+1]=-8.5+Math.sin(i*0.32+t*0.9)*0.5+Math.cos(j*0.45+t*0.6)*0.35;
+    gridGeo.attributes.position.needsUpdate=true;
+    gridPts.material.opacity=0.38*(1-p*0.85);
 
     composer.render();
   });
-} catch (err) {
-  // 3D unavailable (CDN blocked / WebGL off) — page stays fully usable.
-  console.warn('[3D] disabled:', err);
-  var gl = document.getElementById('gl');
-  if (gl) gl.style.display = 'none';
+} catch(err){
+  console.warn('[3D] disabled:',err);
+  var gl=document.getElementById('gl');
+  if(gl) gl.style.display='none';
 }
 </script>
 
 <script>
 /* ════════════════════════════════════════════════════════════════════
-   HUD DATA — live telemetry gateway first (same wire shape as
-   tools/telemetry_server.js), contract-faithful synthetic fallback.
-   Sparklines, latency ladder, and fleet TPS all update together.
+   VIDEO / POSTER LOADING — with 3-second timeout and onerror fallback.
+   If the asset isn't present (404) or can't autoplay, the element
+   stays hidden and the WebGL core shows through unaffected.
+   ════════════════════════════════════════════════════════════════════ */
+(function(){
+  var wrap  = document.getElementById('hero-vid-wrap');
+  var vid   = document.getElementById('hero-vid');
+  var poster= document.getElementById('hero-poster-img');
+  if (!wrap || !vid) return;
+
+  var activated = false;
+  function activateVideo(){
+    if (activated) return; activated = true;
+    wrap.classList.add('vid-active');
+    if (window.S) window.S.vidActive = true;
+  }
+  function fallbackToPoster(){
+    if (activated) return;
+    /* check poster image actually loaded */
+    var img = new Image();
+    img.onload = function(){
+      wrap.classList.add('vid-active','poster-only');
+      if (window.S) window.S.vidActive = true;
+    };
+    img.onerror = function(){
+      /* no assets at all — stay hidden, WebGL is the hero */
+    };
+    img.src = 'assets/hero-poster.jpg';
+  }
+
+  vid.addEventListener('canplay', activateVideo, {once:true});
+  vid.addEventListener('error',   fallbackToPoster, {once:true});
+
+  /* 3-second timeout: if video hasn't started, try poster */
+  var timeout = setTimeout(fallbackToPoster, 3000);
+  vid.addEventListener('canplay', function(){ clearTimeout(timeout); }, {once:true});
+
+  /* trigger load */
+  vid.load();
+})();
+</script>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   HUD DATA — live telemetry gateway first, synthetic fallback.
    ════════════════════════════════════════════════════════════════════ */
 (function(){
   var body=document.getElementById('lbBody');
@@ -697,18 +1002,18 @@ try {
   var tpsEl=document.getElementById('fleetTps');
   var ladRows=document.querySelectorAll('#ladder .lad-row');
 
-  function fmtP99(ns){ return ns>=1e6 ? (ns/1e6).toFixed(2)+' ms' : (ns/1e3).toFixed(1)+' µs'; }
+  function fmtP99(ns){ return ns>=1e6?(ns/1e6).toFixed(2)+' ms':(ns/1e3).toFixed(1)+' µs'; }
   function fmtTps(t){ return (t/1000).toFixed(0)+'k'; }
   function fmtInt(n){ return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,','); }
 
-  function spark(cv, hist, color){
-    var g=cv.getContext('2d'), w=cv.width, h=cv.height;
+  function spark(cv,hist,color){
+    var g=cv.getContext('2d'),w=cv.width,h=cv.height;
     g.clearRect(0,0,w,h);
-    if (hist.length<2) return;
-    var mx=Math.max.apply(null,hist), mn=Math.min.apply(null,hist), rng=(mx-mn)||1;
+    if(hist.length<2) return;
+    var mx=Math.max.apply(null,hist),mn=Math.min.apply(null,hist),rng=(mx-mn)||1;
     g.beginPath();
     hist.forEach(function(v,i){
-      var x=i/(hist.length-1)*w, y=h-2-((v-mn)/rng)*(h-4);
+      var x=i/(hist.length-1)*w,y=h-2-((v-mn)/rng)*(h-4);
       i?g.lineTo(x,y):g.moveTo(x,y);
     });
     g.strokeStyle=color; g.lineWidth=1.4; g.shadowColor=color; g.shadowBlur=4; g.stroke();
@@ -718,7 +1023,7 @@ try {
   function render(rows){
     rows.sort(function(a,b){ return (b.score||0)-(a.score||0); });
     var top=rows.slice(0,8);
-    body.innerHTML = top.map(function(r,i){
+    body.innerHTML=top.map(function(r,i){
       var ok=r.cor>=0.999;
       return '<tr class="'+(i===0?'top1':'')+(r.failed?' failed':'')+'">'
         +'<td class="rank">'+String(i+1).padStart(2,'0')+'</td>'
@@ -730,56 +1035,54 @@ try {
         +'<td class="spark hide-m"><canvas width="64" height="16" data-k="'+r.name+'"></canvas></td>'
         +'<td class="score">'+(r.failed?'FAILED':r.score.toFixed(1))+'</td></tr>';
     }).join('');
-    // sparklines from per-contestant p99 history
     top.forEach(function(r){
       var h=hists[r.name]=(hists[r.name]||[]);
-      h.push(r.p99); if (h.length>24) h.shift();
+      h.push(r.p99); if(h.length>24) h.shift();
     });
     body.querySelectorAll('canvas').forEach(function(cv){
-      spark(cv, hists[cv.dataset.k]||[], '#36d3ff');
+      spark(cv,hists[cv.dataset.k]||[],'#36d3ff');
     });
-    // fleet TPS + ladder from the leader
     var fleet=top.reduce(function(a,r){ return a+(r.failed?0:r.tps); },0);
     tpsEl.textContent=fmtInt(fleet);
     var lead=top[0]||{};
-    var lat=[lead.p50||lead.p99*0.4, lead.p90||lead.p99*0.6, lead.p99, (lead.p99||0)*2.8];
+    var lat=[lead.p50||lead.p99*0.4,lead.p90||lead.p99*0.6,lead.p99,(lead.p99||0)*2.8];
     var names=['p50','p90','p99','p99.9'];
     var mx=lat[3]||1;
     ladRows.forEach(function(row,i){
-      row.querySelector('.lad-bar i').style.width=Math.max(6, Math.sqrt(lat[i]/mx)*100)+'%';
+      row.querySelector('.lad-bar i').style.width=Math.max(6,Math.sqrt(lat[i]/mx)*100)+'%';
       row.querySelector('.lad-val').textContent=fmtP99(lat[i]||0);
       row.children[0].textContent=names[i];
     });
   }
 
   var mock=[
-    ['Priya Sharma','FIX', 18, 168,'v1.0.0'],['Arjun Mehta','FIX', 24,151,'v2.1.1'],
-    ['Sanya Rao','FIX',    31, 140,'v3.2.2'],['Kiran Nair','WS',   52,118,'v2.4.4'],
-    ['Rohan Gupta','WS',   67, 101,'v3.0.5'],['Ananya Iyer','WS',  88, 94,'v1.1.6'],
-    ['Meera Joshi','REST',210,  62,'v3.3.8'],['Aditya Rao','REST',340, 48,'v1.4.0'],
+    ['Priya Sharma','FIX', 18,168,'v1.0.0'],['Arjun Mehta','FIX', 24,151,'v2.1.1'],
+    ['Sanya Rao','FIX',    31,140,'v3.2.2'],['Kiran Nair','WS',   52,118,'v2.4.4'],
+    ['Rohan Gupta','WS',   67,101,'v3.0.5'],['Ananya Iyer','WS',  88, 94,'v1.1.6'],
+    ['Meera Joshi','REST',210, 62,'v3.3.8'],['Aditya Rao','REST',340, 48,'v1.4.0'],
   ].map(function(d,i){
     return {name:d[0],proto:d[1],p99:d[2]*1000,p50:d[2]*420,p90:d[2]*640,tps:d[3]*1000,ver:d[4],
-            cor:i===5?0.9961:1.0, failed:i===5, score:i===5?-1:92-i*7.3};
+            cor:i===5?0.9961:1.0,failed:i===5,score:i===5?-1:92-i*7.3};
   });
   function jitter(){
     mock.forEach(function(r){
-      if (r.failed) return;
-      r.p99=Math.max(9000, r.p99*(0.93+Math.random()*0.14));
+      if(r.failed) return;
+      r.p99=Math.max(9000,r.p99*(0.93+Math.random()*0.14));
       r.p50=r.p99*0.42; r.p90=r.p99*0.63;
-      r.tps=Math.max(20000, r.tps*(0.96+Math.random()*0.08));
-      r.score=Math.max(1, r.score+(Math.random()-0.5)*1.6);
+      r.tps=Math.max(20000,r.tps*(0.96+Math.random()*0.08));
+      r.score=Math.max(1,r.score+(Math.random()-.5)*1.6);
     });
     render(mock);
   }
   jitter();
-  var mockTimer=setInterval(jitter, 2200);
+  var mockTimer=setInterval(jitter,2200);
 
   try{
     var ws=new WebSocket('ws://localhost:8080/leaderboard/deltas');
     ws.onmessage=function(ev){
       try{
         var msg=JSON.parse(ev.data);
-        if (msg.type!=='deltas') return;
+        if(msg.type!=='deltas') return;
         clearInterval(mockTimer);
         pill.classList.add('live'); srcTxt.textContent='LIVE FEED';
         var rows=[];
