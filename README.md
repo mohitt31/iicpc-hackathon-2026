@@ -72,12 +72,12 @@ Ratios at all percentiles within 1.1× — exactly what a healthy benchmark look
 
 ## Hardware Constraints & Projected Bare-Metal Performance
 
-Because this repository is intended to be evaluated by hackathon judges on standard hardware (e.g., MacBooks or shared Linux containers), the headline numbers above reflect a **hostile, noisy environment**. The ~60 µs base latency is dominated by the macOS/shared-container scheduler and TCP loopback overhead, not the C++ matching engine itself.
+Because this repository is intended to be evaluated by hackathon judges on standard hardware (e.g., MacBooks or shared Linux containers), the headline numbers above reflect a **hostile, noisy environment**. The ~23 µs base latency is dominated by the macOS/shared-container scheduler and TCP loopback overhead, not the C++ matching engine itself.
 
 Our production blueprint (deployed via Terraform to AWS `c6i.metal` instances) isolates the engine and bot fleet using `isolcpus`, `pthread_setaffinity_np` for core pinning, and `SO_BUSY_POLL` to bypass kernel network interrupts. 
 
 **Projected Bare-Metal Target:**
-*   **Base Latency:** Drops from ~60 µs to **~15 µs**.
+*   **Base Latency:** Drops from ~23 µs to **~10-15 µs** (or sub-microsecond via SPSC shared memory).
 *   **Coordinated Omission Proof Extrapolation:** With a clean 15 µs baseline, a 5 ms stall means the naive benchmark reports 15 µs, while the CO-corrected benchmark catches the true 5,000 µs stall. 
 *   **The CO Gap:** The gap explodes from 82× (in our noisy local test) to a massive **333×+ gap**. This proves that the cleaner the environment, the more dramatically standard benchmarks lie, and the more essential our CO-corrected platform becomes.
 
@@ -140,7 +140,7 @@ Some optimizations from the research documents would not have improved this subm
 
 - **SIMD AVX2 batch ingester** — payoff begins at 1M+ msg/sec receive. Current per-bot rate is 10k/sec. Skipped.
 - **AF_XDP kernel bypass** — needed for sub-µs receive. Current p99 already at 84 µs on TCP + `SO_BUSY_POLL`. Skipped.
-- **Aeron / Chronicle transport** — our topology is N bots → 1 engine TCP fan-in, not 1 publisher → many subscribers. Skipped.
+- **Aeron / Chronicle transport** — while Aeron handles many-to-one fan-in exceptionally well, the integration overhead for a hackathon outweighs the sub-microsecond transport gain when our latency is already bottlenecked by the host OS scheduler. Skipped.
 
 These are documented as deliberate engineering judgment, not gaps.
 
