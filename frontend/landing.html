@@ -24,6 +24,27 @@
 
   #gl{position:fixed;inset:0;z-index:0;display:block}
 
+  /* CDN-free fallback core glow — always visible so the hero is never empty
+     black if three.js fails to load (blocked CDN / extensions / no WebGL).
+     Hidden once the real WebGL core initialises (body.webgl-ok). */
+  #core-glow{position:fixed;z-index:0;pointer-events:none;top:50%;right:-8vw;
+             transform:translateY(-50%);width:min(72vw,860px);aspect-ratio:1/1}
+  #core-glow .orb{position:absolute;inset:0;border-radius:50%;
+             background:radial-gradient(circle,rgba(54,211,255,.30) 0%,
+               rgba(58,210,159,.14) 34%,rgba(54,211,255,.04) 56%,transparent 72%);
+             animation:coreBreath 6s ease-in-out infinite}
+  #core-glow .ring{position:absolute;border-radius:50%;border:1px solid rgba(54,211,255,.16);
+             animation:coreSpin 34s linear infinite}
+  #core-glow .ring.r1{inset:20%}
+  #core-glow .ring.r2{inset:31%;border-color:rgba(58,210,159,.18);animation-duration:24s;animation-direction:reverse}
+  #core-glow .core-hot{position:absolute;inset:40%;border-radius:50%;
+             background:radial-gradient(circle,rgba(200,245,255,.55),rgba(54,211,255,.12) 60%,transparent 75%);
+             animation:coreBreath 4.5s ease-in-out infinite}
+  @keyframes coreBreath{0%,100%{opacity:.8;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+  @keyframes coreSpin{to{transform:rotate(360deg)}}
+  body.webgl-ok #core-glow{opacity:0;transition:opacity 1.1s ease;pointer-events:none}
+  @media(max-width:760px){#core-glow{right:auto;left:50%;transform:translate(-50%,-50%);width:min(96vw,520px)}}
+
   /* CRT scanlines + vignette */
   .fx{position:fixed;inset:0;z-index:1;pointer-events:none;
       background:
@@ -292,6 +313,12 @@
 <body>
 
 <canvas id="gl" aria-hidden="true"></canvas>
+<div id="core-glow" aria-hidden="true">
+  <div class="orb"></div>
+  <div class="ring r1"></div>
+  <div class="ring r2"></div>
+  <div class="core-hot"></div>
+</div>
 <div class="fx" aria-hidden="true"></div>
 
 <!-- ── HIGGSFIELD HERO VIDEO / POSTER (fixed, GSAP-zoomed on scroll) ── -->
@@ -845,6 +872,9 @@ try {
     camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   }
   addEventListener('resize',resize); resize();
+
+  /* WebGL core is live — hide the CSS fallback glow (real core takes over) */
+  document.body.classList.add('webgl-ok');
 
   let hidden=false, lastT=0;
   document.addEventListener('visibilitychange',()=>{hidden=document.hidden;});
