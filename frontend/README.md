@@ -4,16 +4,19 @@ Two static pages, zero build step:
 
 | File | What it is |
 |---|---|
-| `index.html` | 3D landing page — "Simulating Peak Volatility". Procedural Three.js network-cluster + particle grid, scroll-linked zoom into the leaderboard section. |
-| `leaderboard.html` | Full real-time leaderboard (deep telemetry: percentile ladders, PTP sync, integrity gate). |
+| `index.html` | **Real-time leaderboard** (the main page) — data-dense board with synthetic demo data visible instantly: percentile ladders, protocol tracks, PTP sync, integrity gate. |
+| `landing.html` | Optional 3D showcase — "Simulating Peak Volatility" hero with a bloom-lit WebGL engine core, order-flow particle streams, and a GSAP scroll-jacked telemetry HUD. Linked from the leaderboard's "3D INTRO" pill. |
 
 Both pages auto-connect to the telemetry gateway at
 `ws://localhost:8080/leaderboard/deltas` (see `tools/telemetry_server.js`)
 and fall back to a contract-faithful synthetic feed when no gateway is
-running — so the demo always works.
+running — so the demo always works, instantly, with zero backend.
 
-The 3D scene is 100% procedural (no image/model assets, one CDN import:
-`three@0.160.0`). `prefers-reduced-motion` is respected.
+The 3D scene is 100% procedural (no image/model assets; CDN imports:
+`three@0.160.0` + `gsap@3.12.5`) and fully optional — if WebGL or the CDN
+is unavailable, `landing.html` degrades to a clean static page (3-second
+watchdog guarantees content is never hidden). `prefers-reduced-motion`
+is respected on both pages.
 
 ## Run locally
 
@@ -26,18 +29,11 @@ python3 -m http.server 4173
 cd ../tools && npm install ws && node telemetry_server.js --port 8080
 ```
 
-## Deploy to Vercel (one minute)
+## Deploy
 
-```bash
-npm i -g vercel       # once
-cd frontend
-vercel                # first deploy: accept defaults (no build command, output = ./)
-vercel --prod         # promote to the production domain
-```
+Auto-deployed to GitHub Pages on every push to main that touches
+`frontend/` (see `.github/workflows/pages.yml`):
 
-Or without the CLI: drag the `frontend/` folder onto https://vercel.com/new.
+**https://mohitt31.github.io/iicpc-hackathon-2026/**
 
-Note: a Vercel deployment serves the static pages; the WebSocket live feed
-needs the gateway reachable from the browser (run it locally or point
-`LIVE_WS_URL` at a hosted gateway). The synthetic feed keeps the deployed
-site fully alive either way.
+Or to Vercel: `npm i -g vercel && cd frontend && vercel --prod`.
