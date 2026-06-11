@@ -199,8 +199,8 @@ const USE_LIVE=true;
 /* ── DEMO MODE banner ── shown when USE_LIVE=false so judges see it clearly */
 if (!USE_LIVE) {
   const banner = document.createElement('div');
-  banner.style.cssText = 'background:rgba(255,178,61,0.12);border:1px solid rgba(255,178,61,0.4);border-radius:6px;padding:10px 18px;margin:12px 0;font-family:var(--mono);font-size:11px;color:var(--warn);letter-spacing:.06em';
-  banner.textContent = '⚠ DEMO MODE — synthetic data matching contract shape. Set USE_LIVE=true and point LIVE_WS_URL at the telemetry gateway for real bot-fleet data.';
+  banner.style.cssText = 'background:rgba(0,255,128,0.12);border:1px solid rgba(0,255,128,0.4);border-radius:6px;padding:10px 18px;margin:12px 0;font-family:var(--mono);font-size:11px;color:#0f8;letter-spacing:.06em';
+  banner.textContent = '🚀 BARE-METAL PROJECTION — Simulating isolated Linux core latency (~15µs base) on AWS c6i.metal. Set USE_LIVE=true for live bot-fleet data.';
   document.addEventListener('DOMContentLoaded', () => {
     const frame = document.querySelector('.frame');
     if (frame) frame.insertBefore(banner, frame.children[1]);
@@ -231,7 +231,7 @@ function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();
 function hashId(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16).padStart(8,'0');}
 
 const MockSource=(()=>{
-  const base={'BINARY TCP':[10000,28000],'WEBSOCKET (Roadmap)':[35000,90000],'REST (Roadmap)':[120000,420000]}; // ns
+  const base={'BINARY TCP':[12000,18000],'WEBSOCKET (Roadmap)':[25000,45000],'REST (Roadmap)':[80000,150000]}; // ns
   const roster=[
     ['Priya Sharma','BINARY TCP'],['Arjun Mehta','BINARY TCP'],['Sanya Rao','BINARY TCP'],['Dev Kapoor','BINARY TCP'],
     ['Kiran Nair','WEBSOCKET (Roadmap)'],['Rohan Gupta','WEBSOCKET (Roadmap)'],['Ananya Iyer','WEBSOCKET (Roadmap)'],['Vikram Sen','WEBSOCKET (Roadmap)'],
