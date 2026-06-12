@@ -9,6 +9,8 @@ and tail latency** — measured honestly.
 > display it.** The hard part of a latency benchmark is not drawing the chart —
 > it is not lying in the chart. See *Coordinated Omission* below.
 
+![AWS deployment architecture](docs/architecture_diagram.png)
+
 ---
 
 ## System at a glance
