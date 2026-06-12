@@ -6,6 +6,8 @@ The platform lets independent teams submit a C++ matching engine, runs it inside
 
 The platform has three pieces: a low-latency C++ bot fleet that generates load, a sandbox that runs contestant matching engines under controlled isolation, and a realtime leaderboard that ranks submissions by composite score. The shared wire contract is in `contracts/`.
 
+![AWS deployment architecture](docs/architecture_diagram.png)
+
 ---
 
 ## What's distinctive about this submission
