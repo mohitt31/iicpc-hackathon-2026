@@ -103,18 +103,18 @@ two-histogram table print.
 
 **On screen:** highlight the two p99 columns.
 
-> "Look at the two numbers side by side. Naive p99: **98 microseconds** - 'great
-> engine.' Coordinated-Omission-corrected p99: **3.4 milliseconds** - a **35-times
-> gap.** The 3.4 ms is the truth - that's exactly the stall I injected. *This* is
+> "Look at the two numbers side by side. Naive p99 lands in the tens-to-low-hundreds of microseconds; CO-corrected p99 is about
+> 3.4 milliseconds - a 20-to-70x gap depending on the host. That ~3.4 ms corrected tail is
+> the truth: it's the 5 ms stall I injected, caught every single time. *This* is
 > the number every contestant on our platform is ranked on. The honest one."
 
-**On screen:** Keep the ~98µs / 35× numbers visible.
+**On screen:** Keep the new metrics visible.
 
 **Narration (The Honest Flex):**
 > "Quick honesty note: you're seeing this on a MacBook, where Linux CPU-pinning and
-> busy-poll simply don't exist — so that tail is scheduler jitter, not our engine.
-> The platform is built for isolated bare-metal Linux — isolcpus, nohz_full, busy-poll
-> — where the OS is banished from the core and the p99 tail collapses toward the median.
+> busy-poll simply don't exist - so that tail is scheduler jitter, not our engine.
+> The platform is built for isolated bare-metal Linux - isolcpus, nohz_full, busy-poll
+> - where the OS is banished from the core and the p99 tail collapses toward the median.
 > We ship that as a Terraform-provisioned design target, and we won't quote a production
 > number we haven't measured. That restraint is the whole point of this benchmark."
 
