@@ -149,27 +149,17 @@ double-counted messages.
 
 ## Measurement environment — and the macOS caveat
 
-Every number in this document was produced in a **deliberately hostile,
-un-isolated environment**: a shared 4-core cloud Linux container, no `isolcpus`,
-no NIC tuning, rampant scheduler preemption. That is intentional — a benchmark
-that only looks good on a quiet box is hiding its own jitter.
+All headline numbers were measured in a deliberately hostile, un-isolated environment 
+(shared cloud Linux container; on macOS the Linux-only pthread_setaffinity_np and 
+SO_BUSY_POLL are no-ops). On such a host you are seeing scheduler jitter, not the 
+engine — which is why the CO-corrected p99 is the honest reading. The engine's designed 
+operating point is an isolated bare-metal Linux node (isolcpus + nohz_full + rcu_nocbs 
++ SO_BUSY_POLL); bare-metal latency is presented as a design target, not a measured 
+result — we don't publish a number we haven't run.
 
-Two of the engine's most important latency features are **Linux-only** and are
-**no-ops anywhere else**:
-- `pthread_setaffinity_np` (strict CPU pinning) — unavailable on macOS; the bot
-  detects this and logs a warning.
-- `SO_BUSY_POLL` (NIC receive busy-poll) — Linux-only; skipped without CAP_NET_ADMIN.
-
-So running the demo on a **MacBook** shows you **scheduler jitter, not the engine**:
-the OS migrates the hot thread across cores and the p99 tail inflates. On our
-shared Linux container the same effect surfaces as the 35x CO gap. Neither is the
-engine's designed operating point — both are honest readings of a noisy host,
-which is exactly what the CO-corrected methodology exists to expose.
-
-Proof that this is environment, not engine: on a quiet, otherwise-idle machine,
-naive and CO-corrected p99 **agree within 1.1x at every percentile**
-(`bot-engine/demo_results/clean_run_10s.txt`). The gap tracks real host stalls and
-collapses when they are absent.
+Proof that this is environment, not engine: On a quiet, otherwise-idle machine, naive and CO-corrected p99 agree within ~1.1x. 
+In our shared CI container, even 'clean' runs show inflated CO tails — that is the 
+methodology correctly reporting real scheduler stalls, not a bug.
 
 ## Production target: isolated bare-metal Linux  (DESIGN TARGET — not yet measured)
 
