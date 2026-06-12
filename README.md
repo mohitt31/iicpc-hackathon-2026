@@ -70,16 +70,19 @@ Ratios at all percentiles within 1.1× — exactly what a healthy benchmark look
 
 ---
 
-## Hardware Constraints & Projected Bare-Metal Performance
+### Where these numbers come from (and the macOS caveat)
 
-Because this repository is intended to be evaluated by hackathon judges on standard hardware (e.g., MacBooks or shared Linux containers), the headline numbers above reflect a **hostile, noisy environment**. The ~23 µs base latency is dominated by the macOS/shared-container scheduler and TCP loopback overhead, not the C++ matching engine itself.
+All headline numbers were measured in a **deliberately hostile, un-isolated
+environment** (shared cloud Linux container; on macOS the Linux-only
+`pthread_setaffinity_np` and `SO_BUSY_POLL` are no-ops). On such a host you are
+seeing **scheduler jitter, not the engine** — which is why the CO-corrected p99 is
+the honest reading. On quiet hardware, naive and CO p99 agree within 1.1x.
 
-Our production blueprint (deployed via Terraform to AWS `c6i.metal` instances) isolates the engine and bot fleet using `isolcpus`, `pthread_setaffinity_np` for core pinning, and `SO_BUSY_POLL` to bypass kernel network interrupts. 
-
-**Projected Bare-Metal Target:**
-*   **Base Latency:** Drops from ~23 µs to **~10-15 µs** (or sub-microsecond via SPSC shared memory).
-*   **Coordinated Omission Proof Extrapolation:** With a clean 15 µs baseline, a 5 ms stall means the naive benchmark reports 15 µs, while the CO-corrected benchmark catches the true 5,000 µs stall. 
-*   **The CO Gap:** The gap explodes from 82× (in our noisy local test) to a massive **333×+ gap**. This proves that the cleaner the environment, the more dramatically standard benchmarks lie, and the more essential our CO-corrected platform becomes.
+The engine's designed operating point is an isolated bare-metal Linux node
+(`isolcpus` + `nohz_full` + `rcu_nocbs` + `SO_BUSY_POLL`, provisioned by
+`infra/terraform/`), where the tail collapses toward our measured ~23µs median. We
+present bare-metal latency as a **design target, not a measured result** — we don't
+publish a number we haven't run. See `RESULTS.md` and `BAREMETAL_TEST_PLAN.md`.
 
 ---
 

@@ -69,18 +69,18 @@ function hdrValueAtPercentile(h, p) {
  * Synthetic source — contract-faithful. Same roster/shape as the frontend mock
  * so the live feed looks identical to the in-page demo, just served over WS.
  * ========================================================================== */
-const PROTOCOLS = ['FIX', 'WS', 'REST'];
+const PROTOCOLS = ['BINARY TCP', 'WEBSOCKET (Roadmap)', 'REST (Roadmap)'];
 const NODES = ['node-01', 'node-02', 'node-03', 'node-04'];
 function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function hashId(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(16).padStart(8, '0'); }
 
 const Source = (() => {
-  const base = { FIX: [10000, 28000], WS: [35000, 90000], REST: [120000, 420000] };  // ns
+  const base = { 'BINARY TCP': [10000, 28000], 'WEBSOCKET (Roadmap)': [35000, 90000], 'REST (Roadmap)': [120000, 420000] };  // ns
   const roster = [
-    ['Priya Sharma', 'FIX'], ['Arjun Mehta', 'FIX'], ['Sanya Rao', 'FIX'], ['Dev Kapoor', 'FIX'],
-    ['Kiran Nair', 'WS'], ['Rohan Gupta', 'WS'], ['Ananya Iyer', 'WS'], ['Vikram Sen', 'WS'],
-    ['Meera Joshi', 'REST'], ['Aditya Rao', 'REST'], ['Neha Verma', 'REST'], ['Karan Shah', 'REST'],
+    ['Priya Sharma', 'BINARY TCP'], ['Arjun Mehta', 'BINARY TCP'], ['Sanya Rao', 'BINARY TCP'], ['Dev Kapoor', 'BINARY TCP'],
+    ['Kiran Nair', 'WEBSOCKET (Roadmap)'], ['Rohan Gupta', 'WEBSOCKET (Roadmap)'], ['Ananya Iyer', 'WEBSOCKET (Roadmap)'], ['Vikram Sen', 'WEBSOCKET (Roadmap)'],
+    ['Meera Joshi', 'REST (Roadmap)'], ['Aditya Rao', 'REST (Roadmap)'], ['Neha Verma', 'REST (Roadmap)'], ['Karan Shah', 'REST (Roadmap)'],
   ];
   let subs = [];
   function sampleInto(h, median, tail, count) {
@@ -107,7 +107,7 @@ const Source = (() => {
       p50: hdrValueAtPercentile(s.hdr, 50), p90: hdrValueAtPercentile(s.hdr, 90),
       p99: hdrValueAtPercentile(s.hdr, 99), p99_9: hdrValueAtPercentile(s.hdr, 99.9),
       p99_99: hdrValueAtPercentile(s.hdr, 99.99), max: hdrValueAtPercentile(s.hdr, 100),
-      tps: Math.round((s.protocol === 'FIX' ? 180000 : s.protocol === 'WS' ? 120000 : 60000) * (0.6 + Math.random() * 0.6)),
+      tps: Math.round((s.protocol === 'BINARY TCP' ? 180000 : s.protocol === 'WEBSOCKET (Roadmap)' ? 120000 : 60000) * (0.6 + Math.random() * 0.6)),
       err: Math.max(0, Math.min(0.12, 0.005 + Math.abs(gauss()) * 0.01)),
       diff_pass_rate: Math.random() < 0.10 ? 0.985 + Math.random() * 0.012 : 1.0,
       invariant_violations: Math.random() < 0.08 ? Math.floor(1 + Math.random() * 2) : 0,
