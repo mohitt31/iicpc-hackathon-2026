@@ -20,7 +20,7 @@ The bot in this repository fixes this with the structural Tene/Snyder correction
 - Backfills phantom samples during stalls via `hdr_record_corrected_value`
 - Pins SO_SNDBUF small so backpressure is visible, not hidden in kernel buffers
 
-On a deterministic 5 ms stall every 20,000 orders, the naive p99 reads **28 µs** while the CO-corrected p99 reads **4.2 ms** — a **150× gap**. Every contestant on this platform is measured the honest way.
+On a deterministic 5 ms stall every 20,000 orders, the measurement is **naive p99 ~98 µs vs CO-corrected p99 ~3.4 ms — a 35x gap**. Every contestant on this platform is measured the honest way.
 
 A second distinctive choice: a **byte-exact correctness validator**. The platform ships a gold-standard reference matching engine. Every contestant's output journal is diffed against the reference's output on the same input. The included demo plants one common HFT bug (price-time priority violation — newest order matches first instead of oldest) into a buggy engine and shows the validator pinpointing the divergence on the first aggressive trade. No heuristics, no thresholds.
 
@@ -53,9 +53,10 @@ All numbers below were produced by the bot in this repository against `null_resp
 
 | Percentile | Naive (ns) | CO-corrected (ns) | Ratio |
 |---|---|---|---|
-| p50 | 13,455 | 13,583 | 1.0× |
-| p90 | 17,343 | 313,599 | 18.1× |
-| p99 | 52,127 | 4,308,991 | **82.7×** |
+| p50    | 41,183    | 41,855    | 1.0x  |
+| p90    | 49,727    | 884,223   | 17.8x |
+| p99    | 97,983    | 3,430,399 | 35.0x |
+| p99.99 | 5,177,343 | 5,226,495 | 1.0x  |
 
 **Clean run, 4 bots, 100 µs interval (measured on an otherwise-idle machine; localhost numbers vary with background load):**
 
@@ -66,23 +67,21 @@ All numbers below were produced by the bot in this repository against `null_resp
 | p99 | 83,711 | 83,967 |
 | Max | 300,799 | 300,799 |
 
-Ratios at all percentiles within 1.1× — exactly what a healthy benchmark looks like when there are no real stalls.
+Proof that this is environment, not engine: On a quiet, otherwise-idle machine, naive and CO-corrected p99 agree within ~1.1x. 
+In our shared CI container, even 'clean' runs show inflated CO tails — that is the 
+methodology correctly reporting real scheduler stalls, not a bug.
 
 ---
 
 ### Where these numbers come from (and the macOS caveat)
 
-All headline numbers were measured in a **deliberately hostile, un-isolated
-environment** (shared cloud Linux container; on macOS the Linux-only
-`pthread_setaffinity_np` and `SO_BUSY_POLL` are no-ops). On such a host you are
-seeing **scheduler jitter, not the engine** — which is why the CO-corrected p99 is
-the honest reading. On quiet hardware, naive and CO p99 agree within 1.1x.
-
-The engine's designed operating point is an isolated bare-metal Linux node
-(`isolcpus` + `nohz_full` + `rcu_nocbs` + `SO_BUSY_POLL`, provisioned by
-`infra/terraform/`), where the tail collapses toward our measured ~23µs median. We
-present bare-metal latency as a **design target, not a measured result** — we don't
-publish a number we haven't run. See `RESULTS.md` and `BAREMETAL_TEST_PLAN.md`.
+All headline numbers were measured in a deliberately hostile, un-isolated environment 
+(shared cloud Linux container; on macOS the Linux-only pthread_setaffinity_np and 
+SO_BUSY_POLL are no-ops). On such a host you are seeing scheduler jitter, not the 
+engine — which is why the CO-corrected p99 is the honest reading. The engine's designed 
+operating point is an isolated bare-metal Linux node (isolcpus + nohz_full + rcu_nocbs 
++ SO_BUSY_POLL); bare-metal latency is presented as a design target, not a measured 
+result — we don't publish a number we haven't run.
 
 ---
 

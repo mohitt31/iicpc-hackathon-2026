@@ -96,8 +96,8 @@ The fix is structural:
   buffers.
 
 Both histograms are reported side-by-side so the gap is provable. On a
-deterministic 5 ms stall every 20 k orders, naive p99 reads ~52 µs while
-CO-corrected p99 reads ~4.3 ms — an ~80× gap. Every contestant is measured the
+deterministic 5 ms stall every 20 k orders, naive p99 reads ~98 µs while
+CO-corrected p99 reads ~3.4 ms — a ~35x gap. Every contestant is measured the
 honest way.
 
 ### Honest measurement under load
@@ -123,9 +123,7 @@ validator pinpointing it on the first aggressive fill.
 
 A single self-contained page that ranks submissions live. **Cardinal rule:
 display only.** It never recomputes a percentile — no averaging, no
-re-bucketing, no interpolation. It renders the contract's already-CO-corrected,
-additively-merged gauges, and the scoring service reads p99 from the merged
-additive HDR, never a mean of per-bot values.
+re-bucketing, no interpolation. It renders the contract's already-CO-corrected gauges. Within a single bot, histograms are merged with hdr_add() — exact and additive. Across bots and over time, hdr_merge ranks by max-of-percentiles (conservative); we never average percentiles.
 
 Features that map directly to the spec:
 
