@@ -406,7 +406,7 @@ production gateway (Rust/Go reading **VictoriaMetrics** + additive-HDR blobs) is
 **drop-in replacement that emits the same JSON** - the frontend never changes.
 
 - **Additive HDR** mirrored server-side (80 log-spaced buckets, 500 ns-500 ms) so
- scoring reads p99 from the **merged** histogram, never a mean.
+ scoring reads p99 from the **merged** histogram, never a mean. Within a single bot, histograms are merged with hdr_add() — exact and additive. Across bots and over time, hdr_merge ranks by max-of-percentiles (conservative); we never average percentiles.
 - **Scoring (pure function, Interface Contract §5):**
   `score = 0.40*latency + 0.30*throughput + 0.30*correctness`, min-max normalised
  per protocol board, with a **hard-fail cap**: a correctness failure
@@ -446,7 +446,7 @@ Every row is a real fork in the road with the path not taken.
 
 | # | Decision | Chosen | Alternative(s) rejected | Why |
 |---|---|---|---|---|
-| 1 | Measurement methodology | **CO-corrected (Tene/Snyder)** | Naive round-trip histograms | Naive numbers are wrong by 35-80x under stalls; they'd rank engines incorrectly |
+| 1 | Measurement methodology | **CO-corrected (Tene/Snyder)** | Naive round-trip histograms | Naive numbers are wrong by ~35x under stalls; they'd rank engines incorrectly |
 | 2 | Submission isolation (runtime) | **Firecracker microVM** | Docker container | Container shares host scheduler to pollutes the *latency* being measured |
 | 3 | Build isolation | **Docker `--network none`** | Build on host | Hermetic, no supply-chain fetch; filesystem isolation is the right tool *here* |
 | 4 | Wire format | **Binary SBE, 4B-framed** | JSON / gRPC | JSON/gRPC add tens of µs to the path we're measuring |
@@ -500,7 +500,7 @@ The low-latency path, where the Linux-only features actually engage:
   the hot path), `capabilities: [NET_ADMIN]` (for `SO_BUSY_POLL`/`SO_TIMESTAMPING`),
   **Guaranteed QoS** (`requests == limits`, integer CPU to exclusive cores via the
  kubelet static CPU-manager policy).
-- **Benchmark nodes (Terraform)**: `c6i.metal` (real cores, not virtual), kernel
+- **Benchmark nodes (Terraform)**: `c6i.metal` (design target — not measured) (real cores, not virtual), kernel
   cmdline `isolcpus=1-15 nohz_full=1-15 rcu_nocbs=1-15`, plus a **label + taint**
  so only benchmark workloads land there.
 - **Telemetry gateway** Deployment + Service (`/health` readiness); **leaderboard**
@@ -508,7 +508,7 @@ The low-latency path, where the Linux-only features actually engage:
 
 **Honest status:** compose structure/ports/healthchecks are verified by
 inspection and an end-to-end WS client test; the full stack was not run in CI
-(no Docker-in-sandbox). K8s/Terraform are deliverable blueprints with placeholder
+(no Docker-in-sandbox). K8s/Terraform (design target — not measured) are deliverable blueprints with placeholder
 image refs (`ghcr.io/REPLACE_ORG/...`) and a provider/node-group block to wire to
 a registry/cloud - proving horizontal scale-out shape, not applied to a live
 cluster here. We label blueprints as blueprints.
@@ -566,11 +566,9 @@ what was injected). 600,000/600,000 acked, zero integrity violations.
  counters 0; 4-bot 3-min = 7,200,000 sent = acked.
 
 ### 11.7 Reading the numbers honestly
-These ran in a shared container with rampant scheduler preemption - which is *why*
-even "clean" runs show inflated CO tails: **the methodology is correctly reporting
-real stalls caused by the noisy environment.** On quiet dedicated hardware, naive
-and CO-corrected percentiles agree within 1.1x at every rank - exactly how a
-healthy benchmark proves it isn't lying. *A benchmark that shows beautiful numbers
+These ran in a shared container with rampant scheduler preemption. On a quiet, otherwise-idle machine, naive and CO-corrected p99 agree within ~1.1x. 
+In our shared CI container, even 'clean' runs show inflated CO tails — that is the 
+methodology correctly reporting real scheduler stalls, not a bug. *A benchmark that shows beautiful numbers
 in a noisy environment is broken. This one refuses to.*
 
 ---
