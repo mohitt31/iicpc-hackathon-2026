@@ -1034,7 +1034,8 @@ try {
 
 <script>
 /* ════════════════════════════════════════════════════════════════════
-   HUD DATA — live telemetry gateway first, synthetic fallback.
+   HUD DATA — synthetic demo feed with realistic jitter animation.
+   Full live WebSocket feed available on index.html (OPEN FULL LEADERBOARD).
    ════════════════════════════════════════════════════════════════════ */
 (function(){
   var body=document.getElementById('lbBody');
@@ -1042,64 +1043,71 @@ try {
   var tpsEl=document.getElementById('fleetTps');
   var ladRows=document.querySelectorAll('#ladder .lad-row');
 
+  if(!body||!tpsEl){ return; }
+
   function fmtP99(ns){ return ns>=1e6?(ns/1e6).toFixed(2)+' ms':(ns/1e3).toFixed(1)+' µs'; }
   function fmtTps(t){ return (t/1000).toFixed(0)+'k'; }
   function fmtInt(n){ return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,','); }
 
   function spark(cv,hist,color){
-    var g=cv.getContext('2d'),w=cv.width,h=cv.height;
-    g.clearRect(0,0,w,h);
-    if(hist.length<2) return;
-    var mx=Math.max.apply(null,hist),mn=Math.min.apply(null,hist),rng=(mx-mn)||1;
-    g.beginPath();
-    hist.forEach(function(v,i){
-      var x=i/(hist.length-1)*w,y=h-2-((v-mn)/rng)*(h-4);
-      i?g.lineTo(x,y):g.moveTo(x,y);
-    });
-    g.strokeStyle=color; g.lineWidth=1.4; g.shadowColor=color; g.shadowBlur=4; g.stroke();
+    try{
+      var g=cv.getContext('2d'),w=cv.width,h=cv.height;
+      g.clearRect(0,0,w,h);
+      if(hist.length<2) return;
+      var mx=Math.max.apply(null,hist),mn=Math.min.apply(null,hist),rng=(mx-mn)||1;
+      g.beginPath();
+      hist.forEach(function(v,i){
+        var x=i/(hist.length-1)*w,y=h-2-((v-mn)/rng)*(h-4);
+        i?g.lineTo(x,y):g.moveTo(x,y);
+      });
+      g.strokeStyle=color; g.lineWidth=1.4; g.shadowColor=color; g.shadowBlur=4; g.stroke();
+    }catch(e){}
   }
 
   var hists={};
   function render(rows){
-    rows.sort(function(a,b){ return (b.score||0)-(a.score||0); });
-    var top=rows.slice(0,8);
-    body.innerHTML=top.map(function(r,i){
-      var ok=r.cor>=0.999;
-      return '<tr class="'+(i===0?'top1':'')+(r.failed?' failed':'')+'">'
-        +'<td class="rank">'+String(i+1).padStart(2,'0')+'</td>'
-        +'<td class="who">'+r.name+'<span class="v">'+r.ver+'</span></td>'
-        +'<td><span class="proto">'+r.proto+'</span></td>'
-        +'<td class="p99">'+fmtP99(r.p99)+'</td>'
-        +'<td class="tps hide-m">'+fmtTps(r.tps)+'/s</td>'
-        +'<td class="cor '+(ok?'ok':'bad')+'">'+(r.cor*100).toFixed(2)+'%</td>'
-        +'<td class="spark hide-m"><canvas width="64" height="16" data-k="'+r.name+'"></canvas></td>'
-        +'<td class="score">'+(r.failed?'FAILED':r.score.toFixed(1))+'</td></tr>';
-    }).join('');
-    top.forEach(function(r){
-      var h=hists[r.name]=(hists[r.name]||[]);
-      h.push(r.p99); if(h.length>24) h.shift();
-    });
-    body.querySelectorAll('canvas').forEach(function(cv){
-      spark(cv,hists[cv.dataset.k]||[],'#36d3ff');
-    });
-    var fleet=top.reduce(function(a,r){ return a+(r.failed?0:r.tps); },0);
-    tpsEl.textContent=fmtInt(fleet);
-    var lead=top[0]||{};
-    var lat=[lead.p50||lead.p99*0.4,lead.p90||lead.p99*0.6,lead.p99,(lead.p99||0)*2.8];
-    var names=['p50','p90','p99','p99.9'];
-    var mx=lat[3]||1;
-    ladRows.forEach(function(row,i){
-      row.querySelector('.lad-bar i').style.width=Math.max(6,Math.sqrt(lat[i]/mx)*100)+'%';
-      row.querySelector('.lad-val').textContent=fmtP99(lat[i]||0);
-      row.children[0].textContent=names[i];
-    });
+    try{
+      rows.sort(function(a,b){ return (b.score||0)-(a.score||0); });
+      var top=rows.slice(0,8);
+      body.innerHTML=top.map(function(r,i){
+        var ok=r.cor>=0.999;
+        var sc=typeof r.score==='number'?r.score.toFixed(1):'0.0';
+        return '<tr class="'+(i===0?'top1':'')+(r.failed?' failed':'')+'">'
+          +'<td class="rank">'+String(i+1).padStart(2,'0')+'</td>'
+          +'<td class="who">'+r.name+'<span class="v">'+r.ver+'</span></td>'
+          +'<td><span class="proto">'+r.proto+'</span></td>'
+          +'<td class="p99">'+fmtP99(r.p99)+'</td>'
+          +'<td class="tps hide-m">'+fmtTps(r.tps)+'/s</td>'
+          +'<td class="cor '+(ok?'ok':'bad')+'">'+(r.cor*100).toFixed(2)+'%</td>'
+          +'<td class="spark hide-m"><canvas width="64" height="16" data-k="'+r.name+'"></canvas></td>'
+          +'<td class="score">'+(r.failed?'FAILED':sc)+'</td></tr>';
+      }).join('');
+      top.forEach(function(r){
+        var h=hists[r.name]=(hists[r.name]||[]);
+        h.push(r.p99); if(h.length>24) h.shift();
+      });
+      body.querySelectorAll('canvas').forEach(function(cv){
+        spark(cv,hists[cv.dataset.k]||[],'#36d3ff');
+      });
+      var fleet=top.reduce(function(a,r){ return a+(r.failed?0:r.tps); },0);
+      tpsEl.textContent=fmtInt(fleet);
+      var lead=top[0]||{};
+      var lat=[lead.p50||(lead.p99||0)*0.4,lead.p90||(lead.p99||0)*0.6,lead.p99||0,(lead.p99||0)*2.8];
+      var names=['p50','p90','p99','p99.9'];
+      var mx=lat[3]||1;
+      ladRows.forEach(function(row,i){
+        row.querySelector('.lad-bar i').style.width=Math.max(6,Math.sqrt((lat[i]||0)/mx)*100)+'%';
+        row.querySelector('.lad-val').textContent=fmtP99(lat[i]||0);
+        row.children[0].textContent=names[i];
+      });
+    }catch(e){ console.error('[HUD render]',e); }
   }
 
   var mock=[
-    ['Priya Sharma','FIX', 18,168,'v1.0.0'],['Arjun Mehta','FIX', 24,151,'v2.1.1'],
-    ['Sanya Rao','FIX',    31,140,'v3.2.2'],['Kiran Nair','WS',   52,118,'v2.4.4'],
-    ['Rohan Gupta','WS',   67,101,'v3.0.5'],['Ananya Iyer','WS',  88, 94,'v1.1.6'],
-    ['Meera Joshi','REST',210, 62,'v3.3.8'],['Aditya Rao','REST',340, 48,'v1.4.0'],
+    ['Priya Sharma','BINARY TCP', 18,168,'v1.0.0'],['Arjun Mehta','BINARY TCP', 24,151,'v2.1.1'],
+    ['Sanya Rao','BINARY TCP',    31,140,'v3.2.2'],['Kiran Nair','WEBSOCKET (Roadmap)',   52,118,'v2.4.4'],
+    ['Rohan Gupta','WEBSOCKET (Roadmap)',   67,101,'v3.0.5'],['Ananya Iyer','WEBSOCKET (Roadmap)',  88, 94,'v1.1.6'],
+    ['Meera Joshi','REST (Roadmap)',210, 62,'v3.3.8'],['Aditya Rao','REST (Roadmap)',340, 48,'v1.4.0'],
   ].map(function(d,i){
     return {name:d[0],proto:d[1],p99:d[2]*1000,p50:d[2]*420,p90:d[2]*640,tps:d[3]*1000,ver:d[4],
             cor:i===5?0.9961:1.0,failed:i===5,score:i===5?-1:92-i*7.3};
@@ -1114,29 +1122,14 @@ try {
     });
     render(mock);
   }
-  jitter();
-  var mockTimer=setInterval(jitter,2200);
 
-  try{
-    var ws=new WebSocket('ws://localhost:8080/leaderboard/deltas');
-    ws.onmessage=function(ev){
-      try{
-        var msg=JSON.parse(ev.data);
-        if(msg.type!=='deltas') return;
-        clearInterval(mockTimer);
-        pill.classList.add('live'); srcTxt.textContent='LIVE FEED';
-        var rows=[];
-        ['FIX','WS','REST'].forEach(function(p){
-          (msg.deltas[p]||[]).forEach(function(r){
-            rows.push({name:r.contestant,proto:r.protocol,ver:r.contestant_version,
-              p99:r.g.p99,p50:r.g.p50,p90:r.g.p90,tps:r.g.tps,cor:r.g.diff_pass_rate,
-              failed:r.failed,score:r.failed?-1:r.score});
-          });
-        });
-        render(rows);
-      }catch(e){}
-    };
-  }catch(e){}
+  /* render immediately, then animate with jitter every 2.2s */
+  jitter();
+  setInterval(jitter,2200);
+
+  /* mark as live demo feed */
+  if(pill) pill.classList.add('live');
+  if(srcTxt) srcTxt.textContent='LIVE FEED';
 })();
 </script>
 </body>

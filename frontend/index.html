@@ -200,7 +200,7 @@ const USE_LIVE=true;
 if (!USE_LIVE) {
   const banner = document.createElement('div');
   banner.style.cssText = 'background:rgba(0,255,128,0.12);border:1px solid rgba(0,255,128,0.4);border-radius:6px;padding:10px 18px;margin:12px 0;font-family:var(--mono);font-size:11px;color:#0f8;letter-spacing:.06em';
-  banner.textContent = '🚀 BARE-METAL PROJECTION — Simulating isolated Linux core latency (~15µs base) on AWS c6i.metal. Set USE_LIVE=true for live bot-fleet data.';
+  banner.textContent = 'DEMO MODE — Local execution with scheduler jitter. Set USE_LIVE=true to stream live bot-fleet metrics. See RESULTS.md for hardware details.';
   document.addEventListener('DOMContentLoaded', () => {
     const frame = document.querySelector('.frame');
     if (frame) frame.insertBefore(banner, frame.children[1]);

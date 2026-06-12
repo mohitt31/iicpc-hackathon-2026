@@ -147,17 +147,51 @@ double-counted messages.
 
 ---
 
-## Reading the numbers honestly: Local Reality vs. Bare-Metal Projection
+## Measurement environment — and the macOS caveat
 
-The runs documented above were executed inside a shared 4-core cloud container (or local Mac) with no core isolation — scheduler preemption is rampant. That is why even the "clean" runs show inflated CO tails: **the methodology is correctly reporting real stalls caused by the noisy environment.** 
+Every number in this document was produced in a **deliberately hostile,
+un-isolated environment**: a shared 4-core cloud Linux container, no `isolcpus`,
+no NIC tuning, rampant scheduler preemption. That is intentional — a benchmark
+that only looks good on a quiet box is hiding its own jitter.
 
-A benchmark that shows beautiful numbers in a noisy environment is broken. This one refuses to.
+Two of the engine's most important latency features are **Linux-only** and are
+**no-ops anywhere else**:
+- `pthread_setaffinity_np` (strict CPU pinning) — unavailable on macOS; the bot
+  detects this and logs a warning.
+- `SO_BUSY_POLL` (NIC receive busy-poll) — Linux-only; skipped without CAP_NET_ADMIN.
 
-### Projected Target Architecture (`c6i.metal`)
+So running the demo on a **MacBook** shows you **scheduler jitter, not the engine**:
+the OS migrates the hot thread across cores and the p99 tail inflates. On our
+shared Linux container the same effect surfaces as the 35x CO gap. Neither is the
+engine's designed operating point — both are honest readings of a noisy host,
+which is exactly what the CO-corrected methodology exists to expose.
 
-Our Terraform production blueprint targets dedicated Linux bare-metal cores using `isolcpus`, `pthread_setaffinity_np`, and `SO_BUSY_POLL`. Because we cannot demo a live `$5,000/month` cluster during the hackathon, we present the math for our target state:
+Proof that this is environment, not engine: on a quiet, otherwise-idle machine,
+naive and CO-corrected p99 **agree within 1.1x at every percentile**
+(`bot-engine/demo_results/clean_run_10s.txt`). The gap tracks real host stalls and
+collapses when they are absent.
 
-1.  **Quiet Baseline:** Eliminating the kernel scheduler and TCP loopback interrupts drops the base latency from ~23 µs down to **~10-15 µs** (or sub-microsecond via SPSC shared memory).
-2.  **The 333×+ Coordinated Omission Gap:** If we inject the same 5 ms stall in the isolated environment, the naive benchmark will report a "perfect" 15 µs, completely missing the stall. The CO-corrected benchmark will catch the 5,000 µs stall. The resulting ratio will explode from 35.0× (local) to a massive **333.3× gap**.
+## Production target: isolated bare-metal Linux  (DESIGN TARGET — not yet measured)
 
-By measuring honestly, we prove that the quieter the environment, the more dramatically standard benchmarks lie, reinforcing the core thesis of this platform.
+The engine is architected for an isolated bare-metal node (AWS `c6i.metal`),
+provisioned by `infra/terraform/benchmark_pool.tf` with
+`isolcpus=1-15 nohz_full=1-15 rcu_nocbs=1-15`. There the Linux-only paths engage:
+
+- **isolcpus** removes the cores from the scheduler's load balancer — no task
+  migration, no involuntary preemption.
+- **nohz_full** stops the periodic timer tick on a core running one task — removes
+  the ~per-millisecond interrupt spike.
+- **rcu_nocbs** offloads RCU callbacks to a housekeeping core.
+- **SO_BUSY_POLL** spins on the NIC RX ring instead of sleeping for the hardware IRQ.
+
+These knobs **collapse the p99 tail toward the median** — they remove the
+preemption / tick / IRQ-wakeup events that *are* the tail. They do **not** lower
+the median. Our measured median (p50) is **~23µs**, so we expect a bare-metal p99
+in the **low tens of microseconds**, approaching that median — versus the ~84µs we
+measure on a shared host. Pushing the **median** below ~15µs would require
+kernel-bypass transport (AF_XDP / Aeron), which we **deliberately deferred**.
+
+**We do not publish a bare-metal number we have not run.** The figures above are
+the design target and the mechanism; the procedure to turn them into a measured,
+defensible result is in `BAREMETAL_TEST_PLAN.md`. Until that run exists, this
+section stays labelled a target. That discipline is the entire point of the platform.

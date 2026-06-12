@@ -108,6 +108,16 @@ two-histogram table print.
 > gap.** The 3.4 ms is the truth - that's exactly the stall I injected. *This* is
 > the number every contestant on our platform is ranked on. The honest one."
 
+**On screen:** Keep the ~98µs / 35× numbers visible.
+
+**Narration (The Honest Flex):**
+> "Quick honesty note: you're seeing this on a MacBook, where Linux CPU-pinning and
+> busy-poll simply don't exist — so that tail is scheduler jitter, not our engine.
+> The platform is built for isolated bare-metal Linux — isolcpus, nohz_full, busy-poll
+> — where the OS is banished from the core and the p99 tail collapses toward the median.
+> We ship that as a Terraform-provisioned design target, and we won't quote a production
+> number we haven't measured. That restraint is the whole point of this benchmark."
+
 ---
 
 ### [3:00 - 3:50] Correctness: the byte-exact validator
