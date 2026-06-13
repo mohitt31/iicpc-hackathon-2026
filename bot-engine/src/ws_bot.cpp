@@ -200,34 +200,70 @@ int main(int argc, char** argv) {
     const int64_t interval_ns=(int64_t)interval_us*1000;
     const int64_t t_end = now_ns()+(int64_t)duration_sec*1000000000LL;
     int64_t intended = now_ns();
-    uint64_t seq=0, sent=0;
+    uint64_t seq=0, sent=0, acked=0;
 
-    // Open-loop send at the INTENDED rate — the CO-honest pattern: we record
-    // latency against `intended`, not against actual send, so a stall is
-    // back-filled by hdr_record_corrected_value rather than vanishing.
+    // seq → intended-send-time, so latency is measured against INTENDED (the
+    // CO-honest invariant) and recorded when the ACK actually arrives — same
+    // accounting as the binary bot, now on the WS RX path.
+    size_t maxseq = (size_t)(duration_sec*1000000ULL/interval_us) + 4096;
+    std::vector<int64_t> pending(maxseq+1, 0);
+    std::vector<uint8_t> rx;   // raw socket bytes
+    std::vector<uint8_t> sbe;  // WS-deframed SBE byte stream
+
+    // Drain available bytes (non-blocking), unwrap server WS frames into the SBE
+    // stream, then parse SBE messages and correlate OrderAcks by order_seq.
+    auto drain_acks = [&]() {
+        uint8_t tmp[8192]; ssize_t n;
+        while((n=recv(fd,tmp,sizeof(tmp),MSG_DONTWAIT))>0) rx.insert(rx.end(),tmp,tmp+n);
+        size_t off=0;                                   // 1) unwrap WS frames (server frames are unmasked)
+        while(rx.size()-off >= 2){
+            uint8_t b1=rx[off+1]; uint64_t len=b1&0x7f; size_t hdr=2;
+            if(len==126){ if(rx.size()-off<4) break; len=((uint64_t)rx[off+2]<<8)|rx[off+3]; hdr=4; }
+            else if(len==127){ if(rx.size()-off<10) break; len=0; for(int k=0;k<8;k++) len=(len<<8)|rx[off+2+k]; hdr=10; }
+            if(rx.size()-off < hdr+len) break;
+            sbe.insert(sbe.end(), rx.begin()+off+hdr, rx.begin()+off+hdr+len);
+            off += hdr+len;
+        }
+        rx.erase(rx.begin(), rx.begin()+off);
+        size_t p=0;                                     // 2) parse SBE messages, correlate acks
+        while(sbe.size()-p >= sizeof(FrameHeader)){
+            auto* afh=reinterpret_cast<FrameHeader*>(&sbe[p]);
+            size_t msglen = afh->msg_len;
+            if(sbe.size()-p < sizeof(FrameHeader)+msglen) break;
+            if(afh->msg_type==MSG_ORDERACK && msglen>=sizeof(OrderAck)){
+                auto* ack=reinterpret_cast<OrderAck*>(&sbe[p+sizeof(FrameHeader)]);
+                uint64_t s=ack->order_seq;
+                if(s>0 && s<pending.size() && pending[s]>0){
+                    int64_t lat=now_ns()-pending[s]; if(lat<0) lat=0;
+                    hdr_record_value(naive,lat);
+                    hdr_record_corrected_value(co,lat,interval_ns);
+                    pending[s]=0; acked++;
+                }
+            }
+            p += sizeof(FrameHeader)+msglen;
+        }
+        sbe.erase(sbe.begin(), sbe.begin()+p);
+    };
+
     while(now_ns() < t_end){
         intended += interval_ns;
         int64_t spin; while((spin=now_ns()) < intended) { /* busy-wait to intended */ }
         ord->seq = ++seq;
         ord->timestamp_ns = (uint64_t)intended;
+        if(seq < pending.size()) pending[seq]=intended;     // tag intended-send-time
         if(!ws_send_binary(fd,buf,FRAME)) break;
-        // NOTE (verifier): RX/ack correlation is elided in this draft's send
-        // loop. The TCP bot pairs acks by order_seq on the epoll RX side; the
-        // production WS bot must do the same on its RX path. Here we record the
-        // intended→sent gap as the naive sample and let CO correction handle
-        // the tail, matching bot.cpp's accounting once RX is wired.
-        int64_t latency = now_ns()-intended;
-        if(latency<0) latency=0;
-        hdr_record_value(naive,latency);
-        hdr_record_corrected_value(co,latency,interval_ns);
         sent++;
+        drain_acks();                                       // non-blocking RX, doesn't stall the cadence
     }
+    int64_t drain_end = now_ns()+200000000LL;               // let in-flight acks land (~200ms)
+    while(now_ns()<drain_end && acked<sent){ drain_acks(); }
 
-    printf("[ws_bot DRAFT] proto=WEBSOCKET sent=%llu seq=%llu  naive_p99=%lld ns  co_p99=%lld ns\n",
-        (unsigned long long)sent,(unsigned long long)seq,
+    printf("[ws_bot] proto=WEBSOCKET sent=%llu acked=%llu  naive_p99=%lld ns  co_p99=%lld ns\n",
+        (unsigned long long)sent,(unsigned long long)acked,
         (long long)hdr_value_at_percentile(naive,99.0),
         (long long)hdr_value_at_percentile(co,99.0));
-    fprintf(stderr,"[ws_bot] DRAFT — verify RX ack-correlation + Sent==Acked before trusting numbers\n");
+    if(acked!=sent) fprintf(stderr,"[ws_bot] note: %llu unacked (in-flight at shutdown)\n",
+        (unsigned long long)(sent-acked));
     ::close(fd);
     return 0;
 }
