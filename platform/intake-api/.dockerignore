@@ -1,0 +1,3 @@
+# build artifacts — never ship these into the image context
+intake-api
+*.test

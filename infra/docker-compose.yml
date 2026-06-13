@@ -27,6 +27,34 @@ name: iicpc-hft-platform
 
 services:
 
+  # ---- Submission control plane (Redis-backed work queue) ----------------
+  redis:
+    image: redis:7-alpine
+    networks: [bench]
+    expose: ["6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+      start_period: 2s
+    restart: unless-stopped
+
+  # ---- Intake API (the front door: upload → sandbox pipeline → score) ----
+  intake-api:
+    build:
+      context: ..
+      dockerfile: platform/intake-api/Dockerfile
+    environment:
+      REDIS_ADDR: redis:6379
+    networks: [bench]
+    ports:
+      - "9090:9090"                   # curl -F engine=@e.tar.gz :9090/api/v1/submissions
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # ---- Gold-standard matching engine (reference) -------------------------
   reference-engine:
     build:
