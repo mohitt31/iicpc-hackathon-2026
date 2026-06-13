@@ -223,15 +223,15 @@ function hdrValueAtPercentile(h,p){            // returns ns — used ONLY by sc
 }
 
 /* ════════ MOCK SOURCE — role of VictoriaMetrics (derived gauges) + HDR store ════════ */
-const PROTOCOLS=['BINARY TCP','WEBSOCKET','REST'];
-const PROTO_LABEL={'BINARY TCP':'BINARY TCP','WEBSOCKET':'WEBSOCKET','REST':'REST'};
+const PROTOCOLS=['BINARY TCP','WEBSOCKET','FIX','REST'];
+const PROTO_LABEL={'BINARY TCP':'BINARY TCP','WEBSOCKET':'WEBSOCKET','FIX':'FIX','REST':'REST'};
 const NODES=['node-01','node-02','node-03','node-04'];
 function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();
   return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 function hashId(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16).padStart(8,'0');}
 
 const MockSource=(()=>{
-  const base={'BINARY TCP':[12000,18000],'WEBSOCKET':[25000,45000],'REST':[80000,150000]}; // ns
+  const base={'BINARY TCP':[12000,18000],'WEBSOCKET':[25000,45000],'FIX':[50000,90000],'REST':[80000,150000]}; // ns
   const roster=[
     ['Priya Sharma','BINARY TCP'],['Arjun Mehta','BINARY TCP'],['Sanya Rao','BINARY TCP'],['Dev Kapoor','BINARY TCP'],
     ['Kiran Nair','WEBSOCKET'],['Rohan Gupta','WEBSOCKET'],['Ananya Iyer','WEBSOCKET'],['Vikram Sen','WEBSOCKET'],
