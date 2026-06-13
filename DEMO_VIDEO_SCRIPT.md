@@ -145,12 +145,12 @@ two-histogram table print.
 
 ### [3:50 - 5:00] The leaderboard (live, and why it's trustworthy)
 
-**On screen:** the live leaderboard. Click the protocol bar FIX to WS to REST.
+**On screen:** the live leaderboard. Click the protocol bar BINARY to WS to REST.
 Hover the percentile ladder. Point at a greyed/excluded row and a FAIL score.
 
 **Narration:**
 > "This is the live board - real-time deltas over WebSocket, not a screenshot.
-> First: **separate boards per protocol.** We never mix FIX, WebSocket, and REST -
+> First: **separate boards per protocol.** We never mix BINARY, WebSocket, and REST -
 > TLS and JSON framing alone add tens of microseconds, so ranking them together is
 > a category error. The contract forbids it; the UI enforces it.
 > Second: the **full percentile ladder** - p50 through p99.99 to max, in

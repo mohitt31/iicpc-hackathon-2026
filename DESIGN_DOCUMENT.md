@@ -104,9 +104,9 @@ where filesystem isolation is exactly the right tool - §4.)
 
 ### 2.3 Cross-protocol comparison is meaningless
 
-FIX, WebSocket, and REST are not comparable latency populations: TLS handshakes
+Binary (SBE), WebSocket, and REST are not comparable latency populations: TLS handshakes
 and JSON framing alone add tens of microseconds before the engine sees a byte.
-Ranking a REST engine against a FIX engine on raw p99 is a category error. The
+Ranking a REST engine against a binary-wire engine on raw p99 is a category error. The
 platform must rank **per protocol**, never mixed.
 
 ### 2.4 Percentiles are not averageable
@@ -415,7 +415,7 @@ production gateway (Rust/Go reading **VictoriaMetrics** + additive-HDR blobs) is
 - **Integrity gate to exclusion before ranking.** Submissions whose self-test p99
  or software jitter failed are *excluded*, not penalised - a filter, surfaced in
  the UI as a greyed row.
-- **Per-protocol boards** (FIX / WS / REST), never mixed (§2.3). An *Overall* view
+- **Per-protocol boards** (BINARY (SBE v1) / WS / REST), never mixed (§2.3). An *Overall* view
  exists but is gated behind a warning.
 - **Delta streaming**: the gateway diffs each tick (cadence 1-5 s) and the UI
  animates only what changed. Immediate snapshot on connect so the board is never

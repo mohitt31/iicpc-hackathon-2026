@@ -47,11 +47,11 @@ Open the leaderboard. Let it sit; rows update live.
 ## 2. The leaderboard — 60 seconds ▶
 
 Point at the **giant hero name** at the top:
-> "That's whoever's currently winning the FIX board. It changes live as the
+> "That's whoever's currently winning the BINARY (SBE) board. It changes live as the
 > benchmark runs — this is real-time, not a screenshot."
 
-Click through the **orange protocol bar** — FIX → WebSocket → REST:
-> "Separate boards per protocol. We never mix them — comparing FIX to REST is
+Click through the **orange protocol bar** — BINARY → WebSocket → REST:
+> "Separate boards per protocol. We never mix them — comparing BINARY to REST is
 > meaningless, TLS and JSON framing alone add tens of microseconds. The contract
 > forbids it, so the UI enforces it."
 

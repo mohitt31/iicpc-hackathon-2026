@@ -1,0 +1,119 @@
+{
+  "_comment": "SINGLE SOURCE OF TRUTH for every headline number on this platform. Frontend, RESULTS.md, and the demo script must read/copy from this file only — never hand-type a number. This kills landing/board/RESULTS drift permanently (Phase 0.3). Every value carries a `source` pointing at committed evidence. `open_items` records known conflicts to reconcile in the Phase 4.4 consistency sweep.",
+  "schema_version": "1.0",
+  "status": "provisional — pending Phase 4.4 consistency sweep + commit of the isolcpus Arch run",
+  "generated": "2026-06-13",
+
+  "naming": {
+    "wire_protocol": "BINARY (SBE v1)",
+    "note": "The wire is a custom binary SBE-style protocol (fixed 4B header + fixed structs), NOT FIX. Every surface says BINARY (SBE v1). FIX is a Phase 3 stretch goal; until it exists, no surface claims FIX."
+  },
+
+  "correctness": {
+    "unit_tests": {
+      "passed": 19,
+      "total": 19,
+      "source": "RESULTS.md §1; bot-engine/verified_runs/ARCH_LINUX_RUN.md §1"
+    },
+    "planted_bug": {
+      "diverge_at_byte": 244,
+      "byte_a": "0x01",
+      "byte_b": "0x05",
+      "message_index": 7,
+      "bug": "LIFO matching instead of FIFO price-time priority",
+      "note": "Buggy journal is the SAME length as the correct one (852 bytes) — a threshold checker passes it; the byte-exact diff catches it.",
+      "source": "RESULTS.md §2; bot-engine/verified_runs/ARCH_LINUX_RUN.md §2"
+    },
+    "byte_exact_replay": {
+      "bytes": 25743624,
+      "orders": 200000,
+      "co_samples": 369785,
+      "interval_us": 50,
+      "deterministic": true,
+      "claim": "Live TCP server output journal == offline replay, byte-for-byte",
+      "source": "bot-engine/verified_runs/ARCH_LINUX_RUN.md §5; RESULTS.md §3; DESIGN_DOCUMENT.md",
+      "note": "A newer isolcpus Arch run (not yet committed) measured 25,759,344 bytes / 200k orders / 309,320 fills / 300,340 CO samples. Commit that run log to verified_runs/ and reconcile this figure in Phase 1/4."
+    }
+  },
+
+  "coordinated_omission": {
+    "run": {
+      "orders": 600000,
+      "stall_ms": 5,
+      "stall_every_orders": 20000,
+      "interval_us": 100,
+      "acked": 600000,
+      "phantom_backfilled": 53584,
+      "host": "Arch Linux 16-core, no isolcpus (shared dev host)"
+    },
+    "percentiles_ns": {
+      "p50":    { "naive": 25887,   "co": 26479,   "ratio": 1.0 },
+      "p90":    { "naive": 80895,   "co": 141823,  "ratio": 1.8 },
+      "p99":    { "naive": 173439,  "co": 3414015, "ratio": 19.7 },
+      "p99_9":  { "naive": 520191,  "co": 4820991, "ratio": 9.3 },
+      "p99_99": { "naive": 5189631, "co": 5251071, "ratio": 1.0 }
+    },
+    "headline_gap": {
+      "value": "19.7x",
+      "basis": "p99 naive 173µs → CO-corrected 3.41ms, the only fully-tabulated run",
+      "host_range": "20x–75x, host-dependent (tracks each host's baseline jitter)",
+      "source": "RESULTS.md §4; bot-engine/verified_runs/ARCH_LINUX_RUN.md §3",
+      "note": "Earlier prose on landing.html/README/ARCHITECTURE cited ~35x, derived from a ~98µs naive baseline with no committed ns table. 19.7x is the defensible canonical figure (judge can verify line-by-line). Reconcile all surfaces to this in Phase 4.4."
+    }
+  },
+
+  "fleet_merge": {
+    "bots": 4,
+    "duration_s": 30,
+    "top_score": 35.67,
+    "sent": 600000,
+    "acked": 600000,
+    "merge_semantics": "max-of-percentiles (worst-case-at-rank), never averaged",
+    "source": "RESULTS.md §6"
+  },
+
+  "spsc_offload": {
+    "dropped": 0,
+    "sent": 300000,
+    "acked": 300000,
+    "note": "Lock-free SPSC ring; CI asserts dropped==0 on every push.",
+    "source": "RESULTS.md §5"
+  },
+
+  "memory_safety": {
+    "asan_ubsan_findings": 0,
+    "suites": [
+      "19/19 unit tests",
+      "2-bot inline + 2-bot SPSC vs null_responder",
+      "4-bot vs reference server + offline replay"
+    ],
+    "source": "RESULTS.md §7"
+  },
+
+  "scale_32bot": {
+    "connected": "32/32",
+    "sent": 1279594,
+    "acked": 1279594,
+    "partial_aborts": 0,
+    "collisions": 0,
+    "oversubscription": "8x (32 bots on 4 cores)",
+    "source": "RESULTS.md §8; bot-engine/verified_runs/ARCH_LINUX_RUN.md §6",
+    "note": "Committed figure 1,279,594. Newer isolcpus run reports 1,279,829 — throughput-bound, varies per run; both show Sent==Acked, 0 lost/double-counted."
+  },
+
+  "latency_design": {
+    "p50_us": 23,
+    "shared_host_gate_us": 84,
+    "baremetal_p99": "design target — low tens of µs, NOT yet measured",
+    "source": "RESULTS.md §Production target / Measurement environment",
+    "note": "Latency µs are host-dependent. macOS pinning is a no-op. Bare-metal isolated-hardware run is Phase 2.4; the isolcpus Arch run shows p50 ≈ 4.9µs naive on isolated cores."
+  },
+
+  "open_items": [
+    "landing.html + docs/DESIGN_DOCUMENT.md cite stale 12,913,116 bytes — fix to 25,743,624 (Phase 4.4).",
+    "landing.html (35.0×) + README + ARCHITECTURE (~35x) — reconcile to 19.7× headline with 20–75× host range (Phase 4.4).",
+    "RESULTS.md §3 labels the 25,743,624-byte run as 100,000 orders; the verified run log says 200,000 — reconcile the order-count label.",
+    "Commit the isolcpus Arch run (live_replay.txt / bots32.txt, currently on aftabnaik19's box) to verified_runs/ and update byte/latency figures from it.",
+    "ARCHITECTURE.md §132 and DESIGN_DOCUMENT.md §418 call the per-protocol boards 'FIX / WS / REST' — fixed to 'BINARY (SBE v1)' in Phase 0.4."
+  ]
+}
