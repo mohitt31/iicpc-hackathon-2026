@@ -741,3 +741,95 @@ Full per-component design notes: `ARCHITECTURE.md`, `bot-engine/README.md`,
 
 *One sentence to leave you with: anyone can draw a leaderboard. We built the one
 that refuses to show you a number it can't stand behind.*
+
+---
+
+## 15. Hostile-Judge Q&A (defense annex)
+
+The questions a systems-literate judge is most likely to push on, and the honest
+answers. Every claim here is sourced to a committed run (`verified_runs/`,
+`canonical.json`) or to the section noted.
+
+### Q1. "No kernel bypass (AF_XDP / DPDK / eBPF)? Real HFT shops use it — isn't that a gap?"
+
+It's a **deliberate deferral**, recorded in §9.1, not an oversight — and it does not
+change the ranking at this scale:
+
+- The platform's job is to rank *contestant engines* by the latency a trading client
+  actually experiences. That ranking is determined by the engine's own matching path,
+  not by our transport's last microsecond. Kernel bypass would lower every engine's
+  measured floor by the same offset; the **ordering is unchanged**.
+- Our measured bare-metal p99 is **7.7 µs** on TCP + `SO_BUSY_POLL` (isolcpus,
+  i7-13620H — `verified_runs/aftab/baremetal_latency.txt`). AF_XDP earns its complexity
+  below ~1 µs receive, which is not the binding constraint here.
+- The hard, rare part of honest latency measurement is **Coordinated-Omission
+  correction**, which lives in userspace regardless of transport. We spent the
+  engineering budget there, where it changes the truth, not on a transport optimization
+  that changes every row equally. (See also §11.8 on why an in-kernel eBPF prober
+  measures a *different quantity* than the trader-visible RTT.)
+
+### Q2. "How do you stop a contestant from gaming the benchmark?"
+
+Three independent layers, each defeating a different cheat:
+
+1. **Attestation (`attester/attest.sh`)** records a hash + version of *exactly what is
+   about to run*, so a contestant cannot submit one binary and have a different one
+   benchmarked. It answers "did we measure what they actually gave us?"
+2. **Integrity gate** — the instrument polices itself: a run whose self-test latency or
+   jitter exceeds bounds is **excluded before scoring, not penalised** (ADR-10). You
+   can't farm a lucky low number out of an unstable run.
+3. **Byte-exact correctness diff** — the engine's output journal is compared
+   byte-for-byte against an offline replay through the gold reference engine. A subtly
+   wrong engine that produces *plausible* numbers is caught: our planted LIFO
+   (price-time-priority) bug diverged at **byte 244** and was flagged, even though both
+   journals were the same length (§6.3). A threshold/sampling checker would have passed it.
+
+A contestant would have to defeat all three simultaneously — submit-bait-and-switch,
+run stably, *and* be byte-exact-correct — at which point they haven't gamed it, they've
+just built a correct fast engine, which is the thing we're trying to find.
+
+### Q3. "Why Firecracker microVMs instead of containers? Containers are simpler."
+
+Because we're measuring **latency**, and the isolation primitive has to not pollute the
+thing being measured (ADR-2, §4.2):
+
+- A container isolates filesystem and namespaces but **shares the host kernel and
+  scheduler**. A noisy neighbour's scheduling decisions leak directly into the
+  contestant's tail latency — the exact number we report. The measurement would be a
+  property of *our* host load, not their engine.
+- A Firecracker microVM brings its **own kernel and its own scheduling boundary**, so
+  the contestant's p99 reflects their engine, not our colocation. Read-only rootfs +
+  `panic=1` + `pci=off` keep the attack surface minimal.
+- Containers remain the *right* tool for **build** isolation (`--network none`, hermetic,
+  no supply-chain fetch — ADR-3), which is about filesystem/network, not scheduling.
+  Different problem, different tool. The evidence that scheduler noise is real: our
+  shared-container runs show inflated CO tails that vanish on isolated cores (§11.7) —
+  precisely the contamination a container would bake into a contestant's score.
+
+### Q4. "Clock sync — how do you trust cross-machine timestamps without PTP?"
+
+We don't need cross-machine sync, because we don't take cross-machine timestamps
+(ADR-8, §11.8):
+
+- Latency is measured as **single-clock RTT**: the bot stamps `intended_send` and
+  `ack_received` on its **own** clock and reports the difference. One clock means there
+  is nothing to synchronize, drift, or mis-configure — a whole class of measurement bugs
+  is removed by construction.
+- The honesty of the **tail** does not come from clock precision; it comes from
+  **Coordinated-Omission correction** back-filling the sends a stalled engine prevented.
+  That's the part that's usually wrong in naive benchmarks, and it's independent of how
+  the clock is read.
+- PTP / hardware NIC timestamping is a **production-roadmap** item (§9.1), useful for
+  decomposing where time goes in a deployed system — not required for a correct,
+  trader-relevant RTT in this benchmark.
+
+### Q5. "Your WebSocket and REST boards — are those real measurements?"
+
+Stated plainly so we're never caught overclaiming: **as of this document, the
+binary-TCP board is real and measured; the WebSocket and REST boards are labeled
+`(Roadmap)`** because their bots are drafted but not yet producing committed measured
+runs. The labels come off **only** when those bots compile, run against a real endpoint,
+and commit Sent==Acked HDR output to `verified_runs/` — same evidence bar as every other
+number here. We would rather show an honest "(Roadmap)" than a synthetic number dressed
+as real. That discipline is the entire point of the platform.
+
