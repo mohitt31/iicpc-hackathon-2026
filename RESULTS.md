@@ -264,18 +264,22 @@ The procedure is in `BAREMETAL_TEST_PLAN.md`; the committed log is in `verified_
 
 ---
 
-## Cross-protocol comparison — binary ≪ WebSocket ≪ REST (measured)
+## Cross-protocol comparison — binary ≪ WebSocket ≪ FIX ≪ REST (measured)
 
-The same SBE order, carried over three transports against the **same** reference
+The same SBE order, carried over **four** transports against the **same** reference
 engine, then measured end-to-end. Per the contract these are ranked on separate
 boards (never mixed) — but side-by-side they make the point an HFT benchmark
 exists to make: the transport, not the engine, dominates once you leave binary.
+FIX 4.4 is the protocol the brief names — and it lands exactly where theory says.
 
 ```
 cd bot-engine/build
 # WebSocket: ws_bot -> ws_adapter -> reference engine
 ./refserver --port 9000 & node ../../platform/wsrest-adapters/ws_adapter.js --port 9001 --engine-port 9000 &
 ./ws_bot   --ip 127.0.0.1 --port 9001 --path /orders --interval-us 200 --duration-sec 5
+# FIX 4.4: fix_bot -> fix_adapter (FIX<->SBE) -> reference engine
+./refserver --port 9020 & node ../../platform/wsrest-adapters/fix_adapter.js --port 9003 --engine-port 9020 &
+./fix_bot  --ip 127.0.0.1 --port 9003 --interval-us 400 --duration-sec 5
 # REST: rest_bot -> rest_adapter (JSON<->SBE) -> reference engine
 ./refserver --port 9010 & node ../../platform/wsrest-adapters/rest_adapter.js --port 9002 --engine-port 9010 &
 ./rest_bot --ip 127.0.0.1 --port 9002 --interval-us 400 --duration-sec 5
@@ -285,12 +289,14 @@ cd bot-engine/build
 |---|---|---|---|
 | **Binary (SBE/TCP)** | **7.7 µs** (isolated bare-metal) | yes | — (4-byte header, parse-by-pointer-cast) |
 | **WebSocket** | **223 µs** | 25,000 / 25,000 | RFC-6455 framing + per-frame masking |
+| **FIX 4.4** | **890 µs** | 12,500 / 12,500 | SOH tag=value text + BodyLength + CheckSum per message |
 | **REST (HTTP/1.1)** | **2,404 µs** | 12,500 / 12,500 | HTTP text headers + JSON encode/parse per order |
 
-REST is **~11× WebSocket** and orders of magnitude over binary. Both the WS and
-REST figures are produced by the committed CI smoke (`wsrest-build.yml`), every
-order round-tripped through the **real** reference engine with `Sent==Acked`
-accounting — not synthetic. **Honest caveat:** the WS/REST numbers are measured
-on a shared CI runner (not an isolated host), so the absolute values carry
-scheduler jitter; the robust, reproducible result is the **ordering** —
-binary ≪ WebSocket ≪ REST — which is exactly why the hot path is binary.
+The ordering is **binary ≪ WebSocket ≪ FIX ≪ REST** — each step is the encoding
+tax, exactly as theory predicts: binary is parse-by-pointer-cast, WS adds a binary
+frame, FIX adds SOH tag=value text + checksum, REST adds full HTTP + JSON. All four
+figures come from the committed CI smoke (`wsrest-build.yml`), every order
+round-tripped through the **real** reference engine with `Sent==Acked` accounting —
+not synthetic. **Honest caveat:** WS/FIX/REST are measured on a shared CI runner
+(not an isolated host), so absolute values carry scheduler jitter; the robust,
+reproducible result is the **ordering** — which is exactly why the hot path is binary.
