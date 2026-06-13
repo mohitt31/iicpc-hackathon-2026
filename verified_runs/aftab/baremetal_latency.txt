@@ -1,0 +1,30 @@
+Model name:                              13th Gen Intel(R) Core(TM) i7-13620H
+cmdline: BOOT_IMAGE=/vmlinuz-linux root=UUID=e4f7b177-3c39-466c-a8e3-2e264b15845a rw zswap.enabled=0 rootfstype=ext4 loglevel=3 quiet isolcpus=0,1 nohz_full=0,1 rcu_nobs=0,1
+powersave
+[Main] TSC calibrated.
+[Gate] SKIPPED (--no-gate)
+[Main] Launching 1 bots, interval 100us, duration 30s, target 127.0.0.1:9600
+[Main] CPU pinning: cores 1 through 1
+[Bot 0] Pinned to core 1
+[Bot 0] SO_BUSY_POLL enabled (50us)
+[Bot 0] SO_TIMESTAMPING enabled (HW on supported NICs, SW fallback)
+
+[Main] All bots finished. Connected: 1/1
+[Main] INTEGRITY: UNCHECKED  (gate disabled)
+[Main] Aggregate: Sent=300000 Acked=300000 Fills=0 Rejects=0 EAGAIN=0 PartialAborts=0 Collisions=0 PoolExhausted=0
+
+=================================================================
+ AGGREGATE ROUND-TRIP LATENCY — 1 bots — Naive vs CO-Corrected (ns)
+=================================================================
+Percentile               Naive      CO-Corrected       Ratio
+-----------------------------------------------------------------
+p50                       5859              6055        1.0x
+p90                       6155              6351        1.0x
+p99                       7671              7899        1.0x
+p99.9                    11295             11495        1.0x
+p99.99                   20175             20447        1.0x
+Max                     110975            111295        1.0x
+=================================================================
+
+Naive sample count:  300000
+CO-corrected count:  300000  (backfilled 0 phantom samples)

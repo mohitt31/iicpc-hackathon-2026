@@ -1,0 +1,34 @@
+[Main] TSC calibrated.
+[Gate] SKIPPED (--no-gate)
+[Main] Launching 4 bots, interval 100us, duration 15s, target 127.0.0.1:9500
+[Main] CPU pinning: cores 1 through 4
+[Bot 2] Pinned to core 3
+[Bot 1] Pinned to core 2
+[Bot 0] Pinned to core 1
+[Bot 3] Pinned to core 4
+[Bot 0] SO_BUSY_POLL enabled (50us)
+[Bot 0] SO_TIMESTAMPING enabled (HW on supported NICs, SW fallback)
+[Bot [Bot 2] Peer closed connection. Stopping.
+1] Peer closed connection. Stopping.
+[Bot 0] recv() fatal error: [Bot 3] recv() fatal error: Connection reset by peer. Stopping.
+Connection reset by peer. Stopping.
+
+[Main] All bots finished. Connected: 4/4
+[Main] INTEGRITY: UNCHECKED  (gate disabled)
+[Main] Aggregate: Sent=195145 Acked=195109 Fills=301750 Rejects=3 EAGAIN=99863 PartialAborts=0 Collisions=0 PoolExhausted=0
+
+=================================================================
+ AGGREGATE ROUND-TRIP LATENCY — 4 bots — Naive vs CO-Corrected (ns)
+=================================================================
+Percentile               Naive      CO-Corrected       Ratio
+-----------------------------------------------------------------
+p50                       5991              6255        1.0x
+p90                       7759             11831        1.5x
+p99                      26031           4194303      161.1x
+p99.9                  2240511           7745535        3.5x
+p99.99                 5431295           9052159        1.7x
+Max                    9633791           9633791        1.0x
+=================================================================
+
+Naive sample count:  195109
+CO-corrected count:  212120  (backfilled 17011 phantom samples)
