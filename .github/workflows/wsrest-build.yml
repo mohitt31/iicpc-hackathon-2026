@@ -41,7 +41,7 @@ jobs:
         run: |
           mkdir -p build && cd build
           cmake ..
-          make -j ws_bot rest_bot refserver
+          make -j ws_bot rest_bot fix_bot refserver
 
       - name: Assert the WS/REST bot binaries exist
         working-directory: bot-engine/build
@@ -88,4 +88,24 @@ jobs:
           assert acked > 0, "FAIL: acked==0 — REST adapter not acking"
           assert acked >= sent * 0.95, f"FAIL: too many unacked ({sent-acked}/{sent})"
           print("✅ REST board is REAL: Sent==Acked over rest_bot -> rest_adapter -> reference-engine")
+          PY
+
+      - name: FIX end-to-end smoke — assert Sent==Acked (real loop, FIX↔SBE↔engine)
+        run: |
+          ./bot-engine/build/refserver --port 9020 --journal /tmp/ref_fix.jrn & RS=$!
+          sleep 1
+          node platform/wsrest-adapters/fix_adapter.js --port 9003 --engine-host 127.0.0.1 --engine-port 9020 & AD=$!
+          sleep 1
+          ./bot-engine/build/fix_bot --ip 127.0.0.1 --port 9003 --interval-us 400 --duration-sec 5 | tee /tmp/fix_out.txt
+          kill -9 $RS $AD 2>/dev/null || true
+          python3 - <<'PY'
+          import re
+          t = open('/tmp/fix_out.txt').read()
+          m = re.search(r'sent=(\d+)\s+acked=(\d+)', t)
+          assert m, "no sent/acked line in fix_bot output:\n" + t
+          sent, acked = int(m.group(1)), int(m.group(2))
+          print(f"sent={sent} acked={acked}")
+          assert acked > 0, "FAIL: acked==0 — FIX adapter not acking (check ClOrdID echo / framing)"
+          assert acked >= sent * 0.95, f"FAIL: too many unacked ({sent-acked}/{sent})"
+          print("✅ FIX board is REAL: Sent==Acked over fix_bot -> fix_adapter -> reference-engine")
           PY
