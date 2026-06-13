@@ -110,8 +110,8 @@ services:
   # swapped for the production Rust/Go gateway with zero frontend change.
   telemetry-gateway:
     build:
-      context: ../tools
-      dockerfile: ../infra/docker/Dockerfile.gateway
+      context: ..
+      dockerfile: infra/docker/Dockerfile.gateway
     command: ["node", "telemetry_server.js", "--port", "8080", "--snapshot-dir", "/telemetry"]
     volumes:
       - telemetry:/telemetry:ro
