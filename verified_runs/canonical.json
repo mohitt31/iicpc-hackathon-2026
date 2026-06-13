@@ -1,7 +1,7 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for every headline number on this platform. Frontend, RESULTS.md, and the demo script must read/copy from this file only — never hand-type a number. This kills landing/board/RESULTS drift permanently (Phase 0.3). Every value carries a `source` pointing at committed evidence. `open_items` records known conflicts to reconcile in the Phase 4.4 consistency sweep.",
   "schema_version": "1.0",
-  "status": "evidence-complete for the measurement claims: isolcpus run committed (verified_runs/aftab/) and bare-metal p99 MEASURED (7.7µs). Remaining is no-hardware surface propagation: push the 76x CO range, the measured bare-metal p99, and the run-dependent byte-count framing into RESULTS.md/README/ARCHITECTURE/frontend, and delete the 'design target' labels (Phase 4.4 round 2).",
+  "status": "evidence-complete for measurement AND sandbox-security claims: bare-metal p99 MEASURED (7.7µs), CO 19.7x-76x, byte-exact IDENTICAL, 2989-bot accounting, all 4 resilience clips captured, and the seccomp boundary PROVEN in the microVM (malicious killed by SIGSYS, PR #55). Surfaces are reconciled. Remaining (2 items): a crisp GOOD-submission-survives capture (Aftab last-mile, demo polish) and the headline 3-physical-node 30k distributed run (needs all 3 machines). Everything else is committed and honest.",
   "generated": "2026-06-13",
   "naming": {
     "wire_protocol": "BINARY (SBE v1)",
@@ -144,12 +144,30 @@
     "note": "Thousands-capable demonstrated on one box: 2989 concurrent connections, 3.6M orders. Under extreme oversubscription the bot THROTTLES (PoolExhausted, EAGAIN) rather than lose or double-count — Sent and Acked stay within 44 across 3.6M (in-flight-at-shutdown + 16 partial aborts), 0 collisions, 0 double-counts. Backpressure made visible, not hidden. Label it exactly as 'scale + accounting under backpressure', not latency. The clean 1000+-per-node run is the distributed Phase 2.3.",
     "source": "verified_runs/aftab/scale_3000bots.txt"
   },
+  "sandbox_security": {
+    "seccomp_enforced": true,
+    "proven_in_microvm": true,
+    "mechanism": "Static PID-1 sandbox/packer/init/seccomp_init.c sets PR_SET_NO_NEW_PRIVS and installs an 85-syscall seccomp-bpf allowlist (default=KILL) before execve(/bin/contestant); pack_rootfs.sh compiles it to /init, run_vm.sh boots init=/init.",
+    "kill_evidence": "3 malicious submissions booted in the real Firecracker microVM and were KILLED by the filter: exitcode=0x1f (SIGSYS, signal 31) with __seccomp_filter in the kernel panic trace. exfil_connect (connect not allowed), read_shadow, syscall_evasion (connect-by-number — proves the intake-lint evasion is futile against syscall-number filtering). forkbomb is rejected earlier at intake (fork banned).",
+    "good_submission_survives": "PENDING crisp capture — the allowlist was tuned via -DSECCOMP_PERMISSIVE (added readlink/readlinkat/ioctl) so a legit TCP engine's syscalls pass, but a clean 'engine runs + serves under seccomp' recording (looping engine) is the Aftab last-mile follow-up. Until it lands, claim 'seccomp KILLS disallowed syscalls (proven)', NOT 'good-vs-malicious validated side-by-side'.",
+    "design_note": "socket/bind/listen/accept ARE allowed (a matching engine must serve TCP); connect is deliberately NOT — outbound exfil dies at the syscall layer (belt) and at the host network (no egress, suspenders). Read-only rootfs + no /etc/shadow round out the layers.",
+    "source": "PR #53 (seccomp_init.c) + PR #55 verified_runs/aftab/firecracker_malicious.txt + verified_runs/firecracker_1.4.cast"
+  },
+  "resilience_clips": {
+    "engine_kill": "DONE — Sent==Acked accounting holds, 0 collisions (verified_runs/aftab/resilience_engine_kill.txt)",
+    "gateway_kill": "DONE — pod self-healed in ~30s, leaderboard back to HTTP 200 (resilience_gateway_kill.txt)",
+    "integrity_gate": "DONE — 512-bot run tripped the gate: self-test p99 3.66ms > 1ms threshold → samples flagged INTEGRITY_FAILED for filtering (resilience_integrity_gate_FAIL.txt)",
+    "node_kill": "DONE — k3d multi-node: killed the gateway's node, a new gateway pod rescheduled onto a surviving node (multinode_nodekill.txt). Labelled 'multi-node mechanics on one host', distinct from the 3-physical-node headline run.",
+    "note": "All 4 resilience clips the brief asks for by name are captured. node-kill used k3d (multi-node on one box) for mechanics; the 3-physical-machine version is the Phase 2.3 session."
+  },
   "open_items": [
     "RESOLVED (Phase 4.4): landing.html, README, ARCHITECTURE, DESIGN reconciled to 19.7x headline (20-75x host range) and 25,743,624 bytes / 200k orders.",
     "RESOLVED (Phase 4.1): PTP 'LOCKED/badge' claims reworded to single-clock RTT across index.html, landing.html, ARCHITECTURE; PTP retained only as a production-roadmap item.",
     "RESOLVED (Phase 0.3): RESULTS.md §3 order-count corrected 100,000 -> 200,000 (matches ARCH_LINUX_RUN.md §5 + canonical); unverifiable 'Fills 155,218' row removed.",
     "RESOLVED (Aftab, PR #40): isolcpus runs committed to verified_runs/aftab/ — live_replay.txt (determinism), co_proof.txt (76.3x CO), baremetal_latency.txt (measured p99 7.7µs), scale_3000bots.txt (2989 connections), resilience_engine_kill.txt, terraform_apply.txt (3 libvirt VMs booted).",
-    "TODO (no-hardware, Phase 4.4 round 2): propagate into all surfaces — (a) CO range 19.7x-76x, (b) MEASURED bare-metal p99 7.7µs + DELETE every 'design target' label, (c) run-dependent byte-count framing (lead with 'IDENTICAL match', not a fixed number), (d) add the 2989-bot scale accounting result.",
-    "TODO (no-hardware): soften the seccomp/'hardened isolation' claims (README §Sandbox isolation, ARCHITECTURE §Component 1) to 'Firecracker microVM + read-only rootfs; seccomp specified, runtime enforcement in progress' until Phase 1.4 builds the enforcing init (see sandbox/test/malicious/README.md)."
+    "RESOLVED (Manish PR #45/#50/#52): CO range 19.7x-76x, measured 7.7µs bare-metal, run-dependent byte framing, 2989-bot accounting, and multi-node-run-NOT-YET-RUN scoping all propagated into the surfaces; 'design target' labels removed.",
+    "RESOLVED (PR #46/#53/#55): seccomp claims first softened, then the enforcing init was BUILT (#53) and PROVEN in the microVM (#55, malicious killed by SIGSYS). See sandbox_security above.",
+    "TODO (Aftab last-mile, KVM): crisp GOOD-submission capture (a looping engine that survives seccomp) so the demo shows good-runs vs malicious-dies side-by-side; + grab bot-fleet pod logs (CrashLoop in k3d).",
+    "TODO (3-machine session): the headline 3-physical-node 30k distributed run (2.3) — join kit ready (verified_runs/aftab/2.3_join_kit.txt). Until then, distributed scale is honestly 'mechanics proven (k3d), single-box accounting ~3k, 3-node capability'."
   ]
 }
