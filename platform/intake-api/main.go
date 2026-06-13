@@ -139,6 +139,15 @@ type server struct {
 
 func subKey(id string) string { return "submission:" + id }
 
+// short returns a log-friendly id prefix without panicking on short ids
+// (real ids are 64-char sha256, but the /state endpoint accepts arbitrary ids).
+func short(id string) string {
+	if len(id) > 12 {
+		return id[:12]
+	}
+	return id
+}
+
 // setState writes the state (and optional extra fields) and bumps updated_at.
 func (s *server) setState(ctx context.Context, id string, st State, extra map[string]any) error {
 	fields := map[string]any{"state": string(st), "updated_at": time.Now().UTC().Format(time.RFC3339)}
@@ -236,7 +245,7 @@ func (s *server) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("RECEIVED %s (%s, %d bytes) → queued", id[:12], hdr.Filename, n)
+	log.Printf("RECEIVED %s (%s, %d bytes) → queued", short(id), hdr.Filename, n)
 	writeJSON(w, http.StatusAccepted, map[string]any{
 		"submission_id": id,
 		"state":         StateReceived,
@@ -311,7 +320,7 @@ func (s *server) handleAdvance(w http.ResponseWriter, r *http.Request, id string
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	log.Printf("%s %s → %s", id[:12], cur, body.State)
+	log.Printf("%s %s → %s", short(id), cur, body.State)
 	writeJSON(w, http.StatusOK, map[string]any{"submission_id": id, "state": body.State})
 }
 
@@ -399,13 +408,13 @@ func (s *server) worker(ctx context.Context) {
 func (s *server) process(ctx context.Context, pipeline, id string) {
 	tarball, err := s.rdb.HGet(ctx, subKey(id), "tarball_path").Result()
 	if err != nil || tarball == "" {
-		log.Printf("process %s: no tarball_path: %v", id[:12], err)
+		log.Printf("process %s: no tarball_path: %v", short(id), err)
 		_ = s.setState(ctx, id, StateRejected, map[string]any{"error": "lost tarball reference"})
 		return
 	}
 
 	_ = s.setState(ctx, id, StateBuilding, nil)
-	log.Printf("BUILDING %s", id[:12])
+	log.Printf("BUILDING %s", short(id))
 
 	args := []string{pipeline, tarball, "--output-dir", filepath.Join(s.cfg.workDir, "submissions")}
 	if s.cfg.skipDocker {
@@ -421,7 +430,7 @@ func (s *server) process(ctx context.Context, pipeline, id string) {
 	out, runErr := cmd.CombinedOutput()
 	if runErr != nil {
 		msg := lastLines(string(out), 4)
-		log.Printf("REJECTED %s: pipeline failed: %v\n%s", id[:12], runErr, msg)
+		log.Printf("REJECTED %s: pipeline failed: %v\n%s", short(id), runErr, msg)
 		_ = s.setState(ctx, id, StateRejected, map[string]any{"error": "build/attest failed: " + msg})
 		return
 	}
@@ -429,7 +438,7 @@ func (s *server) process(ctx context.Context, pipeline, id string) {
 	_ = s.setState(ctx, id, StateAttested, nil)
 	// Hand off to the run/score stage (microVM orchestrator consumes this).
 	s.rdb.LPush(ctx, queueScoring, id)
-	log.Printf("ATTESTED %s → queued for scoring", id[:12])
+	log.Printf("ATTESTED %s → queued for scoring", short(id))
 }
 
 func lastLines(s string, n int) string {

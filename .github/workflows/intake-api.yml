@@ -1,0 +1,46 @@
+name: intake-api
+
+# Build, vet, format-check and unit-test the submission control plane.
+# Tests use in-process miniredis — no external services, fast.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'platform/intake-api/**'
+      - '.github/workflows/intake-api.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'platform/intake-api/**'
+      - '.github/workflows/intake-api.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: build · vet · test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: platform/intake-api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: platform/intake-api/go.sum
+
+      - name: gofmt (must be clean)
+        run: test -z "$(gofmt -l .)" || { echo "::error::unformatted files:"; gofmt -l .; exit 1; }
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test (race + coverage)
+        run: go test -race -cover ./...
