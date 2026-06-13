@@ -110,13 +110,14 @@ static bool post_order(int fd, const std::string& host, uint16_t port,
 //  transport. Flags mirror the other bots.
 // ============================================================================
 int main(int argc, char** argv) {
-    std::string host="127.0.0.1"; uint16_t port=8082;
+    std::string host="127.0.0.1", snapdir; uint16_t port=8082;
     uint64_t interval_us=100, duration_sec=5;
     for(int i=1;i<argc;i++){ std::string a=argv[i];
         if(a=="--ip"&&i+1<argc) host=argv[++i];
         else if(a=="--port"&&i+1<argc) port=(uint16_t)atoi(argv[++i]);
         else if(a=="--interval-us"&&i+1<argc) interval_us=strtoull(argv[++i],0,10);
         else if(a=="--duration-sec"&&i+1<argc) duration_sec=strtoull(argv[++i],0,10);
+        else if(a=="--snapshot-dir"&&i+1<argc) snapdir=argv[++i];
     }
 
     int fd=http_connect(host,port);
@@ -132,6 +133,26 @@ int main(int argc, char** argv) {
     uint64_t seq=0, sent=0, acked=0;
     char body[256];
 
+    // Optional per-second HDR snapshot CSV — same 15-column format the gateway
+    // ingests, so the REST board shows REAL measured REST latency live.
+    FILE* snap=nullptr; int64_t start_ns=now_ns(), last_snap=start_ns;
+    if(!snapdir.empty()){
+        std::string sp=snapdir+"/rest_bot.csv"; snap=fopen(sp.c_str(),"w");
+        if(snap) fprintf(snap,"elapsed_sec,sent,acked,naive_p50,naive_p90,naive_p99,naive_p99_9,naive_p99_99,naive_max,co_p50,co_p90,co_p99,co_p99_9,co_p99_99,co_max\n");
+    }
+    auto write_snap=[&]{
+        if(!snap) return;
+        fprintf(snap,"%lld,%llu,%llu,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld\n",
+            (long long)((now_ns()-start_ns)/1000000000LL),(unsigned long long)sent,(unsigned long long)acked,
+            (long long)hdr_value_at_percentile(naive,50),(long long)hdr_value_at_percentile(naive,90),
+            (long long)hdr_value_at_percentile(naive,99),(long long)hdr_value_at_percentile(naive,99.9),
+            (long long)hdr_value_at_percentile(naive,99.99),(long long)hdr_value_at_percentile(naive,100),
+            (long long)hdr_value_at_percentile(co,50),(long long)hdr_value_at_percentile(co,90),
+            (long long)hdr_value_at_percentile(co,99),(long long)hdr_value_at_percentile(co,99.9),
+            (long long)hdr_value_at_percentile(co,99.99),(long long)hdr_value_at_percentile(co,100));
+        fflush(snap);
+    };
+
     while(now_ns()<t_end){
         intended += interval_ns;
         while(now_ns()<intended){ /* busy-wait to intended send time */ }
@@ -141,10 +162,12 @@ int main(int argc, char** argv) {
         hdr_record_value(naive,latency);
         hdr_record_corrected_value(co,latency,interval_ns);   // CO back-fill
         sent++; if(ok) acked++;
+        if(snap && now_ns()-last_snap>=1000000000LL){ write_snap(); last_snap=now_ns(); }
         if(!ok){ /* draft: on failure, reconnect once */
             ::close(fd); fd=http_connect(host,port); if(fd<0) break;
         }
     }
+    write_snap(); if(snap) fclose(snap);
 
     printf("[rest_bot DRAFT] proto=REST sent=%llu acked=%llu  naive_p99=%lld ns  co_p99=%lld ns\n",
         (unsigned long long)sent,(unsigned long long)acked,

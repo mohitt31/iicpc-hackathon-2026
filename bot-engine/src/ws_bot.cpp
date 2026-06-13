@@ -171,7 +171,7 @@ static bool ws_send_binary(int fd, const uint8_t* payload, size_t len) {
 //  Flags mirror bot.cpp: --ip --port --path --bots --interval-us --duration-sec
 // ============================================================================
 int main(int argc, char** argv) {
-    std::string host="127.0.0.1", path="/orders"; uint16_t port=8081;
+    std::string host="127.0.0.1", path="/orders", snapdir; uint16_t port=8081;
     uint64_t interval_us=100, duration_sec=5;
     for(int i=1;i<argc;i++){ std::string a=argv[i];
         if(a=="--ip"&&i+1<argc) host=argv[++i];
@@ -179,6 +179,7 @@ int main(int argc, char** argv) {
         else if(a=="--path"&&i+1<argc) path=argv[++i];
         else if(a=="--interval-us"&&i+1<argc) interval_us=strtoull(argv[++i],0,10);
         else if(a=="--duration-sec"&&i+1<argc) duration_sec=strtoull(argv[++i],0,10);
+        else if(a=="--snapshot-dir"&&i+1<argc) snapdir=argv[++i];
     }
 
     int fd = ws_connect(host,port,path);
@@ -245,6 +246,27 @@ int main(int argc, char** argv) {
         sbe.erase(sbe.begin(), sbe.begin()+p);
     };
 
+    // Optional per-second HDR snapshot CSV — same 15-column format the binary
+    // bot writes and the telemetry gateway ingests, so the WS board can show
+    // REAL measured WS latency on the live leaderboard (not synthetic).
+    FILE* snap=nullptr; int64_t start_ns=now_ns(), last_snap=start_ns;
+    if(!snapdir.empty()){
+        std::string sp=snapdir+"/ws_bot.csv"; snap=fopen(sp.c_str(),"w");
+        if(snap) fprintf(snap,"elapsed_sec,sent,acked,naive_p50,naive_p90,naive_p99,naive_p99_9,naive_p99_99,naive_max,co_p50,co_p90,co_p99,co_p99_9,co_p99_99,co_max\n");
+    }
+    auto write_snap=[&]{
+        if(!snap) return;
+        fprintf(snap,"%lld,%llu,%llu,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld,%lld\n",
+            (long long)((now_ns()-start_ns)/1000000000LL),(unsigned long long)sent,(unsigned long long)acked,
+            (long long)hdr_value_at_percentile(naive,50),(long long)hdr_value_at_percentile(naive,90),
+            (long long)hdr_value_at_percentile(naive,99),(long long)hdr_value_at_percentile(naive,99.9),
+            (long long)hdr_value_at_percentile(naive,99.99),(long long)hdr_value_at_percentile(naive,100),
+            (long long)hdr_value_at_percentile(co,50),(long long)hdr_value_at_percentile(co,90),
+            (long long)hdr_value_at_percentile(co,99),(long long)hdr_value_at_percentile(co,99.9),
+            (long long)hdr_value_at_percentile(co,99.99),(long long)hdr_value_at_percentile(co,100));
+        fflush(snap);
+    };
+
     while(now_ns() < t_end){
         intended += interval_ns;
         int64_t spin; while((spin=now_ns()) < intended) { /* busy-wait to intended */ }
@@ -254,9 +276,11 @@ int main(int argc, char** argv) {
         if(!ws_send_binary(fd,buf,FRAME)) break;
         sent++;
         drain_acks();                                       // non-blocking RX, doesn't stall the cadence
+        if(snap && now_ns()-last_snap>=1000000000LL){ write_snap(); last_snap=now_ns(); }
     }
     int64_t drain_end = now_ns()+200000000LL;               // let in-flight acks land (~200ms)
     while(now_ns()<drain_end && acked<sent){ drain_acks(); }
+    write_snap(); if(snap) fclose(snap);
 
     printf("[ws_bot] proto=WEBSOCKET sent=%llu acked=%llu  naive_p99=%lld ns  co_p99=%lld ns\n",
         (unsigned long long)sent,(unsigned long long)acked,
