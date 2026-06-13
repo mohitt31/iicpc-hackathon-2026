@@ -1,0 +1,11 @@
+=== 2.3 multi-node join kit ===
+k3s server (this box) Tailscale IP: 
+node-token: K10eac846e4fbfc49374a9419372c5e0fd4c2d4db43294f2dc95fe020b56cd15a6f::server:e31fcf7e39f98f714ca2090308e42af5
+
+Tailscale Authentication URL (Action Required):
+  https://login.tailscale.com/a/1f2a5bb019540
+
+On each OTHER machine (Manish, Mohit), after 'tailscale up', run:
+  curl -sfL https://get.k3s.io | K3S_URL=https://<TS_IP>:6443 K3S_TOKEN=K10eac846e4fbfc49374a9419372c5e0fd4c2d4db43294f2dc95fe020b56cd15a6f::server:e31fcf7e39f98f714ca2090308e42af5 sh -
+Then on this box: sudo k3s kubectl get nodes -o wide   # should show 3 nodes Ready
+Then: sudo k3s kubectl apply -f infra/k8s/ ; scale bots to ~10k/node
