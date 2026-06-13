@@ -1,0 +1,91 @@
+[Main] TSC calibrated.
+[Gate] Running integrity self-test (1000 orders @ 50us)...
+[Gate] PASSED: bot self-test p99 = 628735ns (threshold 1000000ns)
+[Main] Launching 64 bots, interval 50us, duration 10s, target 127.0.0.1:9700
+[Main] CPU pinning: cores 1 through 64
+[Bot 1] Pinned to core 2
+[Bot 0] Pinned to core 1
+[Bot 4] Pinned to core 5
+[Bot 3] Pinned to core 4
+[Bot 2] Pinned to core 3
+[Bot 6] Pinned to core 7
+[Bot 0] SO_BUSY_POLL enabled (50us)
+[Bot 0] SO_TIMESTAMPING enabled (HW on supported NICs, SW fallback)
+[Bot 8] Pinned to core 9
+[Bot 9] Pinned to core 10
+[Bot 5] Pinned to core 6
+[Bot 10] Pinned to core 11
+[Bot 7] Pinned to core 8
+[Bot 11] Pinned to core 12
+[Bot 12] Pinned to core 13
+[Bot 13] Pinned to core 14
+[Bot 14] Pinned to core 15
+[Bot 15] WARNING: could not pin to core 16
+[Bot 16] WARNING: could not pin to core 17
+[Bot 18[Bot 17] WARNING: could not pin to core 18
+] WARNING: could not pin to core 19
+[Bot 19] WARNING: could not pin to core 20
+[Bot 21] WARNING: could not pin to core 22
+[Bot 24] WARNING: could not pin to core [Bot 20] WARNING: could not pin to core 21
+25[Bot 22] WARNING: could not pin to core 23
+[Bot 23] WARNING: could not pin to core 24
+
+[Bot 25] WARNING: could not pin to core 26
+[Bot 26] WARNING: could not pin to core 27
+[Bot 27] WARNING: could not pin to core 28
+[Bot 28] WARNING: could not pin to core 29
+[Bot 34] WARNING: could not pin to core 35
+[Bot 37] WARNING: could not pin to core 38
+[Bot 41] WARNING: could not pin to core 42
+[Bot 31] WARNING: could not pin to core 32
+[Bot 42] WARNING: could not pin to core 43
+[Bot 32[Bot 43] WARNING: could not pin to core 44
+[Bot 33] WARNING: could not pin to core 34
+[Bot 47] WARNING: could not pin to core 48
+[Bot 36] WARNING: could not pin to core 37
+[Bot 48] WARNING: could not pin to core 49
+[Bot 40] WARNING: could not pin to core 41
+[Bot 51] WARNING: could not pin to core 52
+[Bot 50] WARNING: could not pin to core 51
+[Bot 49] WARNING: could not pin to core 50
+[Bot 46] WARNING: could not pin to core 47
+[Bot 58] WARNING: could not pin to core 59
+[Bot 29] WARNING: could not pin to core 30
+[Bot 60] WARNING: could not pin to core [Bot [Bot 44] WARNING: could not pin to core 45
+38] WARNING: could not pin to core [Bot 57] WARNING: could not pin to core 58
+[Bot 39] WARNING: could not pin to core 40
+[Bot 45] WARNING: could not pin to core 46
+[Bot 54] WARNING: could not pin to core 55
+[Bot 52] WARNING: could not pin to core 53
+[Bot 59] WARNING: could not pin to core 60
+[Bot 30] WARNING: could not pin to core 31
+] WARNING: could not pin to core 33
+[Bot 53] WARNING: could not pin to core 54
+[Bot 61] WARNING: could not pin to core 62
+61
+[Bot 63] WARNING: could not pin to core 64
+[Bot 62] WARNING: could not pin to core 63
+[Bot 55] WARNING: could not pin to core 56
+[Bot 56] WARNING: could not pin to core 57
+[Bot 35] WARNING: could not pin to core 36
+39
+
+[Main] All bots finished. Connected: 64/64
+[Main] INTEGRITY: PASSED  (gate p99 = 628735ns)
+[Main] Aggregate: Sent=524436 Acked=524436 Fills=0 Rejects=0 EAGAIN=8363391 PartialAborts=0 Collisions=0 PoolExhausted=1554554
+
+=================================================================
+ AGGREGATE ROUND-TRIP LATENCY — 64 bots — Naive vs CO-Corrected (ns)
+=================================================================
+Percentile               Naive      CO-Corrected       Ratio
+-----------------------------------------------------------------
+p50                     156799        3441426431    21948.0x
+p90                  675807231       11173625855       16.5x
+p99                10292822015       16517169151        1.6x
+p99.9              14269022207       18824036351        1.3x
+p99.99             15560867839       20015218687        1.3x
+Max                15804137471       20753416191        1.3x
+=================================================================
+
+Naive sample count:  524436
+CO-corrected count:  10270558841  (backfilled 10270034405 phantom samples)
