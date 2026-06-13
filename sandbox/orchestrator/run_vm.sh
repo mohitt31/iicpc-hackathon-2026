@@ -50,7 +50,7 @@ echo "  API Socket: $API_SOCKET"
 
 # Start Firecracker in the background
 rm -f "$API_SOCKET"
-"$FC_BIN" --api-sock "$API_SOCKET" > "$LOG_FILE" 2>&1 &
+"$FC_BIN" --api-sock "$API_SOCKET" &
 FC_PID=$!
 
 cleanup() {

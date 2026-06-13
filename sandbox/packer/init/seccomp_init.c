@@ -118,7 +118,7 @@ static int install_filter(void) {
         /* fd / file metadata (rootfs is read-only; openat damage is bounded) */
         ALLOW(fcntl), ALLOW(dup), ALLOW(dup2), ALLOW(dup3), ALLOW(pipe2),
         ALLOW(openat), ALLOW(fstat), ALLOW(newfstatat), ALLOW(statx),
-        ALLOW(getdents64), ALLOW(uname), ALLOW(statfs),
+        ALLOW(getdents64), ALLOW(uname), ALLOW(statfs), ALLOW(readlink), ALLOW(readlinkat), ALLOW(ioctl),
         /* timing */
         ALLOW(clock_gettime), ALLOW(clock_getres), ALLOW(clock_nanosleep),
         ALLOW(nanosleep), ALLOW(gettimeofday),
