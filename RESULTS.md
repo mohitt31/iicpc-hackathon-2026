@@ -41,7 +41,7 @@ DIVERGE @ byte 244: A=0x01 B=0x05
 
 ## 3. Correctness - live TCP server == offline replay, byte-for-byte
 
-The strongest claim in the repo: 100,000 orders fired over TCP at the
+The strongest claim in the repo: 200,000 orders fired over TCP at the
 reference server, its journal then compared against an offline replay of the
 captured input through the same matching core:
 
@@ -57,9 +57,9 @@ standard cannot disagree with itself.
 
 | Live run accounting | Value |
 |---|---|
-| Orders sent | 100,000 |
-| Orders acked | 100,000 |
-| Fills returned | 155,218 |
+| Orders sent | 200,000 |
+| Orders acked | 200,000 |
+| Naive samples / CO-corrected | 200,000 / 369,785 |
 | Partial sends / collisions / pool exhaustion | 0 / 0 / 0 |
 
 ## 4. The centrepiece - Coordinated Omission proof (600k orders)

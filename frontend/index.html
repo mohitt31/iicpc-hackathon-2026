@@ -162,7 +162,7 @@
     <div class="brand"><span class="logo"></span> IICPC · Summer Hackathon 2026</div>
     <div class="top-right">
       <a class="stat-pill" href="landing.html" style="text-decoration:none;color:var(--dim)"><span class="d" style="background:var(--cool);box-shadow:0 0 10px var(--cool)"></span>3D&nbsp;INTRO</a>
-      <div class="stat-pill" id="ptpPill"><span class="d" style="background:var(--good)"></span><span id="ptpTxt">PTP LOCKED</span></div>
+      <div class="stat-pill" id="ptpPill"><span class="d" style="background:var(--good)"></span><span id="ptpTxt">SINGLE-CLOCK RTT</span></div>
       <div class="stat-pill live" id="srcPill"><span class="d"></span><span>DEMO · SBE v1</span></div>
     </div>
   </div>
@@ -480,7 +480,7 @@ function render(deltas){
       requestAnimationFrame(()=>{el.style.transition='transform .55s cubic-bezier(.2,.7,.3,1)';el.style.transform='';});}});
 
   const anyHold=PROTOCOLS.some(p=>(deltas[p]||[]).some(r=>r.ptp.sync_state==='HOLDOVER'));
-  document.getElementById('ptpTxt').textContent=anyHold?'PTP · 1 HOLDOVER':'PTP LOCKED';
+  document.getElementById('ptpTxt').textContent=anyHold?'SINGLE-CLOCK · 1 OUTLIER':'SINGLE-CLOCK RTT';
   document.getElementById('ptpPill').querySelector('.d').style.background=anyHold?'var(--warn)':'var(--good)';
   document.getElementById('tick').textContent='↻ '+new Date().toLocaleTimeString('en-IN',{hour12:false});
 }
