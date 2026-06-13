@@ -1,93 +1,20 @@
-NAME                                 READY   STATUS             RESTARTS      AGE    IP           NODE        NOMINATED NODE   READINESS GATES
-leaderboard-67764c8b96-gvtbc         1/1     Running            0             3m3s   10.42.0.10   archlinux   <none>           <none>
-leaderboard-67764c8b96-jh8ft         1/1     Running            0             3m3s   10.42.0.9    archlinux   <none>           <none>
-telemetry-gateway-544f575545-9mmtb   0/1     CrashLoopBackOff   4 (70s ago)   3m3s   10.42.0.11   archlinux   <none>           <none>
+NAME                                 READY   STATUS    RESTARTS   AGE     IP           NODE        NOMINATED NODE   READINESS GATES
+leaderboard-67764c8b96-rjbtv         1/1     Running   0          3m7s    10.42.0.17   archlinux   <none>           <none>
+leaderboard-67764c8b96-sr9qt         1/1     Running   0          3m7s    10.42.0.19   archlinux   <none>           <none>
+telemetry-gateway-544f575545-x4m2r   1/1     Running   0          2m42s   10.42.0.20   archlinux   <none>           <none>
 NAME                       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                  AGE    CONTAINERS   IMAGES                                     SELECTOR
-daemonset.apps/bot-fleet   0         0         0       0            0           node-role.hft/benchmark=true   3m3s   bot          ghcr.io/mohitt31/iicpc-bot-engine:latest   app=bot-fleet
+daemonset.apps/bot-fleet   0         0         0       0            0           node-role.hft/benchmark=true   3m7s   bot          ghcr.io/mohitt31/iicpc-bot-engine:latest   app=bot-fleet
 
 NAME                                READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS   IMAGES                                            SELECTOR
-deployment.apps/leaderboard         2/2     2            2           3m3s   web          ghcr.io/mohitt31/iicpc-leaderboard:latest         app=leaderboard
-deployment.apps/telemetry-gateway   0/1     1            0           3m3s   gateway      ghcr.io/mohitt31/iicpc-telemetry-gateway:latest   app=telemetry-gateway
+deployment.apps/leaderboard         2/2     2            2           3m7s   web          ghcr.io/mohitt31/iicpc-leaderboard:latest         app=leaderboard
+deployment.apps/telemetry-gateway   1/1     1            1           3m7s   gateway      ghcr.io/mohitt31/iicpc-telemetry-gateway:latest   app=telemetry-gateway
 
 NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE    SELECTOR
-service/leaderboard         LoadBalancer   10.43.126.170   <pending>     80:31274/TCP   3m3s   app=leaderboard
-service/telemetry-gateway   ClusterIP      10.43.70.237    <none>        8080/TCP       3m3s   app=telemetry-gateway
---- describe any non-Running pod ---
-Name:             telemetry-gateway-544f575545-9mmtb
-Namespace:        hft-bench
-Priority:         0
-Service Account:  default
-Node:             archlinux/192.168.31.117
-Start Time:       Sat, 13 Jun 2026 19:17:30 +0530
-Labels:           app=telemetry-gateway
-                  pod-template-hash=544f575545
-Annotations:      <none>
-Status:           Running
-IP:               10.42.0.11
-IPs:
-  IP:           10.42.0.11
-Controlled By:  ReplicaSet/telemetry-gateway-544f575545
-Containers:
-  gateway:
-    Container ID:  containerd://841da63e28069b34b10e6cca1e1ae2af319c83f395ff1286842175bf971af927
-    Image:         ghcr.io/mohitt31/iicpc-telemetry-gateway:latest
-    Image ID:      ghcr.io/mohitt31/iicpc-telemetry-gateway@sha256:be4e717c390b6d09c003ec4203386c1a7fe93be5b3ec9097e782d0c93eb9afd0
-    Port:          8080/TCP (ws)
-    Host Port:     0/TCP (ws)
-    Args:
-      node
-      telemetry_server.js
-      --port=8080
-      --snapshot-dir=/telemetry
-    State:          Waiting
-      Reason:       CrashLoopBackOff
-    Last State:     Terminated
-      Reason:       Error
-      Exit Code:    1
-      Started:      Sat, 13 Jun 2026 19:19:23 +0530
-      Finished:     Sat, 13 Jun 2026 19:19:23 +0530
-    Ready:          False
-    Restart Count:  4
-    Limits:
-      cpu:     1
-      memory:  512Mi
-    Requests:
-      cpu:        500m
-      memory:     256Mi
-    Readiness:    http-get http://:8080/health delay=3s timeout=1s period=5s #success=1 #failure=3
-    Environment:  <none>
-    Mounts:
-      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-8lp9q (ro)
-Conditions:
-  Type                        Status
-  PodReadyToStartContainers   True 
-  Initialized                 True 
-  Ready                       False 
-  ContainersReady             False 
-  PodScheduled                True 
-Volumes:
-  kube-api-access-8lp9q:
-    Type:                    Projected (a volume that contains injected data from multiple sources)
-    TokenExpirationSeconds:  3607
-    ConfigMapName:           kube-root-ca.crt
-    Optional:                false
-    DownwardAPI:             true
-QoS Class:                   Burstable
-Node-Selectors:              <none>
-Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
-                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
-Events:
-  Type     Reason     Age                  From               Message
-  ----     ------     ----                 ----               -------
-  Normal   Scheduled  3m3s                 default-scheduler  Successfully assigned hft-bench/telemetry-gateway-544f575545-9mmtb to archlinux
-  Normal   Pulled     2m46s                kubelet            spec.containers{gateway}: Successfully pulled image "ghcr.io/mohitt31/iicpc-telemetry-gateway:latest" in 17.165s (17.165s including waiting). Image size: 57009515 bytes.
-  Normal   Pulled     2m43s                kubelet            spec.containers{gateway}: Successfully pulled image "ghcr.io/mohitt31/iicpc-telemetry-gateway:latest" in 2.438s (2.438s including waiting). Image size: 57009515 bytes.
-  Normal   Pulled     2m30s                kubelet            spec.containers{gateway}: Successfully pulled image "ghcr.io/mohitt31/iicpc-telemetry-gateway:latest" in 1.07s (1.07s including waiting). Image size: 57009515 bytes.
-  Normal   Pulled     2m1s                 kubelet            spec.containers{gateway}: Successfully pulled image "ghcr.io/mohitt31/iicpc-telemetry-gateway:latest" in 1.049s (1.049s including waiting). Image size: 57009515 bytes.
-  Normal   Pulling    72s (x5 over 3m3s)   kubelet            spec.containers{gateway}: Pulling image "ghcr.io/mohitt31/iicpc-telemetry-gateway:latest"
-  Normal   Created    71s (x5 over 2m46s)  kubelet            spec.containers{gateway}: Container created
-  Normal   Started    71s (x5 over 2m46s)  kubelet            spec.containers{gateway}: Container started
-  Normal   Pulled     71s                  kubelet            spec.containers{gateway}: Successfully pulled image "ghcr.io/mohitt31/iicpc-telemetry-gateway:latest" in 924ms (924ms including waiting). Image size: 57009515 bytes.
-  Warning  BackOff    68s (x9 over 2m43s)  kubelet            spec.containers{gateway}: Back-off restarting failed container gateway in pod telemetry-gateway-544f575545-9mmtb_hft-bench(6ba02ae4-8d25-482a-a7c4-3f4b2226a850)
-leaderboard nodePort: 31274
+service/leaderboard         LoadBalancer   10.43.152.136   <pending>     80:31075/TCP   3m7s   app=leaderboard
+service/telemetry-gateway   ClusterIP      10.43.99.54     <none>        8080/TCP       3m7s   app=telemetry-gateway
+[gateway] IICPC telemetry gateway listening on :8080
+[gateway] leaderboard feed → ws://localhost:8080/leaderboard/deltas
+[gateway] cadence 2500ms · mode: LIVE_CSV from /telemetry (falls back to DEMO if absent/empty)
+[gateway] current source label: DEMO
+[gateway] note: snapshot-dir "/telemetry" not found — serving DEMO until it appears
 leaderboard HTTP 200
