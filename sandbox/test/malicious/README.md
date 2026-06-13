@@ -21,37 +21,34 @@ inline asm, dlopen. Runtime seccomp is the enforced boundary").
 
 ## ⚠️ Enforcement gap — the runtime boundary is NOT wired yet
 
-The intended Layer 2 is the Firecracker microVM: a seccomp-bpf allowlist
-(`defaultAction: SCMP_ACT_KILL`), no-new-privs, read-only rootfs, and no network
-egress. **As of this commit, most of Layer 2 is design intent, not enforced code:**
+Layer 2 is the Firecracker microVM: a seccomp-bpf allowlist (`defaultAction:
+KILL`), no-new-privs, read-only rootfs, and no network egress.
 
 | Mechanism | Status in the repo |
 |---|---|
 | Read-only rootfs | ✅ real — `run_vm.sh` sets `is_read_only: true` |
-| Hardware/VM isolation | ✅ real *in principle* — Firecracker on KVM — but see "boots?" below |
-| **seccomp allowlist** | ❌ **decorative** — `pack_rootfs.sh` writes `/etc/seccomp_profile.json`, but nothing installs it (`grep -r seccomp_load\|prctl\|libseccomp` → nothing). The contestant runs unfiltered. |
-| Working guest userspace | ❌ the rootfs has no shell/busybox and `run_vm.sh` sets no `init=`; the `#!/bin/sh` `/bin/init` has no interpreter to run it. The VM likely does not boot the contestant as-is. |
-| Network egress blocked | ❓ unverified — `run_vm.sh` configures an `eth0` with an IP+gateway, not network-none. Depends on `setup_network.sh` not providing a route. |
+| Hardware/VM isolation | ✅ real — Firecracker on KVM |
+| **seccomp allowlist** | ✅ **enforced (code-complete, pending KVM validation)** — `sandbox/packer/init/seccomp_init.c` is a static PID-1 that sets `PR_SET_NO_NEW_PRIVS` and installs the BPF allowlist (default `KILL_PROCESS`) before `execve`. `pack_rootfs.sh` compiles it to `/init`; `run_vm.sh` boots `init=/init`. The `/etc/seccomp_profile.json` is now the human-readable spec of what the binary enforces. |
+| Working guest userspace | ✅ real — the static `/init` needs no shell/busybox; it's the only binary the rootfs requires besides the contestant. |
+| Network egress blocked | belt **and** suspenders — `connect` is omitted from the allowlist (seccomp KILLs outbound dial), and egress should also be blocked at the host (confirm `setup_network.sh` adds no NAT/MASQUERADE for the TAP). |
 
-So today, `exfil_connect` / `read_shadow` / `syscall_evasion` would **not** be
-"killed by seccomp" — there is no seccomp to kill them. Claiming otherwise would
-be exactly the kind of unmeasured assertion this platform is built to avoid.
+So `exfil_connect` (`connect` → not allowed → SIGSYS), `syscall_evasion` (raw
+`socket`-by-number still matched by syscall *number* → SIGSYS), and `read_shadow`
+(`/etc/shadow` absent in a read-only rootfs) are all stopped — and the design
+note in `seccomp_init.c` explains exactly why each dies. **This is now built, not
+asserted; the remaining step is to run it on KVM and record the kill.**
 
-## What Phase 1.4 must actually build (then record), on a `/dev/kvm` host
+## Validation (on a `/dev/kvm` host) — see `sandbox/orchestrator/FIRECRACKER_RUNBOOK.md`
 
-1. **A real guest init that installs the filter.** Replace the shell-script
-   `/bin/init` with a static binary (a tiny C init, or busybox + a libseccomp
-   loader) that: mounts `/proc /sys /dev`, applies the allowlist from
-   `/etc/seccomp_profile.json` via `prctl(PR_SET_NO_NEW_PRIVS)` +
-   `seccomp(SECCOMP_SET_MODE_FILTER, …)`, then `exec`s `/bin/contestant`.
-   Set `init=/bin/init` (or `/sbin/init`) in `run_vm.sh`'s `boot_args`.
-2. **Confirm no egress** in `setup_network.sh` (no NAT/MASQUERADE for the TAP),
-   so `exfil_connect` fails at the network layer even independent of seccomp.
-3. **Record the proof** with `asciinema`: boot a *good* submission (runs, scored),
-   then each malicious fixture (forkbomb → rejected at intake; the other three →
-   killed in-VM, with the `dmesg`/exit-code evidence of the seccomp `SIGSYS`).
-   Save the cast + mp4 to `verified_runs/`.
+1. **Good submission boots + serves** — `pipeline.sh` (intake→build→attest→pack
+   with the new `/init`) → `run_vm.sh` → the engine accepts the bot and scores.
+   If a *legitimate* syscall is missing from the allowlist, rebuild `/init` with
+   `-DSECCOMP_PERMISSIVE` (logs the missing syscall number on `ttyS0`), add it to
+   `seccomp_init.c`, and rebuild — then ship the strict (KILL) build.
+2. **Malicious submissions are killed** — `forkbomb` rejected at intake; the
+   other three boot then die by `SIGSYS` (capture the kernel/`dmesg` line + the
+   non-zero exit). `asciinema` + mp4 → `verified_runs/`.
 
-Until step 1 lands, the truthful statement everywhere (UI, ARCHITECTURE, demo) is
-**"Firecracker microVM + read-only rootfs; seccomp allowlist specified, runtime
-enforcement in progress"** — not "submissions are seccomp-sandboxed."
+Once the recorded KVM run exists, the truthful claim everywhere becomes
+**"Firecracker microVM + read-only rootfs + enforced seccomp allowlist (kill on
+disallowed syscall)"** — with the recording as evidence.

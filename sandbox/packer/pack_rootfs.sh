@@ -67,36 +67,51 @@ echo "root:x:0:0:root:/:/bin/sh" > "$MOUNT_DIR/etc/passwd"
 echo "root:x:0:" > "$MOUNT_DIR/etc/group"
 echo "contestant-microvm" > "$MOUNT_DIR/etc/hostname"
 
-# Create init script that runs the contestant
-cat > "$MOUNT_DIR/bin/init" <<'INIT_EOF'
-#!/bin/sh
-# Minimal init for Firecracker microVM
-# Mounts proc/sys, then exec's the contestant binary
+# ── Compile the seccomp-ENFORCING init (the real security boundary) ─────────
+# Replaces the old decorative shell-script init (the minimal rootfs has no
+# shell, so that never ran, and nothing installed the seccomp filter). This
+# static binary becomes PID 1: it mounts /proc,/sys,/dev, sets no-new-privs,
+# installs the seccomp-bpf allowlist (default = KILL), then exec's the
+# contestant — which inherits the filter. Source + allowlist rationale:
+# sandbox/packer/init/seccomp_init.c. Booted via init=/init (see run_vm.sh).
+INIT_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/init/seccomp_init.c"
+if [[ ! -f "$INIT_SRC" ]]; then
+    echo "PACK FAILED: missing seccomp init source: $INIT_SRC" >&2
+    exit 1
+fi
+echo "[Packer] Compiling static seccomp init (the enforced boundary)..."
+# -static so the rootfs needs no shared libs. Add -DSECCOMP_PERMISSIVE for
+# bring-up (ENOSYS + logs missing syscalls instead of KILL) — see the .c header.
+if ! gcc -O2 -static -Wall -o "$MOUNT_DIR/init" "$INIT_SRC" 2>/tmp/seccomp_init_build.log; then
+    echo "PACK FAILED: could not build seccomp init:" >&2
+    cat /tmp/seccomp_init_build.log >&2
+    exit 1
+fi
+chmod +x "$MOUNT_DIR/init"
 
-mount -t proc proc /proc
-mount -t sysfs sys /sys
-mount -t devtmpfs devtmpfs /dev
-
-echo "[microvm] Starting contestant engine..."
-exec /bin/contestant "$@"
-INIT_EOF
-chmod +x "$MOUNT_DIR/bin/init"
-
-# ── Generate seccomp profile reference ──────────────────────
+# ── Seccomp profile: human-readable spec of what /init ENFORCES ─────────────
+# (Documentation only — the authority is the BPF filter compiled into /init.
+# Keep this in sync with sandbox/packer/init/seccomp_init.c.)
 cat > "$MOUNT_DIR/etc/seccomp_profile.json" <<'SECCOMP_EOF'
 {
-    "comment": "Seccomp-bpf allowlist for contestant microVM (§8)",
-    "defaultAction": "SCMP_ACT_KILL",
+    "comment": "ENFORCED by /init (seccomp_init.c). Allowlist for a TCP epoll matching engine; default action KILL. `connect`, fork/vfork, ptrace, mount, chroot, pivot_root, kexec, reboot, *module, setuid/setgid, bpf are NOT allowed and are killed with SIGSYS.",
+    "defaultAction": "SCMP_ACT_KILL_PROCESS",
     "architectures": ["SCMP_ARCH_X86_64"],
     "syscalls": [
-        {"names": ["read", "write", "close", "fstat", "lseek",
-                   "mmap", "mprotect", "munmap", "brk",
-                   "exit", "exit_group",
-                   "clock_gettime", "clock_getres",
-                   "nanosleep", "sched_yield",
-                   "futex", "set_robust_list",
-                   "getrandom", "arch_prctl",
-                   "set_tid_address", "gettid"],
+        {"names": ["read","write","readv","writev","close","lseek","pread64","pwrite64",
+                   "socket","bind","listen","accept","accept4","setsockopt","getsockopt",
+                   "getsockname","getpeername","shutdown","recvfrom","sendto","recvmsg","sendmsg",
+                   "epoll_create1","epoll_ctl","epoll_wait","epoll_pwait","poll","ppoll","pselect6",
+                   "eventfd2","timerfd_create","timerfd_settime",
+                   "mmap","munmap","mprotect","brk","madvise","mremap",
+                   "clone","clone3","futex","set_robust_list","get_robust_list","rseq",
+                   "sched_yield","sched_getaffinity","sched_setaffinity",
+                   "rt_sigaction","rt_sigprocmask","rt_sigreturn","sigaltstack",
+                   "fcntl","dup","dup2","dup3","pipe2","openat","fstat","newfstatat","statx",
+                   "getdents64","uname","statfs",
+                   "clock_gettime","clock_getres","clock_nanosleep","nanosleep","gettimeofday",
+                   "arch_prctl","set_tid_address","gettid","getpid","getppid","getrandom",
+                   "prlimit64","getuid","geteuid","getgid","getegid","exit","exit_group","execve"],
          "action": "SCMP_ACT_ALLOW"}
     ]
 }
@@ -112,4 +127,5 @@ IMG_SIZE=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || stat -f%z "$OUTPUT_FILE")
 echo "[Packer] ✓ Rootfs image created: $OUTPUT_FILE"
 echo "[Packer]   ELF size: $ELF_SIZE bytes"
 echo "[Packer]   Image size: $IMG_SIZE bytes (${SIZE_MB}MB)"
-echo "[Packer]   Contents: /bin/contestant, /bin/init, /etc/seccomp_profile.json"
+echo "[Packer]   Contents: /bin/contestant, /init (seccomp-enforcing), /etc/seccomp_profile.json"
+echo "[Packer]   Boundary: /init installs a seccomp-bpf allowlist (default KILL) before exec — boot with init=/init"

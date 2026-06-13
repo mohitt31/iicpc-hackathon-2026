@@ -84,7 +84,7 @@ api_put() {
 # 1. Configure Boot Source (Kernel)
 api_put "/boot-source" "{
     \"kernel_image_path\": \"$KERNEL\",
-    \"boot_args\": \"console=ttyS0 reboot=k panic=1 pci=off ip=172.16.0.2::172.16.0.1:255.255.255.0::eth0:off\"
+    \"boot_args\": \"console=ttyS0 reboot=k panic=1 pci=off init=/init ip=172.16.0.2::172.16.0.1:255.255.255.0::eth0:off\"
 }"
 
 # 2. Configure Rootfs Drive
