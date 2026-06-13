@@ -1,0 +1,20 @@
+NAME                                 READY   STATUS    RESTARTS   AGE     IP           NODE        NOMINATED NODE   READINESS GATES
+leaderboard-67764c8b96-rjbtv         1/1     Running   0          3m7s    10.42.0.17   archlinux   <none>           <none>
+leaderboard-67764c8b96-sr9qt         1/1     Running   0          3m7s    10.42.0.19   archlinux   <none>           <none>
+telemetry-gateway-544f575545-x4m2r   1/1     Running   0          2m42s   10.42.0.20   archlinux   <none>           <none>
+NAME                       DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                  AGE    CONTAINERS   IMAGES                                     SELECTOR
+daemonset.apps/bot-fleet   0         0         0       0            0           node-role.hft/benchmark=true   3m7s   bot          ghcr.io/mohitt31/iicpc-bot-engine:latest   app=bot-fleet
+
+NAME                                READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS   IMAGES                                            SELECTOR
+deployment.apps/leaderboard         2/2     2            2           3m7s   web          ghcr.io/mohitt31/iicpc-leaderboard:latest         app=leaderboard
+deployment.apps/telemetry-gateway   1/1     1            1           3m7s   gateway      ghcr.io/mohitt31/iicpc-telemetry-gateway:latest   app=telemetry-gateway
+
+NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE    SELECTOR
+service/leaderboard         LoadBalancer   10.43.152.136   <pending>     80:31075/TCP   3m7s   app=leaderboard
+service/telemetry-gateway   ClusterIP      10.43.99.54     <none>        8080/TCP       3m7s   app=telemetry-gateway
+[gateway] IICPC telemetry gateway listening on :8080
+[gateway] leaderboard feed → ws://localhost:8080/leaderboard/deltas
+[gateway] cadence 2500ms · mode: LIVE_CSV from /telemetry (falls back to DEMO if absent/empty)
+[gateway] current source label: DEMO
+[gateway] note: snapshot-dir "/telemetry" not found — serving DEMO until it appears
+leaderboard HTTP 200
