@@ -16,10 +16,6 @@ on:
       - '.github/workflows/wsrest-build.yml'
   pull_request:
     branches: [main]
-    paths:
-      - 'bot-engine/src/ws_bot.cpp'
-      - 'bot-engine/src/rest_bot.cpp'
-      - 'bot-engine/CMakeLists.txt'
   workflow_dispatch:
 
 jobs:
