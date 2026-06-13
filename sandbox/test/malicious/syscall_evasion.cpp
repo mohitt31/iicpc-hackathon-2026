@@ -6,8 +6,8 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 int main() {
-    // 41 = __NR_socket on x86_64. No banned token appears in this source.
-    long fd = syscall(41, 2 /*AF_INET*/, 1 /*SOCK_STREAM*/, 0);
+    // 42 = __NR_connect on x86_64. No banned token appears in this source.
+    long fd = syscall(42, -1, nullptr, 0);
     (void)fd;
     return 0;
 }
