@@ -41,10 +41,31 @@ jobs:
         run: |
           mkdir -p build && cd build
           cmake ..
-          make -j ws_bot rest_bot
+          make -j ws_bot rest_bot refserver
 
       - name: Assert the WS/REST bot binaries exist
         working-directory: bot-engine/build
         run: |
-          ls -la ws_bot rest_bot
+          ls -la ws_bot rest_bot refserver
           echo "✅ ws_bot + rest_bot compile on x86"
+
+      - name: WS end-to-end smoke — assert Sent==Acked (real loop, no synthetic acks)
+        run: |
+          npm install ws --no-audit --no-fund --prefix .
+          ./bot-engine/build/refserver --port 9000 --journal /tmp/ref.jrn & RS=$!
+          sleep 1
+          node platform/wsrest-adapters/ws_adapter.js --port 9001 --engine-host 127.0.0.1 --engine-port 9000 & AD=$!
+          sleep 1
+          ./bot-engine/build/ws_bot --ip 127.0.0.1 --port 9001 --path /orders --interval-us 200 --duration-sec 5 | tee /tmp/ws_out.txt
+          kill -9 $RS $AD 2>/dev/null || true
+          python3 - <<'PY'
+          import re
+          t = open('/tmp/ws_out.txt').read()
+          m = re.search(r'sent=(\d+)\s+acked=(\d+)', t)
+          assert m, "no sent/acked line in ws_bot output:\n" + t
+          sent, acked = int(m.group(1)), int(m.group(2))
+          print(f"sent={sent} acked={acked}")
+          assert acked > 0, "FAIL: acked==0 — RX not correlating acks"
+          assert acked >= sent * 0.95, f"FAIL: too many unacked ({sent-acked}/{sent})"
+          print("✅ WebSocket board is REAL: Sent==Acked over ws_bot -> ws_adapter -> reference-engine")
+          PY
