@@ -223,19 +223,19 @@ function hdrValueAtPercentile(h,p){            // returns ns — used ONLY by sc
 }
 
 /* ════════ MOCK SOURCE — role of VictoriaMetrics (derived gauges) + HDR store ════════ */
-const PROTOCOLS=['BINARY TCP','WEBSOCKET (Roadmap)','REST (Roadmap)'];
-const PROTO_LABEL={'BINARY TCP':'BINARY TCP','WEBSOCKET (Roadmap)':'WEBSOCKET (Roadmap)','REST (Roadmap)':'REST (Roadmap)'};
+const PROTOCOLS=['BINARY TCP','WEBSOCKET','REST'];
+const PROTO_LABEL={'BINARY TCP':'BINARY TCP','WEBSOCKET':'WEBSOCKET','REST':'REST'};
 const NODES=['node-01','node-02','node-03','node-04'];
 function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();
   return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
 function hashId(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16).padStart(8,'0');}
 
 const MockSource=(()=>{
-  const base={'BINARY TCP':[12000,18000],'WEBSOCKET (Roadmap)':[25000,45000],'REST (Roadmap)':[80000,150000]}; // ns
+  const base={'BINARY TCP':[12000,18000],'WEBSOCKET':[25000,45000],'REST':[80000,150000]}; // ns
   const roster=[
     ['Priya Sharma','BINARY TCP'],['Arjun Mehta','BINARY TCP'],['Sanya Rao','BINARY TCP'],['Dev Kapoor','BINARY TCP'],
-    ['Kiran Nair','WEBSOCKET (Roadmap)'],['Rohan Gupta','WEBSOCKET (Roadmap)'],['Ananya Iyer','WEBSOCKET (Roadmap)'],['Vikram Sen','WEBSOCKET (Roadmap)'],
-    ['Meera Joshi','REST (Roadmap)'],['Aditya Rao','REST (Roadmap)'],['Neha Verma','REST (Roadmap)'],['Karan Shah','REST (Roadmap)'],
+    ['Kiran Nair','WEBSOCKET'],['Rohan Gupta','WEBSOCKET'],['Ananya Iyer','WEBSOCKET'],['Vikram Sen','WEBSOCKET'],
+    ['Meera Joshi','REST'],['Aditya Rao','REST'],['Neha Verma','REST'],['Karan Shah','REST'],
   ];
   let subs=[];
   function sampleInto(h,median,tail,count){
@@ -264,7 +264,7 @@ const MockSource=(()=>{
       p50:hdrValueAtPercentile(s.hdr,50), p90:hdrValueAtPercentile(s.hdr,90),
       p99:hdrValueAtPercentile(s.hdr,99), p99_9:hdrValueAtPercentile(s.hdr,99.9),
       p99_99:hdrValueAtPercentile(s.hdr,99.99), max:hdrValueAtPercentile(s.hdr,100),
-      tps:Math.round((s.protocol==='BINARY TCP'?180000:s.protocol==='WEBSOCKET (Roadmap)'?120000:60000)*(0.6+Math.random()*0.6)), // max sustained before err threshold (§5)
+      tps:Math.round((s.protocol==='BINARY TCP'?180000:s.protocol==='WEBSOCKET'?120000:60000)*(0.6+Math.random()*0.6)), // max sustained before err threshold (§5)
       err:Math.max(0,Math.min(0.12,0.005+Math.abs(gauss())*0.01)),
       diff_pass_rate:Math.random()<0.10?0.985+Math.random()*0.012:1.0,         // byte-exact ref-engine diff (§5)
       invariant_violations:Math.random()<0.08?Math.floor(1+Math.random()*2):0, // price-time-priority etc (§5)
@@ -492,7 +492,7 @@ function render(deltas){
 
    Message shapes accepted on LIVE_WS_URL (JSON per frame):
      A) FINISHED (spec-pure, preferred):
-        { "type":"deltas", "deltas": { "BINARY TCP":[row,...], "WEBSOCKET (Roadmap)":[...], "REST (Roadmap)":[...] } }
+        { "type":"deltas", "deltas": { "BINARY TCP":[row,...], "WEBSOCKET":[...], "REST":[...] } }
         — each row already scored+ranked by the backend. Passed to render() as-is.
         A row matches the contract: {id,rank,excluded,failed,contestant,
         contestant_version,protocol,node,submission_id,run_id,
