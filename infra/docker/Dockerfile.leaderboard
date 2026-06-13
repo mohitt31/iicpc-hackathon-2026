@@ -1,0 +1,18 @@
+# ============================================================================
+# leaderboard image — self-contained nginx + frontend/ baked in.
+#
+# In docker-compose the frontend is bind-mounted into nginx:alpine, which is
+# fine for a single machine. In k8s there is no host path to mount, so the
+# DaemonSet/Deployment needs a real image that carries the static assets.
+# This is that image (infra/k8s/platform.yaml → ghcr.io/.../iicpc-leaderboard).
+#
+# Build context: repo root (..). Expects frontend/ as a subdirectory.
+# ============================================================================
+FROM nginx:1.27-alpine
+
+# Static frontend (landing.html, index.html, assets/)
+COPY frontend/ /usr/share/nginx/html/
+
+# Default nginx config serves /usr/share/nginx/html on :80 already; the live
+# WS URL is configured in index.html at deploy time (LIVE_WS_URL).
+EXPOSE 80

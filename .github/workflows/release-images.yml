@@ -1,0 +1,79 @@
+name: Release Images
+
+# Phase 2.2 — builds the three platform images and publishes them to GHCR
+# (free for public repos), so infra/k8s/platform.yaml can pull real, pinned
+# images instead of ghcr.io/REPLACE_ORG/... placeholders.
+#
+#   iicpc-bot-engine        ← infra/docker/Dockerfile.botengine   (x86_64 only: rdtsc)
+#   iicpc-telemetry-gateway ← infra/docker/Dockerfile.gateway
+#   iicpc-leaderboard       ← infra/docker/Dockerfile.leaderboard (nginx + frontend)
+#
+# Images are tagged :latest and :<short-sha>. The k8s manifest should pin the
+# sha tag for reproducible deploys; :latest is provided for convenience.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bot-engine/**'
+      - 'tools/**'
+      - 'frontend/**'
+      - 'infra/docker/**'
+      - '.github/workflows/release-images.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  # ${{ github.repository_owner }} resolves to the real org/user (mohitt31),
+  # which is exactly what kills the REPLACE_ORG placeholder.
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: iicpc-bot-engine
+            dockerfile: infra/docker/Dockerfile.botengine
+          - name: iicpc-telemetry-gateway
+            dockerfile: infra/docker/Dockerfile.gateway
+          - name: iicpc-leaderboard
+            dockerfile: infra/docker/Dockerfile.leaderboard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute lowercased owner + tags
+        id: meta
+        run: |
+          owner_lc=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "image=${REGISTRY}/${owner_lc}/${{ matrix.name }}" >> "$GITHUB_OUTPUT"
+          echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build + push (context = repo root)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:latest
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
