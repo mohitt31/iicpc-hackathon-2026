@@ -39,6 +39,7 @@
 #include <sys/stat.h>
 #include <string>
 #include <stdexcept>
+#include <cstdlib>
 #include <vector>
 #include <chrono>
 #include <thread>
@@ -46,6 +47,7 @@
 #include <sched.h>
 #include <fstream>
 #include <atomic>
+#include <mutex>
 
 #include "contracts/interface_contract_v1.h"
 #include "tsc_util.h"
@@ -217,11 +219,14 @@ static uint64_t integrity_gate_test(const std::string& ip_addr, uint16_t port,
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port   = htons(port);
-    struct hostent *he = gethostbyname(ip_addr.c_str());
-    if (he) {
-        std::memcpy(&serv_addr.sin_addr, he->h_addr, he->h_length);
-    } else {
-        inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr);
+    if (inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr) <= 0) {
+        struct hostent *he = gethostbyname(ip_addr.c_str());
+        if (he) {
+            std::memcpy(&serv_addr.sin_addr, he->h_addr, he->h_length);
+        } else {
+            close(sock);
+            return UINT64_MAX;
+        }
     }
 
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -450,11 +455,17 @@ static void bot_worker(BotConfig config, BotResult* result) {
     sockaddr_in serv_addr{};
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port   = htons(config.port);
-    struct hostent *he = gethostbyname(config.ip_addr.c_str());
-    if (he) {
-        std::memcpy(&serv_addr.sin_addr, he->h_addr, he->h_length);
-    } else {
-        inet_pton(AF_INET, config.ip_addr.c_str(), &serv_addr.sin_addr);
+    if (inet_pton(AF_INET, config.ip_addr.c_str(), &serv_addr.sin_addr) <= 0) {
+        static std::mutex dns_mutex;
+        std::lock_guard<std::mutex> lock(dns_mutex);
+        struct hostent *he = gethostbyname(config.ip_addr.c_str());
+        if (he) {
+            std::memcpy(&serv_addr.sin_addr, he->h_addr, he->h_length);
+        } else {
+            std::cerr << "[Bot " << config.thread_id << "] Invalid IP address/hostname\n";
+            close(sock);
+            return;
+        }
     }
 
     if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
@@ -504,8 +515,14 @@ static void bot_worker(BotConfig config, BotResult* result) {
 
     set_non_blocking(sock);
 
-    constexpr size_t PENDING_SLOTS = 1 << 20;
-    constexpr size_t PENDING_MASK  = PENDING_SLOTS - 1;
+    // 1<<20 ≈ 32 MB/bot — fine for a few bots, OOMs at thousands.
+    // Overridable via BOT_PENDING_SLOTS (power-of-two) for scale runs.
+    size_t PENDING_SLOTS = 1 << 20;
+    if (const char* e = std::getenv("BOT_PENDING_SLOTS")) {
+        size_t v = std::strtoull(e, nullptr, 10);
+        if (v >= 256 && (v & (v - 1)) == 0) PENDING_SLOTS = v;
+    }
+    const size_t PENDING_MASK = PENDING_SLOTS - 1;
     struct PendingSlot {
         uint64_t  intended_ts;
         uint64_t  seq;
