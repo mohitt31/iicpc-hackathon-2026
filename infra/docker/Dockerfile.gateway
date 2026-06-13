@@ -5,6 +5,12 @@
 # reading VictoriaMetrics + additive HDR) is a drop-in replacement that speaks
 # the same wire shape; the frontend does not change.
 # ============================================================================
+# BUILD CONTEXT = REPO ROOT (matches infra/docker-compose.yml and
+# .github/workflows/release-images.yml, which both build with context = repo
+# root). The gateway sources live in tools/, so COPY paths are tools/-prefixed —
+# this lands telemetry_server.js at /app/telemetry_server.js so `node
+# telemetry_server.js` resolves (the bug that crash-looped the k8s pod was this
+# file landing at /app/tools/ under a repo-root context).
 FROM node:20-alpine
 WORKDIR /app
 # The gateway runtime needs only `ws` (telemetry_server.js uses http/fs/path +
@@ -12,8 +18,8 @@ WORKDIR /app
 # here — puppeteer's Chromium download breaks on alpine/musl and bloats the
 # image. --omit=dev + the skip-download guard keep this lean.
 ENV PUPPETEER_SKIP_DOWNLOAD=1
-COPY package.json package-lock.json /app/
+COPY tools/package.json tools/package-lock.json /app/
 RUN npm install --omit=dev --no-audit --no-fund
-COPY . /app
+COPY tools/ /app/
 EXPOSE 8080
 ENTRYPOINT []
