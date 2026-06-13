@@ -84,3 +84,9 @@ market-storm/
 # ── Sandbox binaries (downloaded by setup_deps.sh, not committed) ──
 sandbox/orchestrator/bin/firecracker
 sandbox/orchestrator/bin/vmlinux
+
+# ── Repo hygiene (Phase 0): never track deps or OS cruft ──
+node_modules/
+tools/node_modules/
+.DS_Store
+**/.DS_Store

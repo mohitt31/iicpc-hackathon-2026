@@ -492,7 +492,7 @@ function render(deltas){
 
    Message shapes accepted on LIVE_WS_URL (JSON per frame):
      A) FINISHED (spec-pure, preferred):
-        { "type":"deltas", "deltas": { "FIX":[row,...], "WS":[...], "REST":[...] } }
+        { "type":"deltas", "deltas": { "BINARY TCP":[row,...], "WEBSOCKET (Roadmap)":[...], "REST (Roadmap)":[...] } }
         — each row already scored+ranked by the backend. Passed to render() as-is.
         A row matches the contract: {id,rank,excluded,failed,contestant,
         contestant_version,protocol,node,submission_id,run_id,

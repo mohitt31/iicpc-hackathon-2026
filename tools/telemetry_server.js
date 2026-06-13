@@ -5,7 +5,7 @@
  * Serves the leaderboard's LIVE feed. Speaks the exact wire shape the frontend
  * subscriber (frontend/index.html → connectLive()) expects:
  *
- *     { "type": "deltas", "deltas": { "FIX":[row,...], "WS":[...], "REST":[...] } }
+ *     { "type": "deltas", "deltas": { "BINARY TCP":[row,...], "WEBSOCKET (Roadmap)":[...], "REST (Roadmap)":[...] } }
  *
  * Each row is ALREADY scored + ranked here (server-side), honouring the
  * Interface Contract cardinal rule: the browser only displays, never computes

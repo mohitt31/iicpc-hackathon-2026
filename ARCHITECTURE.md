@@ -129,7 +129,7 @@ re-bucketing, no interpolation. It renders the contract's already-CO-corrected g
 
 Features that map directly to the spec:
 
-- **Per-protocol boards** (FIX / WebSocket / REST), never mixed; an *Overall*
+- **Per-protocol boards** (BINARY (SBE v1) / WebSocket / REST), never mixed; an *Overall*
   view exists but is gated behind a warning because cross-protocol comparison is
   meaningless (TLS + JSON framing alone add tens of µs).
 - **Full percentile ladder** p50 → p90 → p99 → p99.9 → p99.99 → max, in
