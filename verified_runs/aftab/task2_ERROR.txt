@@ -1,0 +1,13 @@
+TASK 2 SCALE RUN FAILURE: Out Of Memory (OOM)
+
+The scale run with 3000 bots (and the subsequent retry with 1500 bots) was killed by the kernel's Out Of Memory (OOM) killer.
+
+Each bot allocates a PendingSlot vector of size 1,048,576 slots (each slot is 32 bytes), requiring 32 MB of memory per bot.
+- 3000 bots require ~96 GB of virtual/resident memory.
+- 1500 bots require ~48 GB of virtual/resident memory.
+
+Since the host machine has only 16 GB of physical RAM, the kernel terminated the bot processes to reclaim memory.
+
+System log snippet (journalctl):
+Jun 13 17:20:13 archlinux kernel: Out of memory: Killed process 4064 (bot) total-vm:32022352kB, anon-rss:13369920kB, file-rss:40kB, shmem-rss:0kB, UID:1000 pgtables:43788kB oom_score_adj:200
+Jun 13 17:20:31 archlinux kernel: Out of memory: Killed process 5567 (bot) total-vm:37269312kB, anon-rss:13312532kB, file-rss:16kB, shmem-rss:0kB, UID:1000 pgtables:48960kB oom_score_adj:200

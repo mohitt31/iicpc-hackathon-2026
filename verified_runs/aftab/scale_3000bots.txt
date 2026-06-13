@@ -1,0 +1,1688 @@
+[Main] TSC calibrated.
+[Gate] SKIPPED (--no-gate)
+[Main] Launching 3000 bots, interval 500us, duration 20s, target 127.0.0.1:9400
+[Main] CPU pinning: cores 1 through 3000
+[Bot 2] Pinned to core 3
+[Bot 5] Pinned to core 6
+[Bot 6] Pinned to core 7
+[Bot 1] Pinned to core 2
+[Bot [Bot 0] Pinned to core 31
+] Pinned to core 4
+[Bot 4] Pinned to core 5
+[Bot 0] SO_BUSY_POLL enabled (50us)
+[Bot 0] SO_TIMESTAMPING enabled (HW on supported NICs, SW fallback)
+[Bot 7] Pinned to core 8
+[Bot 8] Pinned to core 9
+[Bot 9] Pinned to core 10
+[Bot 10] Pinned to core 11
+[Bot 12] Pinned to core 13
+[Bot 11] Pinned to core 12
+[Bot 14] Pinned to core 15
+[Bot 13] Pinned to core 14
+[Bot 15] WARNING: could not pin to core 16
+[Bot 16] WARNING: could not pin to core 17
+[Bot 17] WARNING: could not pin to core 18
+[Bot 18] WARNING: could not pin to core 19
+[Bot 19] WARNING: could not pin to core 20
+[Bot [Bot 21[Bot [Bot 28] WARNING: could not pin to core [Bot ] WARNING: could not pin to core 23] WARNING: could not pin to core 24
+[Bot 32] WARNING: could not pin to core 33
+[Bot 34] WARNING: could not pin to core 35
+[Bot 30] WARNING: could not pin to core 31
+[Bot [Bot 35] WARNING: could not pin to core 36[Bot 
+43] WARNING: could not pin to core 44
+[Bot 22
+36] WARNING: could not pin to core 37
+24] WARNING: could not pin to core 25
+[Bot 47] WARNING: could not pin to core 48
+[Bot 37] WARNING: could not pin to core 38
+[Bot 48] WARNING: could not pin to core 49
+[Bot 38] WARNING: could not pin to core 39
+[Bot 50] WARNING: could not pin to core 51
+[Bot 33] WARNING: could not pin to core 34
+[Bot 29] WARNING: could not pin to core 30
+[Bot 49] WARNING: could not pin to core 50
+[Bot 31[Bot 40] WARNING: could not pin to core 41
+] WARNING: could not pin to core 45[Bot 29
+[Bot 42] WARNING: could not pin to core 43
+27] WARNING: could not pin to core 28
+32
+[Bot 25] WARNING: could not pin to core 26
+] WARNING: could not pin to core 46
+[Bot 41] WARNING: could not pin to core 42
+[Bot 39] WARNING: could not pin to core 40
+46] WARNING: could not pin to core 47
+[Bot 44] WARNING: could not pin to core 45
+[Bot 20] WARNING: could not pin to core 21
+[Bot 26] WARNING: could not pin to core 27
+[Bot 22] WARNING: could not pin to core 23
+[Bot 51] WARNING: could not pin to core 52
+[Bot [Bot 54] WARNING: could not pin to core 55
+[Bot 53] WARNING: could not pin to core 54
+[Bot 58] WARNING: could not pin to core 59
+[Bot 67] WARNING: could not pin to core 68
+52] WARNING: could not pin to core 53
+[Bot 68] WARNING: could not pin to core 69
+[Bot 73] WARNING: could not pin to core 74
+[Bot 77] WARNING: could not pin to core 78
+[Bot 75] WARNING: could not pin to core [Bot 81] WARNING: could not pin to core 82
+[Bot 78] WARNING: could not pin to core 79
+[Bot 60] WARNING: could not pin to core 61
+[Bot 61] WARNING: could not pin to core 62
+[Bot 62] WARNING: could not pin to core 63
+76
+[Bot 56] WARNING: could not pin to core 57
+[Bot 55] WARNING: could not pin to core 56
+[Bot [Bot 66] WARNING: could not pin to core 67
+[Bot 79] WARNING: could not pin to core 80
+[Bot 80] WARNING: could not pin to core 81
+[Bot 57] WARNING: could not pin to core 58
+[Bot 70] WARNING: could not pin to core 71
+[Bot 59] WARNING: could not pin to core 60
+[Bot 74] WARNING: could not pin to core 75
+[Bot 63] WARNING: could not pin to core 64
+[Bot 72] WARNING: could not pin to core 73
+[Bot 65] WARNING: could not pin to core 66
+[Bot 71] WARNING: could not pin to core 72
+[Bot 76] WARNING: could not pin to core 77
+[Bot 69] WARNING: could not pin to core 70
+64] WARNING: could not pin to core 65
+[Bot 82] WARNING: could not pin to core 83
+[Bot [Bot [Bot 97] WARNING: could not pin to core 98
+[Bot 102] WARNING: could not pin to core 103
+[Bot 98] WARNING: could not pin to core 99
+[Bot 83] WARNING: could not pin to core 84
+[Bot 108] WARNING: could not pin to core 109
+[Bot 84] WARNING: could not pin to core 85
+[Bot 85] WARNING: could not pin to core 86
+[Bot 86] WARNING: could not pin to core 87
+[Bot 87] WARNING: could not pin to core 88
+[Bot 93] WARNING: could not pin to core 94
+[Bot 95] WARNING: could not pin to core 96
+[Bot 96] WARNING: could not pin to core 97
+[Bot 100] WARNING: could not pin to core 101
+90] WARNING: could not pin to core 91
+92] WARNING: could not pin to core 93
+[Bot 112] WARNING: could not pin to core 113
+[Bot 105] WARNING: could not pin to core 106
+[Bot 91] WARNING: could not pin to core 92
+[Bot 88] WARNING: could not pin to core 89
+[Bot 94] WARNING: could not pin to core 95
+[Bot 89] WARNING: could not pin to core 90
+[Bot [Bot 104] WARNING: could not pin to core 105
+[Bot 103] WARNING: could not pin to core 104
+[Bot 110] WARNING: could not pin to core 111
+[Bot 120] WARNING: could not pin to core 121
+[Bot 118] WARNING: could not pin to core 119
+[Bot 121] WARNING: could not pin to core 122
+[Bot 119] WARNING: could not pin to core 120
+[Bot 106] WARNING: could not pin to core 107
+[Bot 107] WARNING: could not pin to core 108
+[Bot 115] WARNING: could not pin to core 116
+[Bot 113] WARNING: could not pin to core 114
+[Bot 114] WARNING: could not pin to core 115
+[Bot 116] WARNING: could not pin to core 117
+[Bot 117] WARNING: could not pin to core 118
+[Bot 111] WARNING: could not pin to core 112
+[Bot 101] WARNING: could not pin to core 102
+99] WARNING: could not pin to core 100
+[Bot 132] WARNING: could not pin to core 133
+[Bot 123] WARNING: could not pin to core 124
+[Bot 128] WARNING: could not pin to core 129
+[Bot 136] WARNING: could not pin to core 137
+[Bot 137] WARNING: could not pin to core 138
+[Bot 129] WARNING: could not pin to core 130
+[Bot 122] WARNING: could not pin to core 123
+[Bot 124] WARNING: could not pin to core [Bot 130] WARNING: could not pin to core 131
+[Bot 141] WARNING: could not pin to core 142
+[Bot 139] WARNING: could not pin to core 140
+[Bot 109] WARNING: could not pin to core 110
+[Bot 142] WARNING: could not pin to core 143
+[Bot 125] WARNING: could not pin to core 126
+[Bot [Bot [Bot 126] WARNING: could not pin to core 127
+[Bot 143] WARNING: could not pin to core 144
+[Bot 127] WARNING: could not pin to core 128
+[Bot 138] WARNING: could not pin to core 139
+[Bot 144] WARNING: could not pin to core 145
+[Bot 134] WARNING: could not pin to core 135
+140] WARNING: could not pin to core 141
+[Bot 135] WARNING: could not pin to core 136
+[Bot 131] WARNING: could not pin to core 132
+125
+133] WARNING: could not pin to core 134
+[Bot 154] WARNING: could not pin to core 155
+[Bot 146] WARNING: could not pin to core 147
+[Bot 147] WARNING: could not pin to core 148
+[Bot 149] WARNING: could not pin to core 150
+[Bot 152] WARNING: could not pin to core 153
+[Bot 167] WARNING: could not pin to core 168
+[Bot 153] WARNING: could not pin to core 154
+[Bot 170] WARNING: could not pin to core 171
+[Bot 158] WARNING: could not pin to core 159
+[Bot 160] WARNING: could not pin to core 161
+[Bot 248] WARNING: could not pin to core 249
+[Bot 181] WARNING: could not pin to core 182
+[Bot 185] WARNING: could not pin to core 186
+[Bot 166] WARNING: could not pin to core 167
+[Bot 168] WARNING: could not pin to core 169
+[Bot [Bot [Bot 169182] WARNING: could not pin to core 157[Bot 179] WARNING: could not pin to core 180
+[Bot 193] WARNING: could not pin to core 194
+[Bot 162] WARNING: could not pin to core 163[Bot 190] WARNING: could not pin to core 191
+[Bot 207] WARNING: could not pin to core 208
+[Bot 171] WARNING: could not pin to core [Bot 199] WARNING: could not pin to core 200
+[Bot 177] WARNING: could not pin to core 178
+[Bot 249] WARNING: could not pin to core 250
+[Bot 246] WARNING: could not pin to core 247
+[Bot 250] WARNING: could not pin to core 251[Bot 247] WARNING: could not pin to core 248
+[Bot 183] WARNING: could not pin to core 184
+[Bot 251] WARNING: could not pin to core 252
+[Bot 194] WARNING: could not pin to core 195
+[Bot 253] WARNING: could not pin to core 254
+[Bot 195] WARNING: could not pin to core 196
+[Bot 261] WARNING: could not pin to core 262
+[Bot 256] WARNING: could not pin to core 257
+[Bot 262] WARNING: could not pin to core 263
+[Bot 263] WARNING: could not pin to core 264
+[Bot 252] WARNING: could not pin to core 253
+[Bot 201] WARNING: could not pin to core 202
+[Bot 260] WARNING: could not pin to core 261
+[Bot 202] WARNING: could not pin to core 203
+[Bot 211] WARNING: could not pin to core 212
+[Bot 254] WARNING: could not pin to core 255
+[Bot 255] WARNING: could not pin to core 256
+[Bot 257] WARNING: could not pin to core 258
+[Bot 259] WARNING: could not pin to core 260
+[Bot 258] WARNING: could not pin to core 259
+[Bot 218] WARNING: could not pin to core 219
+[Bot 229] WARNING: could not pin to core 230
+[Bot 230] WARNING: could not pin to core 231
+[Bot 231] WARNING: could not pin to core 232
+[Bot 232] WARNING: could not pin to core 233
+[Bot 233] WARNING: could not pin to core 234
+[Bot 234] WARNING: could not pin to core 235
+[Bot 235] WARNING: could not pin to core 236
+[Bot 236] WARNING: could not pin to core 237
+[Bot 237] WARNING: could not pin to core 238
+[Bot 238] WARNING: could not pin to core 239
+[Bot 239] WARNING: could not pin to core 240
+[Bot 240] WARNING: could not pin to core 241
+[Bot 241] WARNING: could not pin to core 242
+[Bot 155] WARNING: could not pin to core 156
+[Bot 188] WARNING: could not pin to core 189
+[Bot 192] WARNING: could not pin to core 193
+[Bot 200] WARNING: could not pin to core 201
+[Bot 159] WARNING: could not pin to core 160
+[Bot 163] WARNING: could not pin to core 164
+[Bot 164] WARNING: could not pin to core 165
+[Bot 156] WARNING: could not pin to core 157
+[Bot 150] WARNING: could not pin to core 151
+[Bot 165] WARNING: could not pin to core 166
+[Bot 161] WARNING: could not pin to core 162
+172
+[Bot 209] WARNING: could not pin to core 210
+183
+[Bot 208] WARNING: could not pin to core 209
+[Bot 264] WARNING: could not pin to core 265
+] WARNING: could not pin to core 170
+[Bot 186] WARNING: could not pin to core 187
+
+] WARNING: could not pin to core 158
+[Bot 148] WARNING: could not pin to core 149
+[Bot 151] WARNING: could not pin to core 152
+
+[Bot 210] WARNING: could not pin to core 211
+[Bot 145] WARNING: could not pin to core 146
+[Bot 220] WARNING: could not pin to core 221
+[Bot 219] WARNING: could not pin to core 220
+[Bot 217] WARNING: could not pin to core 218
+[Bot 198] WARNING: could not pin to core 199
+[Bot 189] WARNING: could not pin to core 190
+[Bot 216] WARNING: could not pin to core 217
+[Bot 180] WARNING: could not pin to core 181
+[Bot 215] WARNING: could not pin to core 216
+[Bot 242] WARNING: could not pin to core 243
+[Bot 178] WARNING: could not pin to core 179
+[Bot 245] WARNING: could not pin to core 246
+[Bot 226] WARNING: could not pin to core 227
+[Bot 224] WARNING: could not pin to core 225
+[Bot 173] WARNING: could not pin to core 174
+[Bot 244] WARNING: could not pin to core 245
+[Bot 243] WARNING: could not pin to core 244
+[Bot 228] WARNING: could not pin to core 229
+[Bot 227] WARNING: could not pin to core 228
+[Bot 176] WARNING: could not pin to core 177
+[Bot 225] WARNING: could not pin to core 226
+[Bot 175] WARNING: could not pin to core 176
+[Bot 223] WARNING: could not pin to core 224
+[Bot 174] WARNING: could not pin to core 175
+[Bot 222] WARNING: could not pin to core 223
+[Bot 206] WARNING: could not pin to core 207
+[Bot 221] WARNING: could not pin to core 222
+[Bot 214] WARNING: could not pin to core 215
+[Bot 213] WARNING: could not pin to core 214
+[Bot 212] WARNING: could not pin to core 213
+[Bot 196] WARNING: could not pin to core 197
+[Bot 184] WARNING: could not pin to core 185
+[Bot 172] WARNING: could not pin to core 173
+[Bot 205] WARNING: could not pin to core 206
+[Bot 204] WARNING: could not pin to core 205
+[Bot 203] WARNING: could not pin to core 204
+[Bot 197] WARNING: could not pin to core 198
+[Bot 191] WARNING: could not pin to core 192
+[Bot 187] WARNING: could not pin to core 188
+[Bot 265] WARNING: could not pin to core 266
+[Bot 281] WARNING: could not pin to core 282
+[Bot 305] WARNING: could not pin to core 306
+[Bot 282] WARNING: could not pin to core 283
+[Bot 335] WARNING: could not pin to core 336
+[Bot 317] WARNING: could not pin to core 318
+[Bot 349] WARNING: could not pin to core 350
+[Bot 267] WARNING: could not pin to core 268
+[Bot 405] WARNING: could not pin to core 406
+[Bot 270] WARNING: could not pin to core 271
+[Bot 408] WARNING: could not pin to core 409
+[Bot 414] WARNING: could not pin to core 415
+[Bot 266[Bot [Bot [Bot [Bot 325] WARNING: could not pin to core 326
+[Bot [Bot 303] WARNING: could not pin to core [Bot 298] WARNING: could not pin to core 299
+[Bot [Bot [Bot 301] WARNING: could not pin to core 302
+[Bot 275] WARNING: could not pin to core 276
+[Bot 327] WARNING: could not pin to core [Bot 318] WARNING: could not pin to core 319
+[Bot 328] WARNING: could not pin to core 329
+[Bot 309] WARNING: could not pin to core 310
+[Bot 326] WARNING: could not pin to core 327
+[Bot 279] WARNING: could not pin to core 280
+[Bot 319] WARNING: could not pin to core 320
+[Bot 342] WARNING: could not pin to core 343
+[Bot [Bot [Bot 289] WARNING: could not pin to core 290
+[Bot 337] WARNING: could not pin to core 338[Bot 381] WARNING: could not pin to core [Bot 331[Bot [Bot [Bot 338] WARNING: could not pin to core 339
+291] WARNING: could not pin to core 292
+[Bot 344] WARNING: could not pin to core 345
+[Bot 384] WARNING: could not pin to core 385
+[Bot [Bot [Bot [Bot 297[Bot 346] WARNING: could not pin to core 347
+] WARNING: could not pin to core 298
+[Bot 352] WARNING: could not pin to core 353
+[Bot 385] WARNING: could not pin to core 386
+[Bot 347] WARNING: could not pin to core 348
+[Bot 304] WARNING: could not pin to core 305
+[Bot 353] WARNING: could not pin to core 354
+[Bot 348] WARNING: could not pin to core 349[Bot 386] WARNING: could not pin to core 387[Bot 350] WARNING: could not pin to core 351
+[Bot [Bot [Bot 387] WARNING: could not pin to core 388[Bot 
+[Bot 351] WARNING: could not pin to core 352[Bot 
+[Bot 357[Bot 356] WARNING: could not pin to core 357[Bot [Bot 369[Bot 358] WARNING: could not pin to core 359
+[Bot [Bot 370361[Bot 359] WARNING: could not pin to core 360
+[Bot 371] WARNING: could not pin to core 372
+[Bot 362] WARNING: could not pin to core 363
+[Bot 389] WARNING: could not pin to core 390
+[Bot 363] WARNING: could not pin to core 364
+[Bot [Bot 392] WARNING: could not pin to core 393
+[Bot 373] WARNING: could not pin to core 374
+[Bot 364] WARNING: could not pin to core 365
+[Bot 394] WARNING: could not pin to core 395
+[Bot 374[Bot 366] WARNING: could not pin to core [Bot 396] WARNING: could not pin to core 397
+[Bot [Bot 367] WARNING: could not pin to core 368
+[Bot 397] WARNING: could not pin to core 398
+[Bot 376] WARNING: could not pin to core 377
+[Bot 399] WARNING: could not pin to core 400
+[Bot 450] WARNING: could not pin to core 451
+[Bot 426[Bot [Bot [Bot 271] WARNING: could not pin to core 400[Bot [Bot 452] WARNING: could not pin to core 453
+[Bot 276] WARNING: could not pin to core 277
+[Bot 428] WARNING: could not pin to core 429
+[Bot 422] WARNING: could not pin to core 423
+[Bot 453] WARNING: could not pin to core 454
+[Bot 341[Bot [Bot 424] WARNING: could not pin to core 425[Bot [Bot 284[Bot ] WARNING: could not pin to core 440285
+[Bot 455] WARNING: could not pin to core 456[Bot 286
+[Bot 438] WARNING: could not pin to core 439
+[Bot 302] WARNING: could not pin to core 303
+[Bot 456] WARNING: could not pin to core 457[Bot 
+448] WARNING: could not pin to core [Bot 449[Bot 310] WARNING: could not pin to core 311
+[Bot 462] WARNING: could not pin to core 463
+[Bot 457] WARNING: could not pin to core 458
+[Bot 316] WARNING: could not pin to core 317
+[Bot 463] WARNING: could not pin to core 464[Bot 324] WARNING: could not pin to core 325
+[Bot 465] WARNING: could not pin to core 466
+[Bot 333] WARNING: could not pin to core 334
+[Bot 404] WARNING: could not pin to core 405
+[Bot 406] WARNING: could not pin to core 407
+[Bot 407] WARNING: could not pin to core 408
+[Bot 410] WARNING: could not pin to core 411
+[Bot 411] WARNING: could not pin to core 412
+[Bot 412] WARNING: could not pin to core 413
+[Bot 413] WARNING: could not pin to core 414
+[Bot 415] WARNING: could not pin to core 416
+[Bot 419] WARNING: could not pin to core 420
+[Bot 421] WARNING: could not pin to core 422
+[Bot 423] WARNING: could not pin to core 424
+[Bot 442] WARNING: could not pin to core 443
+[Bot 443] WARNING: could not pin to core 444
+[Bot 444] WARNING: could not pin to core 445
+[Bot 445] WARNING: could not pin to core 446
+[Bot 446] WARNING: could not pin to core 447
+[Bot 447] WARNING: could not pin to core 448
+[Bot 460] WARNING: could not pin to core 461
+[Bot 461] WARNING: could not pin to core 462
+[Bot 466] WARNING: could not pin to core 467
+[Bot 429] WARNING: could not pin to core 430
+[Bot 430] WARNING: could not pin to core 431
+[Bot 431] WARNING: could not pin to core 432
+[Bot 432] WARNING: could not pin to core 433
+[Bot 433] WARNING: could not pin to core 434
+[Bot 434] WARNING: could not pin to core 435
+[Bot 435] WARNING: could not pin to core 436
+[Bot 436] WARNING: could not pin to core 437
+[Bot 437] WARNING: could not pin to core 438
+[Bot 449] WARNING: could not pin to core 450
+[Bot 299] WARNING: could not pin to core 300
+[Bot 308] WARNING: could not pin to core 309
+[Bot 322] WARNING: could not pin to core 323
+[Bot 339] WARNING: could not pin to core 340
+[Bot 287] WARNING: could not pin to core 288
+[Bot 288] WARNING: could not pin to core 289
+[Bot 314] WARNING: could not pin to core 315
+[Bot 307] WARNING: could not pin to core 308
+[Bot 306] WARNING: could not pin to core 307
+[Bot 365] WARNING: could not pin to core 366
+[Bot 283] WARNING: could not pin to core 284
+321] WARNING: could not pin to core 322
+360] WARNING: could not pin to core 361
+] WARNING: could not pin to core 287
+[Bot 272] WARNING: could not pin to core 273
+[Bot 269] WARNING: could not pin to core 270
+[Bot 274] WARNING: could not pin to core 275
+[Bot 280] WARNING: could not pin to core 281
+[Bot 294] WARNING: could not pin to core 295
+[Bot 278] WARNING: could not pin to core 279
+[Bot 458] WARNING: could not pin to core 459
+[Bot 464] WARNING: could not pin to core 465
+[Bot 292] WARNING: could not pin to core 293
+315] WARNING: could not pin to core 316
+313] WARNING: could not pin to core 314
+304
+295] WARNING: could not pin to core 296
+273] WARNING: could not pin to core 274
+328
+268] WARNING: could not pin to core 269
+[Bot 277] WARNING: could not pin to core 278
+[Bot 293] WARNING: could not pin to core 294
+] WARNING: could not pin to core 332
+[Bot 285] WARNING: could not pin to core 286
+320] WARNING: could not pin to core 321
+] WARNING: could not pin to core 267[Bot 311343] WARNING: could not pin to core 
+354] WARNING: could not pin to core 355
+[Bot 
+[Bot 323] WARNING: could not pin to core 324
+[Bot 329] WARNING: could not pin to core 290] WARNING: could not pin to core 371
+330
+] WARNING: could not pin to core 358
+344
+[Bot 391] WARNING: could not pin to core 392
+[Bot 395] WARNING: could not pin to core 396
+] WARNING: could not pin to core 312
+312] WARNING: could not pin to core 313
+[Bot 334] WARNING: could not pin to core 335
+[Bot 380] WARNING: could not pin to core 381
+[Bot 379] WARNING: could not pin to core 380
+[Bot 383] WARNING: could not pin to core 384
+355] WARNING: could not pin to core 356
+336] WARNING: could not pin to core 337
+[Bot 388] WARNING: could not pin to core 389
+[Bot 382] WARNING: could not pin to core 383
+
+382
+
+377] WARNING: could not pin to core 378
+[Bot 409] WARNING: could not pin to core 410
+454] WARNING: could not pin to core 455
+
+[Bot 300] WARNING: could not pin to core 301
+[Bot 332] WARNING: could not pin to core 333
+330] WARNING: could not pin to core 331
+345] WARNING: could not pin to core 346
+
+
+[Bot 390] WARNING: could not pin to core 391
+375] WARNING: could not pin to core 376
+378] WARNING: could not pin to core 379
+[Bot 403] WARNING: could not pin to core 404
+296] WARNING: could not pin to core 297
+] WARNING: could not pin to core 375
+] WARNING: could not pin to core 427
+] WARNING: could not pin to core 291
+272
+[Bot [Bot 459] WARNING: could not pin to core 460
+] WARNING: could not pin to core 342
+367
+] WARNING: could not pin to core 362
+340] WARNING: could not pin to core 341
+] WARNING: could not pin to core 370
+[Bot 393] WARNING: could not pin to core 394
+[Bot 418] WARNING: could not pin to core 419
+[Bot 416] WARNING: could not pin to core 417
+[Bot 417] WARNING: could not pin to core 418
+[Bot 451] WARNING: could not pin to core 452
+[Bot 425] WARNING: could not pin to core 426
+[Bot [Bot 420[Bot ] WARNING: could not pin to core 421
+
+368[Bot 401] WARNING: could not pin to core 402
+441] WARNING: could not pin to core 442
+427] WARNING: could not pin to core 428
+] WARNING: could not pin to core 401
+] WARNING: could not pin to core 441
+] WARNING: could not pin to core 369
+[Bot 402] WARNING: could not pin to core 403
+372] WARNING: could not pin to core 373
+439] WARNING: could not pin to core 440
+398] WARNING: could not pin to core 399
+[Bot 474] WARNING: could not pin to core 475
+[Bot 467] WARNING: could not pin to core 468
+[Bot 512] WARNING: could not pin to core 513
+[Bot 479] WARNING: could not pin to core 480
+[Bot 480] WARNING: could not pin to core 481
+[Bot 481] WARNING: could not pin to core 482
+[Bot 501] WARNING: could not pin to core 502
+[Bot 496] WARNING: could not pin to core 497
+[Bot 486] WARNING: could not pin to core 487
+[Bot 484] WARNING: could not pin to core 485
+[Bot 472] WARNING: could not pin to core 473
+[Bot 469] WARNING: could not pin to core 470
+[Bot 468] WARNING: could not pin to core 469
+[Bot 507] WARNING: could not pin to core 508
+[Bot 500] WARNING: could not pin to core 501
+[Bot 495] WARNING: could not pin to core 496
+[Bot 489] WARNING: could not pin to core 490
+[Bot 488] WARNING: could not pin to core 489
+[Bot 471] WARNING: could not pin to core 472
+[Bot 470] WARNING: could not pin to core 471
+[Bot 477] WARNING: could not pin to core 478
+[Bot 502] WARNING: could not pin to core 503
+[Bot 476] WARNING: could not pin to core 477
+[Bot 475] WARNING: could not pin to core 476
+[Bot 493] WARNING: could not pin to core 494
+[Bot 491] WARNING: could not pin to core 492
+[Bot 499] WARNING: could not pin to core 500
+[Bot 508] WARNING: could not pin to core 509
+[Bot 497] WARNING: could not pin to core 498
+[Bot 494] WARNING: could not pin to core 495
+[Bot 492] WARNING: could not pin to core 493
+[Bot 487] WARNING: could not pin to core 488
+[Bot 485] WARNING: could not pin to core 486
+[Bot 478] WARNING: could not pin to core 479
+[Bot 473] WARNING: could not pin to core 474
+[Bot 498] WARNING: could not pin to core 499
+[Bot 506] WARNING: could not pin to core 507
+[Bot 490] WARNING: could not pin to core 491
+[Bot 483] WARNING: could not pin to core 484
+[Bot 482] WARNING: could not pin to core 483
+[Bot 503] WARNING: could not pin to core 504
+[Bot 511] WARNING: could not pin to core 512
+[Bot 504] WARNING: could not pin to core 505
+[Bot 509] WARNING: could not pin to core 510
+[Bot 505] WARNING: could not pin to core 506
+[Bot 510] WARNING: could not pin to core 511
+[Bot 513] WARNING: could not pin to core 514
+[Bot 514] WARNING: could not pin to core 515
+[Bot 528] WARNING: could not pin to core 529
+[Bot 515] WARNING: could not pin to core 516
+[Bot 533] WARNING: could not pin to core 534
+[Bot 516] WARNING: could not pin to core 517
+[Bot 538] WARNING: could not pin to core 539
+[Bot 539] WARNING: could not pin to core 540
+[Bot 525] WARNING: could not pin to core 526
+[Bot 563] WARNING: could not pin to core 564
+[Bot 571] WARNING: could not pin to core 572
+[Bot 576] WARNING: could not pin to core 577
+[Bot 583] WARNING: could not pin to core 584
+[Bot 616] WARNING: could not pin to core 617
+[Bot 518] WARNING: could not pin to core 519
+[Bot 543] WARNING: could not pin to core 544
+[Bot 521] WARNING: could not pin to core 522
+[Bot 552] WARNING: could not pin to core [Bot 526] WARNING: could not pin to core 527
+[Bot 568] WARNING: could not pin to core 569
+[Bot 530] WARNING: could not pin to core 531
+[Bot 575] WARNING: could not pin to core 576
+[Bot 535] WARNING: could not pin to core 536
+[Bot 592] WARNING: could not pin to core 593
+[Bot 541] WARNING: could not pin to core 542
+[Bot [Bot 626] WARNING: could not pin to core 627
+[Bot 564] WARNING: could not pin to core 565
+[Bot 627[Bot 578] WARNING: could not pin to core 579
+[Bot 630] WARNING: could not pin to core 631
+[Bot 579] WARNING: could not pin to core 580
+[Bot 580] WARNING: could not pin to core 581
+[Bot 632] WARNING: could not pin to core 633
+[Bot 584[Bot 633] WARNING: could not pin to core 634
+[Bot 669] WARNING: could not pin to core 670
+[Bot 729] WARNING: could not pin to core 730
+[Bot 730] WARNING: could not pin to core 731
+[Bot 520] WARNING: could not pin to core 521
+[Bot 522] WARNING: could not pin to core 523
+[Bot 524] WARNING: could not pin to core 525
+[Bot 531] WARNING: could not pin to core 532
+[Bot 532] WARNING: could not pin to core 533
+[Bot 537] WARNING: could not pin to core 538
+[Bot 544] WARNING: could not pin to core 545
+[Bot 549] WARNING: could not pin to core 550
+[Bot 557] WARNING: could not pin to core 558
+[Bot 561] WARNING: could not pin to core 562
+[Bot 567] WARNING: could not pin to core 568
+[Bot 573] WARNING: could not pin to core 574
+[Bot 574] WARNING: could not pin to core 575
+[Bot 582] WARNING: could not pin to core 583
+[Bot 594] WARNING: could not pin to core 595
+[Bot 599] WARNING: could not pin to core 600
+[Bot [Bot [Bot 689[Bot 687] WARNING: could not pin to core 688
+[Bot 620] WARNING: could not pin to core 621
+[Bot 572] WARNING: could not pin to core 573
+[Bot 688] WARNING: could not pin to core 689
+[Bot 703] WARNING: could not pin to core 704
+[Bot 621] WARNING: could not pin to core [Bot 581] WARNING: could not pin to core 582
+[Bot 622] WARNING: could not pin to core 623
+[Bot 715[Bot 586] WARNING: could not pin to core [Bot 722] WARNING: could not pin to core [Bot [Bot 587] WARNING: could not pin to core [Bot [Bot 624] WARNING: could not pin to core 625
+[Bot 718] WARNING: could not pin to core 719
+[Bot 625] WARNING: could not pin to core 626
+[Bot 728] WARNING: could not pin to core 729
+[Bot 645] WARNING: could not pin to core 646
+[Bot 646] WARNING: could not pin to core 647
+[Bot 648] WARNING: could not pin to core 649
+[Bot 534] WARNING: could not pin to core 535
+[Bot 536] WARNING: could not pin to core 537
+[Bot 540] WARNING: could not pin to core 541
+[Bot 547] WARNING: could not pin to core 548
+[Bot 550] WARNING: could not pin to core 551
+[Bot 558] WARNING: could not pin to core 559
+[Bot 565] WARNING: could not pin to core 566
+[Bot 566] WARNING: could not pin to core 567
+[Bot 577] WARNING: could not pin to core 578
+[Bot 585] WARNING: could not pin to core 586
+[Bot 598] WARNING: could not pin to core 599
+[Bot 613] WARNING: could not pin to core 614
+[Bot 614] WARNING: could not pin to core 615
+[Bot 615] WARNING: could not pin to core 616
+[Bot 617] WARNING: could not pin to core 618
+[Bot 618] WARNING: could not pin to core 619
+[Bot 608] WARNING: could not pin to core 609
+[Bot 619] WARNING: could not pin to core 620
+[Bot [Bot [Bot [Bot 673[Bot 681[Bot 674] WARNING: could not pin to core 675
+[Bot [Bot 683] WARNING: could not pin to core 684
+[Bot 650] WARNING: could not pin to core 651
+[Bot 675] WARNING: could not pin to core 676
+[Bot [Bot [Bot [Bot [Bot 692] WARNING: could not pin to core 652693
+[Bot 653] WARNING: could not pin to core 654
+[Bot [Bot 679[Bot ] WARNING: could not pin to core [Bot [Bot [Bot 655] WARNING: could not pin to core 656
+[Bot 710] WARNING: could not pin to core 711[Bot 
+[Bot [Bot [Bot 711] WARNING: could not pin to core 712
+[Bot [Bot [Bot [Bot [Bot 658] WARNING: could not pin to core 659[Bot [Bot 607[Bot [Bot [Bot 639] WARNING: could not pin to core [Bot 661640] WARNING: could not pin to core [Bot 707662
+[Bot 640] WARNING: could not pin to core [Bot 709] WARNING: could not pin to core 710
+[Bot [Bot [Bot 664[Bot [Bot 724] WARNING: could not pin to core [Bot 612] WARNING: could not pin to core 613
+[Bot 725] WARNING: could not pin to core 726
+[Bot 642] WARNING: could not pin to core 643
+[Bot 611] WARNING: could not pin to core 612
+[Bot [Bot 643] WARNING: could not pin to core 644
+[Bot 589] WARNING: could not pin to core 590
+[Bot 590] WARNING: could not pin to core 591
+[Bot 647] WARNING: could not pin to core 648
+[Bot 649] WARNING: could not pin to core 650
+] WARNING: could not pin to core 690
+[Bot 517] WARNING: could not pin to core 518
+[Bot 519] WARNING: could not pin to core 520
+[Bot 523] WARNING: could not pin to core 524
+[Bot 529] WARNING: could not pin to core 530
+546] WARNING: could not pin to core 547
+[Bot 551] WARNING: could not pin to core 552
+[Bot 559] WARNING: could not pin to core 560
+[Bot 569] WARNING: could not pin to core 570
+] WARNING: could not pin to core 585
+[Bot 554] WARNING: could not pin to core 555
+[Bot 562] WARNING: could not pin to core 563
+553
+[Bot 629] WARNING: could not pin to core 630
+[Bot 628] WARNING: could not pin to core 629
+] WARNING: could not pin to core 628
+[Bot 631] WARNING: could not pin to core 632
+[Bot 553] WARNING: could not pin to core 554
+[Bot 556] WARNING: could not pin to core 557
+[Bot 663] WARNING: could not pin to core 664
+[Bot 662] WARNING: could not pin to core 663
+[Bot 527] WARNING: could not pin to core 528
+[Bot 708] WARNING: could not pin to core 709
+] WARNING: could not pin to core 708
+723] WARNING: could not pin to core 724
+[Bot 604] WARNING: could not pin to core 605
+600] WARNING: could not pin to core 601
+588] WARNING: could not pin to core 589
+665] WARNING: could not pin to core 666
+[Bot 678] WARNING: could not pin to core 679
+[Bot 545] WARNING: could not pin to core 546
+[Bot 609] WARNING: could not pin to core 610
+680
+695] WARNING: could not pin to core 696
+[Bot 601] WARNING: could not pin to core 602
+605] WARNING: could not pin to core 606
+[Bot 596] WARNING: could not pin to core 597
+597] WARNING: could not pin to core 598
+[Bot 637] WARNING: could not pin to core 638
+
+591] WARNING: could not pin to core 592
+654] WARNING: could not pin to core 655
+[Bot 651] WARNING: could not pin to core 652
+[Bot 656] WARNING: could not pin to core 657
+[Bot 659] WARNING: could not pin to core 660
+657] WARNING: could not pin to core 658
+] WARNING: could not pin to core 653
+[Bot 666] WARNING: could not pin to core 667
+
+] WARNING: could not pin to core [Bot [Bot 665
+[Bot 706] WARNING: could not pin to core 707
+680] WARNING: could not pin to core 681
+[Bot 542] WARNING: could not pin to core 543
+[Bot 548] WARNING: could not pin to core 549
+[Bot 570] WARNING: could not pin to core 571
+560] WARNING: could not pin to core 561
+555] WARNING: could not pin to core 556
+588
+587
+622
+[Bot 704] WARNING: could not pin to core 705
+[Bot 698] WARNING: could not pin to core 699
+723
+] WARNING: could not pin to core 716
+[Bot 593] WARNING: could not pin to core 594
+[Bot 610] WARNING: could not pin to core 611
+635] WARNING: could not pin to core 636
+606] WARNING: could not pin to core 607
+603] WARNING: could not pin to core 604
+[Bot 712] WARNING: could not pin to core 713641] WARNING: could not pin to core 642[Bot 
+[Bot 
+727] WARNING: could not pin to core 728
+641
+719] WARNING: could not pin to core 720
+638] WARNING: could not pin to core 639
+[Bot 644[Bot 634] WARNING: could not pin to core 635
+] WARNING: could not pin to core 645
+636] WARNING: could not pin to core 637
+660] WARNING: could not pin to core 661
+691] WARNING: could not pin to core 692
+682] WARNING: could not pin to core 683
+[Bot 700] WARNING: could not pin to core 701
+696] WARNING: could not pin to core 697
+699] WARNING: could not pin to core 700
+694] WARNING: could not pin to core 695
+[Bot 726] WARNING: could not pin to core 727
+705] WARNING: could not pin to core 706
+725
+717] WARNING: could not pin to core 718
+[Bot 602] WARNING: could not pin to core 603
+[Bot 595] WARNING: could not pin to core 596
+[Bot 684] WARNING: could not pin to core 685
+[Bot 672] WARNING: could not pin to core 673
+[Bot 677] WARNING: could not pin to core 678
+] WARNING: could not pin to core 674
+[Bot 671] WARNING: could not pin to core 672
+[Bot 676] WARNING: could not pin to core 677
+[Bot 667] WARNING: could not pin to core 668
+[Bot 693] WARNING: could not pin to core 694
+[Bot 701] WARNING: could not pin to core 702
+] WARNING: could not pin to core 682
+702] WARNING: could not pin to core 703
+670] WARNING: could not pin to core 671
+623] WARNING: could not pin to core 624
+[Bot 685] WARNING: could not pin to core 686
+[Bot 690] WARNING: could not pin to core 691
+] WARNING: could not pin to core 608
+668] WARNING: could not pin to core 669
+[Bot 716] WARNING: could not pin to core 717
+[Bot 686] WARNING: could not pin to core 687
+[Bot 697] WARNING: could not pin to core 698
+[Bot 713] WARNING: could not pin to core 714
+[Bot 714] WARNING: could not pin to core 715
+[Bot 720] WARNING: could not pin to core 721
+[Bot 721] WARNING: could not pin to core 722
+[Bot 731] WARNING: could not pin to core 732
+
+=== RETRYING WITH 1500 BOTS DUE TO SYSTEM LIMITS ===
+[Main] TSC calibrated.
+[Gate] SKIPPED (--no-gate)
+[Main] Launching 1500 bots, interval 500us, duration 20s, target 127.0.0.1:9400
+[Main] CPU pinning: cores 1 through 1500
+[Bot 1] Pinned to core [Bot 22
+] Pinned to core 3
+[Bot 3] Pinned to core 4
+[Bot 0] Pinned to core 1
+[Bot 6] Pinned to core 7
+[Bot 0] SO_BUSY_POLL enabled (50us)
+[Bot 0] SO_TIMESTAMPING enabled (HW on supported NICs, SW fallback)
+[Bot 7] Pinned to core 8
+[Bot 5] Pinned to core 6
+[Bot 10] Pinned to core 11
+[Bot 8] Pinned to core 9
+[Bot 11] Pinned to core 12
+[Bot 9] Pinned to core 10
+[Bot 4] Pinned to core 5
+[Bot 12] Pinned to core 13
+[Bot 13] Pinned to core 14
+[Bot 14] Pinned to core 15
+[Bot 24] WARNING: could not pin to core 25
+[Bot 25] WARNING: could not pin to core 26
+[Bot [Bot 30] WARNING: could not pin to core 31
+[Bot 32] WARNING: could not pin to core 33
+[Bot [Bot 20] WARNING: could not pin to core 21[Bot 
+[Bot 26] WARNING: could not pin to core 27
+28] WARNING: could not pin to core 29
+[Bot 31] WARNING: could not pin to core 32
+[Bot 15] WARNING: could not pin to core [Bot 17] WARNING: could not pin to core 18
+[Bot 18] WARNING: could not pin to core 19
+16
+16] WARNING: could not pin to core 17
+[Bot 27] WARNING: could not pin to core 28
+[Bot 29] WARNING: could not pin to core 30
+[Bot 19] WARNING: could not pin to core 20
+23] WARNING: could not pin to core 24
+[Bot 22] WARNING: could not pin to core 23
+[Bot 33] WARNING: could not pin to core 34
+[Bot 21] WARNING: could not pin to core 22
+[Bot 34] WARNING: could not pin to core 35
+[Bot 35] WARNING: could not pin to core 36
+[Bot 39] WARNING: could not pin to core 40
+[Bot 42] WARNING: could not pin to core 43
+[Bot 57] WARNING: could not pin to core 58
+[Bot 36] WARNING: could not pin to core 37
+[Bot 45[Bot 41] WARNING: could not pin to core 42
+[Bot 51] WARNING: could not pin to core 52
+[Bot 44] WARNING: could not pin to core 45
+] WARNING: could not pin to core 46
+[Bot 56] WARNING: could not pin to core 57
+[Bot 50] WARNING: could not pin to core 51
+[Bot 53] WARNING: could not pin to core 54
+[Bot 54] WARNING: could not pin to core 55
+[Bot 58] WARNING: could not pin to core 59
+[Bot 59] WARNING: could not pin to core 60
+[Bot 48] WARNING: could not pin to core 49
+[Bot 49[Bot 37] WARNING: could not pin to core [Bot 55] WARNING: could not pin to core 56
+[Bot 38] WARNING: could not pin to core 39
+[Bot 40] WARNING: could not pin to core 41
+[Bot 46] WARNING: could not pin to core 47
+[Bot 60] WARNING: could not pin to core 61
+[Bot 62] WARNING: could not pin to core 63
+[Bot 64] WARNING: could not pin to core 65
+[Bot 66] WARNING: could not pin to core 67
+[Bot 63] WARNING: could not pin to core 64
+[Bot 61] WARNING: could not pin to core 62
+[Bot 65] WARNING: could not pin to core 66
+[Bot 52] WARNING: could not pin to core 53
+[Bot 47] WARNING: could not pin to core 48
+[Bot 43] WARNING: could not pin to core 44
+] WARNING: could not pin to core 50
+38
+[Bot 67] WARNING: could not pin to core 68
+[Bot 111] WARNING: could not pin to core 112
+[Bot 114] WARNING: could not pin to core 115
+[Bot 116] WARNING: could not pin to core 117
+[Bot 73] WARNING: could not pin to core 74
+[Bot [Bot 110] WARNING: could not pin to core 111[Bot 75] WARNING: could not pin to core 76
+[Bot 113] WARNING: could not pin to core 114
+
+[Bot 77] WARNING: could not pin to core 78
+[Bot 81] WARNING: could not pin to core 82[Bot [Bot 90] WARNING: could not pin to core 91
+68] WARNING: could not pin to core 69
+[Bot 93] WARNING: could not pin to core 94
+[Bot 97] WARNING: could not pin to core 98
+[Bot 70] WARNING: could not pin to core 71
+[Bot 76] WARNING: could not pin to core 77
+[Bot 117] WARNING: could not pin to core 118
+[Bot 80] WARNING: could not pin to core 81
+[Bot 89] WARNING: could not pin to core 90
+[Bot 95] WARNING: could not pin to core 96
+[Bot 106] WARNING: could not pin to core 107
+[Bot 83] WARNING: could not pin to core 84
+[Bot 84] WARNING: could not pin to core 85
+[Bot 85] WARNING: could not pin to core 86
+[Bot 86] WARNING: could not pin to core 87
+[Bot 92] WARNING: could not pin to core 93
+[Bot 96] WARNING: could not pin to core 97
+[Bot 108] WARNING: could not pin to core 109
+[Bot 69] WARNING: could not pin to core 70
+[Bot 72] WARNING: could not pin to core 73
+[Bot 74] WARNING: could not pin to core 75
+[Bot 79] WARNING: could not pin to core 80
+
+[Bot 100] WARNING: could not pin to core 101
+[Bot 104] WARNING: could not pin to core 105
+[Bot 107] WARNING: could not pin to core 108
+[Bot 115] WARNING: could not pin to core 116
+71] WARNING: could not pin to core 72
+[Bot 109] WARNING: could not pin to core 110
+[Bot 112] WARNING: could not pin to core 113
+[Bot [Bot 82] WARNING: could not pin to core 83
+[Bot 102] WARNING: could not pin to core 103
+[Bot 105] WARNING: could not pin to core 106
+[Bot 103] WARNING: could not pin to core 104
+[Bot 91] WARNING: could not pin to core 92
+[Bot 98] WARNING: could not pin to core 99
+[Bot 101] WARNING: could not pin to core 102
+[Bot 88] WARNING: could not pin to core 89
+[Bot 94] WARNING: could not pin to core 95
+[Bot 87] WARNING: could not pin to core 88
+78] WARNING: could not pin to core 79
+[Bot 99] WARNING: could not pin to core 100
+[Bot 118] WARNING: could not pin to core 119
+[Bot 170] WARNING: could not pin to core 171
+[Bot 134] WARNING: could not pin to core 135
+[Bot 121] WARNING: could not pin to core 122
+[Bot 171] WARNING: could not pin to core 172
+[Bot 174[Bot ] WARNING: could not pin to core 175
+[Bot 125] WARNING: could not pin to core 126
+[Bot 132] WARNING: could not pin to core 133
+[Bot 133] WARNING: could not pin to core 134
+[Bot 142] WARNING: could not pin to core 143
+[Bot 145] WARNING: could not pin to core 146
+[Bot 149] WARNING: could not pin to core 150
+[Bot 156] WARNING: could not pin to core 157
+[Bot 119] WARNING: could not pin to core 120
+[Bot 135] WARNING: could not pin to core 136[Bot [Bot [Bot [Bot 153[Bot 152] WARNING: could not pin to core 153
+[Bot 160] WARNING: could not pin to core 161
+[Bot 137] WARNING: could not pin to core 138
+[Bot 150] WARNING: could not pin to core 151
+[Bot 157] WARNING: could not pin to core 158
+[Bot 167] WARNING: could not pin to core 168
+[Bot 151] WARNING: could not pin to core 152
+[Bot 164] WARNING: could not pin to core 165[Bot 180] WARNING: could not pin to core 181
+[Bot 178] WARNING: could not pin to core 179
+[Bot 158] WARNING: could not pin to core 159
+[Bot 179] WARNING: could not pin to core 180
+[Bot 175] WARNING: could not pin to core 176
+[Bot 161] WARNING: could not pin to core 162
+[Bot 166] WARNING: could not pin to core 167
+[Bot 144] WARNING: could not pin to core 145
+[Bot 120] WARNING: could not pin to core 121
+[Bot 163] WARNING: could not pin to core 164
+[Bot 173] WARNING: could not pin to core 174
+[Bot 165] WARNING: could not pin to core 166
+[Bot 122] WARNING: could not pin to core 123
+[Bot 124] WARNING: could not pin to core 125
+[Bot 126] WARNING: could not pin to core 127
+[Bot 130] WARNING: could not pin to core 131
+[Bot 138] WARNING: could not pin to core 139
+[Bot 141] WARNING: could not pin to core 142
+[Bot 146] WARNING: could not pin to core 147
+[Bot 154] WARNING: could not pin to core 155
+[Bot 159] WARNING: could not pin to core 160
+[Bot 162] WARNING: could not pin to core 163
+[Bot 176] WARNING: could not pin to core 177
+[Bot 177] WARNING: could not pin to core 178
+[Bot 139] WARNING: could not pin to core 140
+[Bot 131] WARNING: could not pin to core 132
+[Bot 127] WARNING: could not pin to core 128
+[Bot 140] WARNING: could not pin to core 141
+129] WARNING: could not pin to core 130
+] WARNING: could not pin to core 154
+143] WARNING: could not pin to core 144
+[Bot 147] WARNING: could not pin to core 148
+148] WARNING: could not pin to core 149
+
+[Bot 136] WARNING: could not pin to core 137
+[Bot 128] WARNING: could not pin to core 129
+[Bot 169] WARNING: could not pin to core 170
+[Bot 168] WARNING: could not pin to core 169
+[Bot 172] WARNING: could not pin to core 173
+[Bot 155] WARNING: could not pin to core 156
+
+123] WARNING: could not pin to core 124
+[Bot 195] WARNING: could not pin to core 196
+[Bot 212] WARNING: could not pin to core 213
+[Bot 198] WARNING: could not pin to core 199
+[Bot 183] WARNING: could not pin to core 184
+[Bot 199] WARNING: could not pin to core 200
+[Bot 205] WARNING: could not pin to core 206
+[Bot 209] WARNING: could not pin to core 210
+[Bot 217] WARNING: could not pin to core 218
+[Bot 214[Bot 237] WARNING: could not pin to core 238
+[Bot 218] WARNING: could not pin to core 219
+[Bot 185] WARNING: could not pin to core 186
+[Bot 187] WARNING: could not pin to core 188
+[Bot 189] WARNING: could not pin to core 190
+[Bot 213] WARNING: could not pin to core 214
+[Bot 192] WARNING: could not pin to core 193
+[Bot 181[Bot [Bot 225201[Bot [Bot 182] WARNING: could not pin to core 183
+[Bot [Bot 222] WARNING: could not pin to core 223
+[Bot 211] WARNING: could not pin to core 212
+[Bot 233] WARNING: could not pin to core 234
+[Bot 184] WARNING: could not pin to core 185
+[Bot 223] WARNING: could not pin to core 224
+[Bot [Bot 220] WARNING: could not pin to core 221
+[Bot 191] WARNING: could not pin to core 192
+[Bot 210] WARNING: could not pin to core 211
+[Bot 215] WARNING: could not pin to core 216
+[Bot 193] WARNING: could not pin to core 215
+[Bot 197] WARNING: could not pin to core 198
+[Bot 224] WARNING: could not pin to core 225
+[Bot 204] WARNING: could not pin to core 205
+[Bot 226] WARNING: could not pin to core 227
+[Bot 229] WARNING: could not pin to core 230
+[Bot 231] WARNING: could not pin to core 232
+[Bot 219] WARNING: could not pin to core 220
+[Bot 230] WARNING: could not pin to core 231
+[Bot 196] WARNING: could not pin to core 197
+[Bot 236] WARNING: could not pin to core 237
+[Bot 208] WARNING: could not pin to core 209
+[Bot 216] WARNING: could not pin to core 217
+[Bot 232] WARNING: could not pin to core 233
+[Bot 228] WARNING: could not pin to core 229
+[Bot 227] WARNING: could not pin to core 228
+[Bot 234] WARNING: could not pin to core 235
+207] WARNING: could not pin to core 208
+[Bot 203] WARNING: could not pin to core 204
+] WARNING: could not pin to core 194
+[Bot 235] WARNING: could not pin to core 236
+[Bot [Bot [Bot 190] WARNING: could not pin to core 191
+188] WARNING: could not pin to core 189
+[Bot 194] WARNING: could not pin to core 195
+[Bot 206] WARNING: could not pin to core 207
+186] WARNING: could not pin to core 187
+[Bot 200] WARNING: could not pin to core 201
+238] WARNING: could not pin to core 239
+] WARNING: could not pin to core 182
+[Bot 221] WARNING: could not pin to core 222
+] WARNING: could not pin to core 226
+202] WARNING: could not pin to core 203
+] WARNING: could not pin to core 202
+[Bot 259] WARNING: could not pin to core 260
+[Bot 276] WARNING: could not pin to core 277
+[Bot 296] WARNING: could not pin to core 297
+[Bot 316] WARNING: could not pin to core 317
+[Bot 330] WARNING: could not pin to core 331
+[Bot 321] WARNING: could not pin to core 322
+[Bot 349] WARNING: could not pin to core 350
+[Bot 350] WARNING: could not pin to core 351
+[Bot 351] WARNING: could not pin to core 352
+[Bot 334] WARNING: could not pin to core 335
+[Bot [Bot 297] WARNING: could not pin to core [Bot 322[Bot [Bot 320] WARNING: could not pin to core 321
+[Bot 332] WARNING: could not pin to core 333
+[Bot 300] WARNING: could not pin to core 301
+[Bot 328] WARNING: could not pin to core 329
+[Bot 337] WARNING: could not pin to core 338
+[Bot 301[Bot 331] WARNING: could not pin to core [Bot 302] WARNING: could not pin to core [Bot 341] WARNING: could not pin to core 342
+[Bot 305] WARNING: could not pin to core 306
+[Bot [Bot [Bot 324[Bot 352[Bot [Bot 357[Bot [Bot 319] WARNING: could not pin to core [Bot 372[Bot [Bot 325] WARNING: could not pin to core 326[Bot [Bot 347[Bot [Bot 333[Bot 348] WARNING: could not pin to core 349
+[Bot 340] WARNING: could not pin to core 341
+[Bot 318] WARNING: could not pin to core 319
+[Bot 327] WARNING: could not pin to core 328
+[Bot 343] WARNING: could not pin to core 344
+[Bot 303[Bot 344] WARNING: could not pin to core 345
+[Bot 345] WARNING: could not pin to core 346
+[Bot 346] WARNING: could not pin to core 347
+[Bot 358] WARNING: could not pin to core 359
+[Bot 359] WARNING: could not pin to core 360
+332
+[Bot 299] WARNING: could not pin to core 300
+307] WARNING: could not pin to core 308
+] WARNING: could not pin to core 302
+[Bot 310] WARNING: could not pin to core 311
+[Bot 315] WARNING: could not pin to core 316
+[Bot 323] WARNING: could not pin to core 324
+[Bot 329] WARNING: could not pin to core 330
+[Bot 335] WARNING: could not pin to core 336
+[Bot 374] WARNING: could not pin to core 375
+[Bot 361] WARNING: could not pin to core 362
+[Bot 362] WARNING: could not pin to core 363
+[Bot 363] WARNING: could not pin to core 364
+[Bot 364] WARNING: could not pin to core 365
+[Bot 365] WARNING: could not pin to core 366
+[Bot 366] WARNING: could not pin to core 367
+[Bot 367] WARNING: could not pin to core 368
+[Bot 368] WARNING: could not pin to core 369
+[Bot 369] WARNING: could not pin to core 370
+[Bot 370] WARNING: could not pin to core 371
+312] WARNING: could not pin to core 313
+298] WARNING: could not pin to core 299
+[Bot 338[Bot ] WARNING: could not pin to core 339
+[Bot 295] WARNING: could not pin to core 296
+[Bot 308] WARNING: could not pin to core 309
+[Bot 317] WARNING: could not pin to core 318
+[Bot 336] WARNING: could not pin to core 337
+[Bot 401] WARNING: could not pin to core 402
+[Bot 403] WARNING: could not pin to core 404
+[Bot 408] WARNING: could not pin to core 409
+326] WARNING: could not pin to core 327
+] WARNING: could not pin to core 334
+320
+[Bot 311] WARNING: could not pin to core 312
+[Bot 373] WARNING: could not pin to core 374
+354] WARNING: could not pin to core 355
+353] WARNING: could not pin to core 354
+] WARNING: could not pin to core 353
+356] WARNING: could not pin to core 357
+[Bot 481] WARNING: could not pin to core 482
+[Bot 488] WARNING: could not pin to core 489
+[Bot 442] WARNING: could not pin to core 443
+[Bot 443] WARNING: could not pin to core [Bot 493] WARNING: could not pin to core 494
+[Bot 454] WARNING: could not pin to core 455
+[Bot 455] WARNING: could not pin to core 456
+[Bot 458] WARNING: could not pin to core 459
+[Bot 447] WARNING: could not pin to core 448
+444
+] WARNING: could not pin to core 325
+303
+
+[Bot 314] WARNING: could not pin to core 315
+] WARNING: could not pin to core 358
+] WARNING: could not pin to core 323
+[Bot 339] WARNING: could not pin to core 340
+342] WARNING: could not pin to core 343
+] WARNING: could not pin to core 348
+355] WARNING: could not pin to core 356
+] WARNING: could not pin to core 373
+[Bot 313] WARNING: could not pin to core 314
+304] WARNING: could not pin to core 305
+298
+[Bot 360] WARNING: could not pin to core 361
+[Bot 306] WARNING: could not pin to core 307
+] WARNING: could not pin to core 304
+[Bot 309] WARNING: could not pin to core 310
+[Bot 546] WARNING: could not pin to core 547
+[Bot 521] WARNING: could not pin to core 522
+[Bot 536] WARNING: could not pin to core 537
+[Bot 537] WARNING: could not pin to core 538
+[Bot 543] WARNING: could not pin to core 544
+[Bot 560] WARNING: could not pin to core 561
+[Bot 561] WARNING: could not pin to core 562
+[Bot 562] WARNING: could not pin to core 563
+[Bot 499] WARNING: could not pin to core 500
+[Bot 589] WARNING: could not pin to core 590
+[Bot 592] WARNING: could not pin to core 593
+[Bot 598] WARNING: could not pin to core 599
+[Bot 601] WARNING: could not pin to core 602
+[Bot 607] WARNING: could not pin to core 608
+[Bot 635] WARNING: could not pin to core 636
+[Bot 636] WARNING: could not pin to core 637
+[Bot 637] WARNING: could not pin to core 638
+[Bot 638] WARNING: could not pin to core 639
+[Bot 639] WARNING: could not pin to core 640
+[Bot 640] WARNING: could not pin to core 641
+[Bot 622] WARNING: could not pin to core 623
+[Bot 566] WARNING: could not pin to core 567
+[Bot 611] WARNING: could not pin to core 612
+[Bot 597] WARNING: could not pin to core 598
+[Bot 610] WARNING: could not pin to core 611
+[Bot 579] WARNING: could not pin to core 580
+[Bot 582] WARNING: could not pin to core 583
+[Bot 594] WARNING: could not pin to core 595
+[Bot 602] WARNING: could not pin to core 603
+[Bot 617] WARNING: could not pin to core 618
+[Bot 572] WARNING: could not pin to core 573
+[Bot 583[Bot 575] WARNING: could not pin to core 576
+[Bot 586] WARNING: could not pin to core 587
+[Bot [Bot 571[Bot 587[Bot 595] WARNING: could not pin to core 596
+[Bot 590[Bot ] WARNING: could not pin to core [Bot 584[Bot ] WARNING: could not pin to core 585[Bot 599] WARNING: could not pin to core 600
+[Bot 588] WARNING: could not pin to core 589
+[Bot 596] WARNING: could not pin to core 597
+[Bot 612] WARNING: could not pin to core 613
+[Bot 605] WARNING: could not pin to core 606
+[Bot 614] WARNING: could not pin to core 615
+[Bot 623] WARNING: could not pin to core 624
+[Bot 615] WARNING: could not pin to core 616
+[Bot 624] WARNING: could not pin to core 625
+[Bot 578] WARNING: could not pin to core 579
+[Bot 593] WARNING: could not pin to core 594
+[Bot 606] WARNING: could not pin to core 607
+[Bot 616] WARNING: could not pin to core 617
+[Bot 621] WARNING: could not pin to core 622
+] WARNING: could not pin to core 572
+[Bot 620] WARNING: could not pin to core 621
+[Bot 625] WARNING: could not pin to core 626
+[Bot 626] WARNING: could not pin to core 627
+[Bot 627] WARNING: could not pin to core 628
+[Bot 628] WARNING: could not pin to core 629
+[Bot 629] WARNING: could not pin to core 630
+[Bot 630] WARNING: could not pin to core 631
+[Bot 631] WARNING: could not pin to core 632
+[Bot 632] WARNING: could not pin to core 633
+[Bot 633] WARNING: could not pin to core 634
+[Bot 634] WARNING: could not pin to core 635
+[Bot 580] WARNING: could not pin to core 581
+591
+
+[Bot 613] WARNING: could not pin to core 614
+[Bot 577] WARNING: could not pin to core 578
+[Bot 574] WARNING: could not pin to core 575
+[Bot 608] WARNING: could not pin to core 609
+] WARNING: could not pin to core 584
+[Bot 573] WARNING: could not pin to core 574
+[Bot 609] WARNING: could not pin to core 610
+[Bot 576] WARNING: could not pin to core 577
+585] WARNING: could not pin to core 586
+[Bot 581] WARNING: could not pin to core 582
+] WARNING: could not pin to core 588
+[Bot 604] WARNING: could not pin to core 605
+600] WARNING: could not pin to core 601
+[Bot 591] WARNING: could not pin to core 592
+[Bot 618] WARNING: could not pin to core 619
+[Bot 603] WARNING: could not pin to core 604
+[Bot 641] WARNING: could not pin to core 642
+619] WARNING: could not pin to core 620
+[Bot 417] WARNING: could not pin to core 418
+[Bot 255] WARNING: could not pin to core 256
+[Bot 416] WARNING: could not pin to core 417
+[Bot 415] WARNING: could not pin to core 416
+[Bot 414] WARNING: could not pin to core 415
+[Bot 377] WARNING: could not pin to core 378
+[Bot 413] WARNING: could not pin to core 414
+[Bot 412] WARNING: could not pin to core 413
+[Bot 376] WARNING: could not pin to core 377
+[Bot 411] WARNING: could not pin to core 412
+[Bot 375] WARNING: could not pin to core 376
+[Bot 410] WARNING: could not pin to core 411
+[Bot 246] WARNING: could not pin to core 247
+[Bot 409[Bot ] WARNING: could not pin to core 410
+[Bot 288] WARNING: could not pin to core 289
+[Bot 280] WARNING: could not pin to core 281
+[Bot 273] WARNING: could not pin to core 274
+[Bot 268] WARNING: could not pin to core 269
+[Bot 258] WARNING: could not pin to core 259
+[Bot 256] WARNING: could not pin to core 257
+[Bot 252] WARNING: could not pin to core 253
+[Bot 251] WARNING: could not pin to core 252
+[Bot 249] WARNING: could not pin to core 250
+[Bot 248] WARNING: could not pin to core 249
+[Bot 247] WARNING: could not pin to core 248
+[Bot 245] WARNING: could not pin to core 246
+[Bot 244] WARNING: could not pin to core 245
+[Bot 243] WARNING: could not pin to core 244
+[Bot 242] WARNING: could not pin to core 243
+[Bot 241] WARNING: could not pin to core 242
+[Bot 240] WARNING: could not pin to core 241
+[Bot 239] WARNING: could not pin to core 240
+[Bot 381] WARNING: could not pin to core 382
+[Bot 379] WARNING: could not pin to core 380
+[Bot 390] WARNING: could not pin to core 391
+281] WARNING: could not pin to core 282
+[Bot 419] WARNING: could not pin to core 420
+[Bot 378] WARNING: could not pin to core 379
+[Bot [Bot 490] WARNING: could not pin to core 491
+[Bot 485] WARNING: could not pin to core 486
+[Bot 283] WARNING: could not pin to core 284
+[Bot 477] WARNING: could not pin to core 478
+[Bot 471] WARNING: could not pin to core 472
+[Bot 272] WARNING: could not pin to core 273
+[Bot 470] WARNING: could not pin to core 471
+[Bot 287] WARNING: could not pin to core 288[Bot 457] WARNING: could not pin to core 458[Bot 270] WARNING: could not pin to core 271
+[Bot 451] WARNING: could not pin to core 452
+
+[Bot 289] WARNING: could not pin to core 290
+[Bot 445] WARNING: could not pin to core 446
+[Bot 266] WARNING: could not pin to core 267
+[Bot 444] WARNING: could not pin to core 445
+486] WARNING: could not pin to core 487
+[Bot 264] WARNING: could not pin to core 265
+[Bot 437] WARNING: could not pin to core 438
+[Bot 498] WARNING: could not pin to core 499
+[Bot 371] WARNING: could not pin to core 372
+[Bot 436] WARNING: could not pin to core [Bot 489] WARNING: could not pin to core 490
+437
+[Bot 496] WARNING: could not pin to core 497
+[Bot 495] WARNING: could not pin to core 496
+[Bot 435] WARNING: could not pin to core 436
+[Bot 261] WARNING: could not pin to core 262
+
+[Bot 462] WARNING: could not pin to core 463
+[Bot 453] WARNING: could not pin to core 454
+[Bot 450] WARNING: could not pin to core 451
+[Bot 449] WARNING: could not pin to core 450
+[Bot 260] WARNING: could not pin to core 261
+[Bot 424] WARNING: could not pin to core 425
+[Bot 423] WARNING: could not pin to core 424
+[Bot 433] WARNING: could not pin to core 434
+[Bot 434] WARNING: could not pin to core 435
+[Bot [Bot [Bot 440] WARNING: could not pin to core 441
+[Bot 441] WARNING: could not pin to core 442
+[Bot 438] WARNING: could not pin to core 439[Bot 286] WARNING: could not pin to core 287
+
+[Bot 429] WARNING: could not pin to core 430
+[Bot 428] WARNING: could not pin to core 429
+[Bot 282] WARNING: could not pin to core 283
+[Bot 491] WARNING: could not pin to core 492
+[Bot 482] WARNING: could not pin to core 483
+[Bot 467] WARNING: could not pin to core 468
+[Bot 279] WARNING: could not pin to core 280
+[Bot 464] WARNING: could not pin to core 465
+[Bot 461] WARNING: could not pin to core 462
+[Bot 460] WARNING: could not pin to core 461
+[Bot 277] WARNING: could not pin to core 278
+[Bot 459] WARNING: could not pin to core 460
+[Bot 290] WARNING: could not pin to core 291
+[Bot 426] WARNING: could not pin to core 427
+[Bot 425] WARNING: could not pin to core 426
+[Bot 404] WARNING: could not pin to core 405
+[Bot 402] WARNING: could not pin to core 403
+[Bot 400] WARNING: could not pin to core 401
+[Bot 399] WARNING: could not pin to core 400
+[Bot 398] WARNING: could not pin to core 399
+[Bot 483] WARNING: could not pin to core 484
+[Bot 479] WARNING: could not pin to core 480
+[Bot 494] WARNING: could not pin to core 495
+[Bot 478] WARNING: could not pin to core 479
+[Bot 475] WARNING: could not pin to core 476
+[Bot 474] WARNING: could not pin to core 475
+[Bot 473] WARNING: could not pin to core 474
+[Bot 472] WARNING: could not pin to core 473
+[Bot 427] WARNING: could not pin to core 428
+[Bot 422] WARNING: could not pin to core 423
+[Bot 421] WARNING: could not pin to core 422
+[Bot 396] WARNING: could not pin to core 397
+[Bot 420] WARNING: could not pin to core 421
+[Bot 395] WARNING: could not pin to core 396
+[Bot 393] WARNING: could not pin to core 394
+[Bot 418] WARNING: could not pin to core 419
+[Bot 407] WARNING: could not pin to core 408
+[Bot 391] WARNING: could not pin to core 392
+[Bot 406] WARNING: could not pin to core 407
+[Bot 388] WARNING: could not pin to core 389
+[Bot 405] WARNING: could not pin to core 406
+[Bot 387] WARNING: could not pin to core 388
+[Bot 487] WARNING: could not pin to core [Bot [Bot 386] WARNING: could not pin to core 387
+[Bot 383] WARNING: could not pin to core 384
+[Bot 392] WARNING: could not pin to core 393
+[Bot [Bot 382[Bot ] WARNING: could not pin to core 383
+[Bot 380] WARNING: could not pin to core 381
+385389] WARNING: could not pin to core 386
+[Bot 384] WARNING: could not pin to core 385
+394] WARNING: could not pin to core ] WARNING: could not pin to core 395
+390
+[Bot 397] WARNING: could not pin to core 398
+[Bot 292[Bot 480] WARNING: could not pin to core 481[Bot 285] WARNING: could not pin to core 286
+] WARNING: could not pin to core 293
+
+488
+[Bot 469] WARNING: could not pin to core 470
+431] WARNING: could not pin to core 432
+[Bot 291] WARNING: could not pin to core 292
+[Bot 275] WARNING: could not pin to core 276
+[Bot 271] WARNING: could not pin to core 272
+[Bot 263] WARNING: could not pin to core 264
+[Bot 257] WARNING: could not pin to core 258
+[Bot 250] WARNING: could not pin to core 251
+[Bot 466] WARNING: could not pin to core 467
+[Bot 432] WARNING: could not pin to core 433
+430] WARNING: could not pin to core 431
+[Bot 465] WARNING: could not pin to core 466
+[Bot 456] WARNING: could not pin to core 457
+[Bot 452] WARNING: could not pin to core 453
+[Bot 439] WARNING: could not pin to core 440
+[Bot 448] WARNING: could not pin to core 449
+[Bot 446] WARNING: could not pin to core 447
+[Bot 294] WARNING: could not pin to core 295
+[Bot 253] WARNING: could not pin to core 254
+[Bot 254] WARNING: could not pin to core 255
+[Bot 262] WARNING: could not pin to core 263
+[Bot 265] WARNING: could not pin to core 266
+[Bot 284] WARNING: could not pin to core 285
+[Bot 274] WARNING: could not pin to core 275
+[Bot 269] WARNING: could not pin to core 270
+[Bot 267] WARNING: could not pin to core 268
+[Bot 278] WARNING: could not pin to core 279
+[Bot 293] WARNING: could not pin to core 294
+[Bot 526] WARNING: could not pin to core 527
+[Bot 563] WARNING: could not pin to core 564
+[Bot 567] WARNING: could not pin to core 568
+[Bot 564] WARNING: could not pin to core 565
+[Bot 554] WARNING: could not pin to core 555
+[Bot 533] WARNING: could not pin to core 534
+[Bot 530] WARNING: could not pin to core 531
+[Bot 527] WARNING: could not pin to core 528
+[Bot 524] WARNING: could not pin to core 525
+[Bot 519] WARNING: could not pin to core 520
+[Bot 517] WARNING: could not pin to core 518
+[Bot 515] WARNING: could not pin to core 516
+[Bot 558] WARNING: could not pin to core 559
+[Bot 549] WARNING: could not pin to core 550
+[Bot 510] WARNING: could not pin to core 511
+[Bot 548] WARNING: could not pin to core 549
+[Bot 535] WARNING: could not pin to core 536
+[Bot 534] WARNING: could not pin to core 535
+[Bot 508] WARNING: could not pin to core 509
+[Bot 506] WARNING: could not pin to core 507
+[Bot 504] WARNING: could not pin to core 505
+[Bot 570] WARNING: could not pin to core 571
+[Bot 503] WARNING: could not pin to core 504
+[Bot 544] WARNING: could not pin to core 545
+[Bot 539] WARNING: could not pin to core 540
+[Bot 553] WARNING: could not pin to core 554
+[Bot 538] WARNING: could not pin to core 539
+[Bot 568] WARNING: could not pin to core 569
+[Bot 557] WARNING: could not pin to core 558
+[Bot 547] WARNING: could not pin to core 548
+[Bot 545] WARNING: could not pin to core 546
+[Bot 540] WARNING: could not pin to core 541
+[Bot 531] WARNING: could not pin to core 532
+[Bot 529] WARNING: could not pin to core 530
+[Bot 522] WARNING: could not pin to core 523
+[Bot 497] WARNING: could not pin to core 498
+[Bot 492] WARNING: could not pin to core 493
+[Bot 518] WARNING: could not pin to core 519
+[Bot 516] WARNING: could not pin to core 517
+[Bot 513] WARNING: could not pin to core 514
+[Bot 509] WARNING: could not pin to core 510
+[Bot 507] WARNING: could not pin to core 508
+[Bot 505] WARNING: could not pin to core 506
+[Bot 501] WARNING: could not pin to core 502
+[Bot 500] WARNING: could not pin to core 501
+[Bot 484] WARNING: could not pin to core 485
+[Bot 559] WARNING: could not pin to core 560
+[Bot 551] WARNING: could not pin to core 552
+[Bot 550] WARNING: could not pin to core 551
+[Bot 528] WARNING: could not pin to core 529
+[Bot 523] WARNING: could not pin to core 524
+[Bot 502] WARNING: could not pin to core 503
+[Bot 520] WARNING: could not pin to core 521
+[Bot 514] WARNING: could not pin to core 515
+[Bot 476] WARNING: could not pin to core 477
+[Bot 468] WARNING: could not pin to core 469
+[Bot 463] WARNING: could not pin to core 464
+[Bot 555] WARNING: could not pin to core 556
+[Bot 512] WARNING: could not pin to core 513
+[Bot 511] WARNING: could not pin to core 512
+[Bot 556] WARNING: could not pin to core 557
+[Bot 569] WARNING: could not pin to core 570
+[Bot 565] WARNING: could not pin to core 566
+[Bot 542] WARNING: could not pin to core 543
+[Bot 541] WARNING: could not pin to core 542
+[Bot 532] WARNING: could not pin to core 533
+[Bot 525] WARNING: could not pin to core 526
+[Bot 552] WARNING: could not pin to core 553
+[Bot 642] WARNING: could not pin to core 643
+[Bot 656] WARNING: could not pin to core 657
+[Bot 658] WARNING: could not pin to core 659
+[Bot 655] WARNING: could not pin to core 656
+[Bot 643] WARNING: could not pin to core 644
+[Bot 645] WARNING: could not pin to core 646
+[Bot 647] WARNING: could not pin to core 648[Bot 652] WARNING: could not pin to core 653
+[Bot 651] WARNING: could not pin to core 652
+[Bot 653] WARNING: could not pin to core 654
+[Bot 644] WARNING: could not pin to core 645
+[Bot 646] WARNING: could not pin to core 647
+[Bot 648] WARNING: could not pin to core 649
+[Bot 650] WARNING: could not pin to core 651
+[Bot 657] WARNING: could not pin to core 658
+[Bot 654] WARNING: could not pin to core 655
+[Bot 649] WARNING: could not pin to core 650
+
+[Bot 672] WARNING: could not pin to core 673
+[Bot 670] WARNING: could not pin to core 671
+[Bot 676] WARNING: could not pin to core 677
+[Bot 671] WARNING: could not pin to core 672
+[Bot 668] WARNING: could not pin to core 669
+[Bot 667] WARNING: could not pin to core 668
+[Bot 665] WARNING: could not pin to core 666
+[Bot 664] WARNING: could not pin to core 665
+[Bot 662] WARNING: could not pin to core 663
+[Bot 661] WARNING: could not pin to core 662
+[Bot 659] WARNING: could not pin to core 660
+[Bot 673] WARNING: could not pin to core 674
+[Bot 669] WARNING: could not pin to core 670
+[Bot 666] WARNING: could not pin to core 667
+[Bot 663] WARNING: could not pin to core 664
+[Bot 675] WARNING: could not pin to core 676
+[Bot 660] WARNING: could not pin to core 661
+[Bot 674] WARNING: could not pin to core 675
+[Bot 677] WARNING: could not pin to core 678
+[Bot 681] WARNING: could not pin to core 682
+[Bot 683] WARNING: could not pin to core 684
+[Bot 678] WARNING: could not pin to core 679
+[Bot 682] WARNING: could not pin to core 683
+[Bot 736] WARNING: could not pin to core 737
+[Bot 737] WARNING: could not pin to core 738
+[Bot 685] WARNING: could not pin to core 686
+[Bot 680] WARNING: could not pin to core 681
+[Bot 719] WARNING: could not pin to core 720
+[Bot 691] WARNING: could not pin to core 692
+[Bot 694] WARNING: could not pin to core 695
+[Bot 713] WARNING: could not pin to core 714
+[Bot 819] WARNING: could not pin to core 820
+[Bot [Bot 693] WARNING: could not pin to core [Bot [Bot [Bot [Bot [Bot 730[Bot 750] WARNING: could not pin to core 751
+[Bot [Bot 704] WARNING: could not pin to core 705
+[Bot 734] WARNING: could not pin to core 735
+[Bot 775] WARNING: could not pin to core 776
+[Bot 716] WARNING: could not pin to core 717[Bot 820] WARNING: could not pin to core 821
+[Bot 751] WARNING: could not pin to core 752
+[Bot 707] WARNING: could not pin to core 708
+[Bot 821] WARNING: could not pin to core 822[Bot 735] WARNING: could not pin to core [Bot [Bot 824] WARNING: could not pin to core 825
+[Bot [Bot 789[Bot [Bot 717] WARNING: could not pin to core 718[Bot 740[Bot 724] WARNING: could not pin to core 725
+[Bot 764] WARNING: could not pin to core 765
+[Bot 762] WARNING: could not pin to core 763
+[Bot 763] WARNING: could not pin to core 764
+[Bot 765] WARNING: could not pin to core 766
+[Bot 766] WARNING: could not pin to core 767
+[Bot 688] WARNING: could not pin to core 689
+[Bot 770] WARNING: could not pin to core 771
+[Bot 776] WARNING: could not pin to core 777
+[Bot 725] WARNING: could not pin to core 726
+[Bot 778] WARNING: could not pin to core 779
+[Bot 733] WARNING: could not pin to core 734
+[Bot 780] WARNING: could not pin to core 781
+[Bot [Bot 723] WARNING: could not pin to core 724
+[Bot 690] WARNING: could not pin to core 691
+] WARNING: could not pin to core 731
+728] WARNING: could not pin to core 729
+[Bot 700] WARNING: could not pin to core 701
+[Bot 696] WARNING: could not pin to core 697
+[Bot 808] WARNING: could not pin to core 809
+[Bot 715] WARNING: could not pin to core 716
+[Bot 748] WARNING: could not pin to core 749
+[Bot 701] WARNING: could not pin to core 702
+[Bot [Bot 706] WARNING: could not pin to core 707
+[Bot 822] WARNING: could not pin to core 823
+[Bot 711] WARNING: could not pin to core 712
+[Bot [Bot [Bot 732714] WARNING: could not pin to core 715
+736
+[Bot [Bot 742[Bot 708] WARNING: could not pin to core 709
+721] WARNING: could not pin to core 722
+[Bot 679] WARNING: could not pin to core 680
+[Bot 779] WARNING: could not pin to core 780
+[Bot 826] WARNING: could not pin to core 827
+[Bot 784] WARNING: could not pin to core 785
+781] WARNING: could not pin to core 782
+738] WARNING: could not pin to core 739
+[Bot 773] WARNING: could not pin to core 774
+699] WARNING: could not pin to core 700
+] WARNING: could not pin to core 741
+[Bot 774] WARNING: could not pin to core 775
+722] WARNING: could not pin to core 723
+[Bot 726] WARNING: could not pin to core 727
+[Bot 729] WARNING: could not pin to core 730
+[Bot 739] WARNING: could not pin to core 740
+] WARNING: could not pin to core 743
+[Bot 794] WARNING: could not pin to core 795
+[Bot 741] WARNING: could not pin to core 742[Bot 795] WARNING: could not pin to core 796
+
+[Bot 796] WARNING: could not pin to core 797
+[Bot 797] WARNING: could not pin to core 798
+[Bot 798] WARNING: could not pin to core 799
+[Bot 799] WARNING: could not pin to core 800
+[Bot 800] WARNING: could not pin to core 801
+[Bot 801] WARNING: could not pin to core 802
+[Bot 802] WARNING: could not pin to core 803
+[Bot 803] WARNING: could not pin to core 804
+[Bot 804] WARNING: could not pin to core 805
+[Bot 805] WARNING: could not pin to core 806
+[Bot 806] WARNING: could not pin to core 807
+[Bot 809] WARNING: could not pin to core 810
+[Bot 810] WARNING: could not pin to core 811
+[Bot 813] WARNING: could not pin to core 814
+[Bot 814] WARNING: could not pin to core 815
+[Bot 816] WARNING: could not pin to core 817
+[Bot 828] WARNING: could not pin to core 829
+
+[Bot 777] WARNING: could not pin to core 778
+
+[Bot 727] WARNING: could not pin to core 728
+[Bot 731] WARNING: could not pin to core 732
+] WARNING: could not pin to core 733
+[Bot 720] WARNING: could not pin to core 721
+[Bot 782] WARNING: could not pin to core 783
+[Bot 785] WARNING: could not pin to core 786
+[Bot 787] WARNING: could not pin to core 788
+[Bot 831] WARNING: could not pin to core 832
+[Bot 788] WARNING: could not pin to core 789
+[Bot 790] WARNING: could not pin to core 791
+[Bot 792] WARNING: could not pin to core 793
+[Bot 793] WARNING: could not pin to core 794
+[Bot 829] WARNING: could not pin to core 830
+[Bot 830] WARNING: could not pin to core 831
+[Bot 752] WARNING: could not pin to core 753
+[Bot 753] WARNING: could not pin to core 754
+[Bot 754] WARNING: could not pin to core 755
+[Bot 755] WARNING: could not pin to core 756
+[Bot 756] WARNING: could not pin to core 757
+[Bot 757] WARNING: could not pin to core 758
+[Bot 758] WARNING: could not pin to core 759
+[Bot 759] WARNING: could not pin to core 760
+[Bot 760] WARNING: could not pin to core 761
+[Bot 761] WARNING: could not pin to core 762
+[Bot 807] WARNING: could not pin to core 808
+[Bot 811] WARNING: could not pin to core 812
+[Bot 812] WARNING: could not pin to core 813
+[Bot 815] WARNING: could not pin to core 816
+[Bot 817] WARNING: could not pin to core 818
+[Bot 818] WARNING: could not pin to core 819
+[Bot 791] WARNING: could not pin to core 792
+[Bot 823] WARNING: could not pin to core 824
+[Bot 786] WARNING: could not pin to core 787
+783] WARNING: could not pin to core 784
+[Bot 769] WARNING: could not pin to core 770
+[Bot 768] WARNING: could not pin to core 769
+[Bot 767] WARNING: could not pin to core 768
+[Bot 718] WARNING: could not pin to core 719
+695] WARNING: could not pin to core 696
+[Bot 710] WARNING: could not pin to core 711
+[Bot 709] WARNING: could not pin to core 710
+705] WARNING: could not pin to core 706
+694
+[Bot 747] WARNING: could not pin to core 748
+[Bot 712] WARNING: could not pin to core 713
+772] WARNING: could not pin to core 773
+] WARNING: could not pin to core 790
+[Bot 827] WARNING: could not pin to core 828
+825] WARNING: could not pin to core 826
+
+[Bot 697] WARNING: could not pin to core 698
+[Bot 702] WARNING: could not pin to core 703
+[Bot 771] WARNING: could not pin to core 772
+[Bot 692] WARNING: could not pin to core 693
+[Bot 744] WARNING: could not pin to core 745
+[Bot 749] WARNING: could not pin to core 750
+[Bot 746] WARNING: could not pin to core 747
+[Bot 698] WARNING: could not pin to core 699
+[Bot 703] WARNING: could not pin to core 704
+745] WARNING: could not pin to core 746
+743] WARNING: could not pin to core 744
+[Bot 684] WARNING: could not pin to core 685
+[Bot 686] WARNING: could not pin to core 687
+[Bot 687] WARNING: could not pin to core 688
+[Bot 689] WARNING: could not pin to core 690
+[Bot 844] WARNING: could not pin to core 845
+[Bot 852] WARNING: could not pin to core 853
+[Bot 849] WARNING: could not pin to core 850
+[Bot 857] WARNING: could not pin to core 858
+[Bot 858] WARNING: could not pin to core 859
+[Bot 871] WARNING: could not pin to core 872
+[Bot 872] WARNING: could not pin to core 873
+[Bot [Bot [Bot 862] WARNING: could not pin to core 863
+[Bot 867] WARNING: could not pin to core 868
+[Bot 863] WARNING: could not pin to core 864
+[Bot 870] WARNING: could not pin to core 871[Bot 868] WARNING: could not pin to core 869
+[Bot 876] WARNING: could not pin to core 877
+[Bot 832] WARNING: could not pin to core 833
+[Bot 877] WARNING: could not pin to core 878
+[Bot 869] WARNING: could not pin to core 870
+[Bot 833] WARNING: could not pin to core 834
+[Bot 878] WARNING: could not pin to core 879
+[Bot 834] WARNING: could not pin to core 835
+[Bot 835] WARNING: could not pin to core 836
+[Bot 836] WARNING: could not pin to core 837
+[Bot 837] WARNING: could not pin to core 838
+[Bot 838] WARNING: could not pin to core 839
+[Bot 839] WARNING: could not pin to core 840
+[Bot 840] WARNING: could not pin to core 841
+[Bot 841] WARNING: could not pin to core 842
+[Bot 842] WARNING: could not pin to core 843
+[Bot 843] WARNING: could not pin to core 844
+[Bot 845] WARNING: could not pin to core 846
+[Bot 846] WARNING: could not pin to core 847
+[Bot 847] WARNING: could not pin to core 848
+[Bot 848] WARNING: could not pin to core 849
+[Bot 850] WARNING: could not pin to core 851
+[Bot 851] WARNING: could not pin to core 852
+[Bot 853] WARNING: could not pin to core 854
+[Bot 855] WARNING: could not pin to core 856
+[Bot 856] WARNING: could not pin to core 857
+[Bot 859] WARNING: could not pin to core 860
+[Bot 860] WARNING: could not pin to core 861
+[Bot 861] WARNING: could not pin to core 862
+[Bot 864] WARNING: could not pin to core 865
+[Bot 874] WARNING: could not pin to core 875
+[Bot 875] WARNING: could not pin to core 876
+[Bot 922] WARNING: could not pin to core 923
+[Bot 865] WARNING: could not pin to core 866
+866] WARNING: could not pin to core 867
+[Bot 873] WARNING: could not pin to core 874
+854] WARNING: could not pin to core 855
+
+[Bot 896] WARNING: could not pin to core 897
+[Bot 895] WARNING: could not pin to core 896
+[Bot 894] WARNING: could not pin to core 895
+[Bot 893] WARNING: could not pin to core 894
+[Bot 892] WARNING: could not pin to core 893
+[Bot 891] WARNING: could not pin to core 892
+[Bot 890] WARNING: could not pin to core 891
+[Bot 889] WARNING: could not pin to core 890
+[Bot 888] WARNING: could not pin to core 889
+[Bot 887] WARNING: could not pin to core 888
+[Bot 886] WARNING: could not pin to core 887
+[Bot 885] WARNING: could not pin to core 886
+[Bot 884] WARNING: could not pin to core 885
+[Bot 883] WARNING: could not pin to core 884
+[Bot 882] WARNING: could not pin to core 883
+[Bot 881] WARNING: could not pin to core 882
+[Bot 915] WARNING: could not pin to core 916
+[Bot 880] WARNING: could not pin to core 881
+[Bot 879] WARNING: could not pin to core 880
+[Bot 921] WARNING: could not pin to core 922
+[Bot 920] WARNING: could not pin to core 921
+[Bot 919] WARNING: could not pin to core 920
+[Bot 918] WARNING: could not pin to core 919
+[Bot 917] WARNING: could not pin to core 918
+[Bot 914] WARNING: could not pin to core 915
+[Bot 911] WARNING: could not pin to core 912
+[Bot 910] WARNING: could not pin to core 911
+[Bot 913] WARNING: could not pin to core 914
+[Bot 909] WARNING: could not pin to core 910
+[Bot 899] WARNING: could not pin to core 900
+[Bot 900] WARNING: could not pin to core 901
+[Bot 916] WARNING: could not pin to core 917
+[Bot 907] WARNING: could not pin to core 908
+[Bot 904] WARNING: could not pin to core 905
+[Bot 908] WARNING: could not pin to core 909
+[Bot 906] WARNING: could not pin to core 907
+[Bot 905] WARNING: could not pin to core 906
+[Bot 898] WARNING: could not pin to core 899
+[Bot 912] WARNING: could not pin to core 913
+[Bot 903] WARNING: could not pin to core 904
+[Bot 897] WARNING: could not pin to core 898
+[Bot 902] WARNING: could not pin to core 903
+[Bot 901] WARNING: could not pin to core 902
+[Bot 936] WARNING: could not pin to core 937
+[Bot 923] WARNING: could not pin to core 924
+[Bot [Bot 1010] WARNING: could not pin to core 1011
+[Bot 1009] WARNING: could not pin to core 1010
+[Bot 1008] WARNING: could not pin to core 1009
+[Bot 1007] WARNING: could not pin to core 1008
+[Bot 1006] WARNING: could not pin to core 1007
+[Bot 1005] WARNING: could not pin to core 1006
+[Bot 977] WARNING: could not pin to core 978
+[Bot 985] WARNING: could not pin to core 986
+[Bot 1004] WARNING: could not pin to core 1005
+[Bot 1003] WARNING: could not pin to core 1004
+[Bot 994] WARNING: could not pin to core 995
+[Bot 976] WARNING: could not pin to core 977
+[Bot 1002] WARNING: could not pin to core 1003
+[Bot 1052] WARNING: could not pin to core 1053
+[Bot 1051] WARNING: could not pin to core 1052
+[Bot 1050] WARNING: could not pin to core 1051
+[Bot 1049] WARNING: could not pin to core 1050
