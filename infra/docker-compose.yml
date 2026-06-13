@@ -18,9 +18,14 @@
 #   docker compose -f infra/docker-compose.yml up --build
 #   open http://localhost:8088        # leaderboard
 #
-# VERIFIED:   file structure, build contexts, port wiring, healthchecks.
-# NOT RUN:    not executed in CI here — bot perf flags (CPU pinning, SO_BUSY_POLL)
-#             are Linux-only and no-op in containers; see caveats in README.
+# CI-SMOKED:  .github/workflows/compose-smoke.yml boots this entire stack on every
+#             push/PR (x86 Linux runner): builds all images, waits for health, then
+#             asserts (a) the nginx leaderboard serves, (b) the gateway emits a live
+#             WS frame with source=LIVE_CSV fed by the bot fleet, and (c) the intake
+#             API takes a real submission through to ATTESTED. Green badge = it runs.
+# CONTAINER CAVEAT: bot perf flags (CPU pinning, SO_BUSY_POLL) are Linux-only and
+#             no-op in containers; the low-latency p99 numbers come from the bare-metal
+#             K8s path, not compose. Compose proves the loop + correctness, not p99.
 # ============================================================================
 
 name: iicpc-hft-platform

@@ -7,8 +7,13 @@
 # ============================================================================
 FROM node:20-alpine
 WORKDIR /app
-COPY package.json /app/package.json
-RUN npm install --omit=dev
+# The gateway runtime needs only `ws` (telemetry_server.js uses http/fs/path +
+# ws). express/puppeteer are dev/test-only (devDependencies) and must NOT land
+# here — puppeteer's Chromium download breaks on alpine/musl and bloats the
+# image. --omit=dev + the skip-download guard keep this lean.
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+COPY package.json package-lock.json /app/
+RUN npm install --omit=dev --no-audit --no-fund
 COPY . /app
 EXPOSE 8080
 ENTRYPOINT []
