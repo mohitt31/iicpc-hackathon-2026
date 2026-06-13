@@ -115,8 +115,9 @@ two-histogram table print.
 > busy-poll simply don't exist - so that tail is scheduler jitter, not our engine.
 > The platform is built for isolated bare-metal Linux - isolcpus, nohz_full, busy-poll
 > - where the OS is banished from the core and the p99 tail collapses toward the median.
-> We ship that as a Terraform-provisioned design target, and we won't quote a production
-> number we haven't measured. That restraint is the whole point of this benchmark."
+> We measured exactly that: p99 7.7 microseconds on an isolated consumer desktop, naive
+> and corrected in agreement because a quiet machine has nothing to hide. Every number on
+> this platform is measured, not quoted. That restraint is the whole point of this benchmark."
 
 ---
 

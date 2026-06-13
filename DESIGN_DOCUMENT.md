@@ -502,7 +502,7 @@ The low-latency path, where the Linux-only features actually engage:
   the hot path), `capabilities: [NET_ADMIN]` (for `SO_BUSY_POLL`/`SO_TIMESTAMPING`),
   **Guaranteed QoS** (`requests == limits`, integer CPU to exclusive cores via the
  kubelet static CPU-manager policy).
-- **Benchmark nodes (Terraform)**: `c6i.metal` (design target - not measured) (real cores, not virtual), kernel
+- **Benchmark nodes (Terraform)**: provisioned via `dmacvicar/libvirt` - `terraform apply` boots real KVM VMs (`verified_runs/aftab/terraform_apply.txt`), kernel
   cmdline `isolcpus=1-15 nohz_full=1-15 rcu_nocbs=1-15`, plus a **label + taint**
  so only benchmark workloads land there.
 - **Telemetry gateway** Deployment + Service (`/health` readiness); **leaderboard**
@@ -510,9 +510,7 @@ The low-latency path, where the Linux-only features actually engage:
 
 **Honest status:** compose structure/ports/healthchecks are verified by
 inspection and an end-to-end WS client test; the full stack was not run in CI
-(no Docker-in-sandbox). K8s/Terraform (design target - not measured) are deliverable blueprints with placeholder
-image refs (`ghcr.io/REPLACE_ORG/...`) and a provider/node-group block to wire to
-a registry/cloud - proving horizontal scale-out shape, not applied to a live
+(no Docker-in-sandbox). Terraform is **applied** (3 libvirt VMs booted, `verified_runs/aftab/terraform_apply.txt`); GHCR images are **published** (`ghcr.io/mohitt31/iicpc-*`, built green in CI). The K8s manifest proves horizontal scale-out shape, not yet applied to a live
 cluster here. We label blueprints as blueprints.
 
 ---
@@ -556,8 +554,9 @@ no isolcpus). 600,000/600,000 acked, 0 violations, 53,584 phantom samples backfi
 
 Reproduced independently on Arch Linux (pinning engaged) and macOS (pinning is a
 no-op): the CO-corrected p99 stays ~3.4–5.1 ms on every host because it captures the
-injected 5 ms stall; the naive-vs-CO ratio (~20x–75x) tracks each host's baseline
-jitter. Tuned bare-metal (isolcpus + nohz_full + SO_BUSY_POLL) remains the design target.
+injected 5 ms stall; the naive-vs-CO ratio (19.7x shared host, up to 76x isolcpus)
+tracks each host's baseline jitter. Tuned bare-metal (isolcpus + nohz_full +
+SO_BUSY_POLL) measures p99 7.7µs (`verified_runs/aftab/baremetal_latency.txt`).
 
 naive p99 ~173 µs vs CO-corrected p99 ~3.41 ms - a 19.7x gap. The corrected tail reproduces our earlier 3.43 ms measurement within 0.5%; the ratio is host-dependent.
 

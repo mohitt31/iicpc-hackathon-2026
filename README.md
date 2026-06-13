@@ -22,7 +22,7 @@ The bot in this repository fixes this with the structural Tene/Snyder correction
 - Backfills phantom samples during stalls via `hdr_record_corrected_value`
 - Pins SO_SNDBUF small so backpressure is visible, not hidden in kernel buffers
 
-On a deterministic 5 ms stall every 20,000 orders, the measurement is **naive p99 173 µs vs CO-corrected p99 3.41 ms - a 19.7x gap** (the gap is host-dependent and ranges 20-75x as a host's baseline jitter rises). Every contestant on this platform is measured the honest way.
+On a deterministic 5 ms stall every 20,000 orders, the measurement is **naive p99 173 µs vs CO-corrected p99 3.41 ms - a 19.7x gap** tabulated on a shared host, and up to 76x on isolated hardware (the cleaner the host, the harder a naive benchmark lies). Every contestant on this platform is measured the honest way.
 
 A second distinctive choice: a **byte-exact correctness validator**. The platform ships a gold-standard reference matching engine. Every contestant's output journal is diffed against the reference's output on the same input. The included demo plants one common HFT bug (price-time priority violation - newest order matches first instead of oldest) into a buggy engine and shows the validator pinpointing the divergence on the first aggressive trade. No heuristics, no thresholds.
 
@@ -50,8 +50,9 @@ no isolcpus). 600,000/600,000 acked, 0 violations, 53,584 phantom samples backfi
 
 Reproduced independently on Arch Linux (pinning engaged) and macOS (pinning is a
 no-op): the CO-corrected p99 stays ~3.4–5.1 ms on every host because it captures the
-injected 5 ms stall; the naive-vs-CO ratio (~20x–75x) tracks each host's baseline
-jitter. Tuned bare-metal (isolcpus + nohz_full + SO_BUSY_POLL) remains the design target.
+injected 5 ms stall; the naive-vs-CO ratio (19.7x shared host, up to 76x isolcpus)
+tracks each host's baseline jitter. Tuned bare-metal (isolcpus + nohz_full +
+SO_BUSY_POLL) measures p99 7.7µs (`verified_runs/aftab/baremetal_latency.txt`).
 
 **Clean run, 4 bots, 100 µs interval (measured on an otherwise-idle machine; localhost numbers vary with background load):**
 
@@ -74,9 +75,9 @@ All headline numbers were measured in a deliberately hostile, un-isolated enviro
 (shared cloud Linux container; on macOS the Linux-only pthread_setaffinity_np and 
 SO_BUSY_POLL are no-ops). On such a host you are seeing scheduler jitter, not the 
 engine - which is why the CO-corrected p99 is the honest reading. The engine's designed 
-operating point is an isolated bare-metal Linux node (isolcpus + nohz_full + rcu_nocbs 
-+ SO_BUSY_POLL); bare-metal latency is presented as a design target, not a measured 
-result - we don't publish a number we haven't run.
+operating point is an isolated bare-metal Linux node (isolcpus + nohz_full + rcu_nocbs
++ SO_BUSY_POLL); bare-metal latency is **measured** at p99 7.7µs on an isolated
+consumer desktop (i7-13620H) - `verified_runs/aftab/baremetal_latency.txt`.
 
 ---
 
@@ -122,12 +123,17 @@ For sandbox integration or leaderboard integration, see the contract documentati
 
 ## Sandbox isolation
 
-Contestant engines run inside a Firecracker microVM with a hardened
-intake pipeline (syscall filtering, attestation, rootfs packing) and
-an orchestrator that provisions the VM, sets up networking, and runs
-the benchmark. The reference engine is also exposed as a TCP server
-for in-sandbox correctness checks, while the offline reference-engine
-binary remains the gold standard for byte-exact diffing.
+Contestant engines run inside a Firecracker microVM with a read-only rootfs and an
+intake pipeline (static source scan, attestation, rootfs packing) plus an
+orchestrator that provisions the VM, sets up networking, and runs the benchmark.
+The intake source-scan is a lint heuristic (it rejects e.g. `fork`), not a security
+boundary. The seccomp allowlist is **specified** (`pack_rootfs.sh` writes the
+profile) but runtime enforcement is **in progress** — nothing installs the profile
+yet, so live syscall filtering is not claimed. See
+`sandbox/test/malicious/README.md` for the exact per-layer enforcement status.
+The reference engine is also exposed as a TCP server for in-sandbox correctness
+checks, while the offline reference-engine binary remains the gold standard for
+byte-exact diffing.
 
 ---
 

@@ -48,8 +48,13 @@ into all three codebases.
 
 ## Component 1 — Sandbox (`sandbox/`)
 
-Runs each contestant's matching engine under hardened isolation so a submission
-can be benchmarked without trusting it.
+Runs each contestant's matching engine inside a Firecracker microVM with a
+read-only rootfs, so a submission can be benchmarked without trusting it. The
+isolation is **defence-in-depth, partially enforced today**: the read-only rootfs
+and VM boundary are real; the seccomp allowlist is specified but not yet installed
+at runtime (enforcement is Phase 1.4). The intake source-scan is a lint heuristic,
+not a security boundary. `sandbox/test/malicious/README.md` documents the exact
+per-layer status.
 
 Pipeline (`pipeline.sh` orchestrates these stages):
 
@@ -99,7 +104,8 @@ The fix is structural:
 
 Both histograms are reported side-by-side so the gap is provable. On a
 deterministic 5 ms stall every 20 k orders, naive p99 reads 173 µs while
-CO-corrected p99 reads 3.41 ms — a 19.7x gap (host-dependent, 20-75x range). Every contestant is measured the
+CO-corrected p99 reads 3.41 ms — a 19.7x gap tabulated on a shared host, up to 76x on
+isolated hardware (the cleaner the host, the harder a naive benchmark lies). Every contestant is measured the
 honest way.
 
 ### Honest measurement under load
@@ -195,3 +201,27 @@ Documented here so they read as decisions, not gaps:
 - **macOS CPU pinning is a no-op** (`pthread_setaffinity_np` is Linux-only); the
   bot detects this and degrades gracefully.
 - **Compose path is not low-latency** by design; the K8s/bare-metal path is.
+
+---
+
+## Considered alternatives (and why not)
+
+The brief's vocabulary, addressed directly so the choices read as decisions:
+
+- **gRPC** — rejected *on the measured wire*. HTTP/2 + protobuf encode/decode would
+  add tens of microseconds to the exact hot path we benchmark. The bot↔engine
+  contract is a fixed-layout binary (SBE-style), parsed by pointer-cast, zero-copy.
+  gRPC is appropriate for the *control plane*; the intake API is deliberately plain
+  HTTP so it stays `curl`-able.
+- **Kafka / Redpanda** — not on the telemetry path. HDR histograms are *additively
+  mergeable*, so each bot ships a small pre-aggregated histogram blob cold rather
+  than an event firehose. A log bus would add a network hop plus serialization for
+  durable replay we don't need at benchmark timescale. Redpanda would only earn its
+  place if we required durable replay of every individual order at 1 M+/s — the bot
+  owns its own histogram, so we don't.
+- **VictoriaMetrics over TimescaleDB / InfluxDB** — for the production metrics store,
+  VictoriaMetrics aggregates high-cardinality histogram series where TimescaleDB and
+  Prometheus struggle, at a fraction of the RAM. (Current demo path is CSV snapshots
+  → gateway; VictoriaMetrics is the documented scale-out target.)
+- **Redis** — *used*, not merely discussed: it backs the submission work-queue in
+  `platform/intake-api/` (control plane), never the latency hot path.
