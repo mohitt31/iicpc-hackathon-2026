@@ -11,73 +11,68 @@
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
-    --bg:#000; --ink:#fff; --dim:rgba(255,255,255,.55); --faint:rgba(255,255,255,.32);
+    --bg:#000; --ink:#fff; --dim:rgba(255,255,255,.55); --faint:rgba(255,255,255,.34);
     --hair:rgba(255,255,255,.12); --hair2:rgba(255,255,255,.07);
     --o1:#ff5a1f; --o2:#ff8a3d;
     --good:#3ad29f; --warn:#ffb23d; --bad:#ff5c5c; --cool:#36d3ff;
     --sans:'Archivo',sans-serif; --exp:'Archivo Expanded','Archivo',sans-serif; --mono:'JetBrains Mono',monospace;
   }
-  html{scroll-behavior:auto}
+  html{scroll-behavior:smooth}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow-x:hidden;
        -webkit-font-smoothing:antialiased;line-height:1.1}
   ::selection{background:var(--cool);color:#000}
 
-  #gl{position:fixed;inset:0;z-index:0;display:block}
-
-  /* CDN-free fallback core glow — always visible so the hero is never empty
-     black if three.js fails to load (blocked CDN / extensions / no WebGL).
-     Hidden once the real WebGL core initialises (body.webgl-ok). */
-  #core-glow{position:fixed;z-index:0;pointer-events:none;top:50%;right:-8vw;
-             transform:translateY(-50%);width:min(72vw,860px);aspect-ratio:1/1}
+  /* ── ambient core glow (pure CSS, no WebGL needed) ── */
+  #core-glow{position:fixed;z-index:0;pointer-events:none;top:50%;right:-10vw;
+             transform:translateY(-50%);width:min(66vw,820px);aspect-ratio:1/1;opacity:.9}
   #core-glow .orb{position:absolute;inset:0;border-radius:50%;
-             background:radial-gradient(circle,rgba(54,211,255,.30) 0%,
-               rgba(58,210,159,.14) 34%,rgba(54,211,255,.04) 56%,transparent 72%);
-             animation:coreBreath 6s ease-in-out infinite}
-  #core-glow .ring{position:absolute;border-radius:50%;border:1px solid rgba(54,211,255,.16);
-             animation:coreSpin 34s linear infinite}
+             background:radial-gradient(circle,rgba(54,211,255,.22) 0%,rgba(58,210,159,.10) 34%,
+               rgba(54,211,255,.03) 56%,transparent 72%);animation:coreBreath 7s ease-in-out infinite}
+  #core-glow .ring{position:absolute;border-radius:50%;border:1px solid rgba(54,211,255,.14);animation:coreSpin 36s linear infinite}
   #core-glow .ring.r1{inset:20%}
-  #core-glow .ring.r2{inset:31%;border-color:rgba(58,210,159,.18);animation-duration:24s;animation-direction:reverse}
-  #core-glow .core-hot{position:absolute;inset:40%;border-radius:50%;
-             background:radial-gradient(circle,rgba(200,245,255,.55),rgba(54,211,255,.12) 60%,transparent 75%);
-             animation:coreBreath 4.5s ease-in-out infinite}
-  @keyframes coreBreath{0%,100%{opacity:.8;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+  #core-glow .ring.r2{inset:31%;border-color:rgba(58,210,159,.16);animation-duration:25s;animation-direction:reverse}
+  #core-glow .core-hot{position:absolute;inset:41%;border-radius:50%;
+             background:radial-gradient(circle,rgba(200,245,255,.4),rgba(54,211,255,.10) 60%,transparent 75%);
+             animation:coreBreath 5s ease-in-out infinite}
+  @keyframes coreBreath{0%,100%{opacity:.75;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
   @keyframes coreSpin{to{transform:rotate(360deg)}}
-  body.webgl-ok #core-glow{opacity:0;transition:opacity 1.1s ease;pointer-events:none}
-  @media(max-width:760px){#core-glow{right:auto;left:50%;transform:translate(-50%,-50%);width:min(96vw,520px)}}
+  @media(max-width:760px){#core-glow{right:-30vw;width:min(110vw,520px);opacity:.55}}
 
-  /* CRT scanlines + vignette */
+  /* subtle scanlines + vignette */
   .fx{position:fixed;inset:0;z-index:1;pointer-events:none;
-      background:
-        repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 3px),
-        radial-gradient(ellipse 120% 90% at 50% 40%,transparent 55%,rgba(0,0,0,.55));
-      mix-blend-mode:screen}
+      background:repeating-linear-gradient(0deg,rgba(255,255,255,.012) 0 1px,transparent 1px 3px),
+                 radial-gradient(ellipse 120% 90% at 50% 40%,transparent 55%,rgba(0,0,0,.5))}
 
   .layer{position:relative;z-index:2}
   .frame{max-width:1360px;margin:0 auto;padding:0 40px}
 
-  /* ── BOOT OVERLAY ── */
+  /* ── BOOT (≤1.6s, skippable, once per session) ── */
   #boot{position:fixed;inset:0;z-index:50;background:#000;display:flex;align-items:center;justify-content:center;
-        transition:opacity .6s ease,visibility .6s}
+        cursor:pointer;transition:opacity .45s ease,visibility .45s}
   #boot.done{opacity:0;visibility:hidden}
   .boot-box{font-family:var(--mono);font-size:12px;line-height:2.1;color:var(--dim);min-width:min(440px,80vw)}
   .boot-box .ok{color:var(--good)} .boot-box .val{color:var(--cool)}
   .boot-line{opacity:0}
+  .boot-skip{margin-top:18px;font-size:9px;letter-spacing:.2em;color:var(--faint);text-transform:uppercase}
   .boot-bar{height:1px;background:var(--hair);margin-top:14px;position:relative;overflow:hidden}
   .boot-bar i{position:absolute;inset:0;background:linear-gradient(90deg,var(--cool),var(--good));
         transform:scaleX(0);transform-origin:left;display:block}
 
-  /* ── NAV ── */
+  /* ── NAV (shared header — same markup drops into index.html) ── */
   .top{position:fixed;top:0;left:0;right:0;z-index:10;
-       background:linear-gradient(180deg,rgba(0,0,0,.9),rgba(0,0,0,0))}
-  .top-in{display:flex;align-items:center;justify-content:space-between;padding:22px 40px;max-width:1360px;margin:0 auto}
-  .brand{display:flex;align-items:center;gap:13px;font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--dim);font-weight:600;text-decoration:none}
-  .logo{width:26px;height:26px;border-radius:5px;background:linear-gradient(135deg,#3ad29f,#36d3ff);position:relative;flex:none;
-        box-shadow:0 0 18px rgba(54,211,255,.5)}
+       background:linear-gradient(180deg,rgba(0,0,0,.92),rgba(0,0,0,0));backdrop-filter:blur(6px)}
+  .top-in{display:flex;align-items:center;justify-content:space-between;padding:20px 40px;max-width:1360px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:13px;font-size:11px;letter-spacing:.34em;text-transform:uppercase;
+         color:var(--dim);font-weight:600;text-decoration:none}
+  .logo{width:26px;height:26px;border-radius:5px;background:linear-gradient(135deg,#3ad29f,#36d3ff);
+        position:relative;flex:none;box-shadow:0 0 18px rgba(54,211,255,.5)}
   .logo::after{content:'';position:absolute;inset:6px;border-radius:2px;background:#000}
-  .nav-links{display:flex;align-items:center;gap:30px}
+  .nav-links{display:flex;align-items:center;gap:28px}
   .nav-links a{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
                color:var(--dim);text-decoration:none;transition:color .25s,text-shadow .25s}
-  .nav-links a:hover{color:var(--ink);text-shadow:0 0 16px rgba(54,211,255,.8)}
+  .nav-links a:hover,.nav-links a:focus-visible{color:var(--ink);text-shadow:0 0 16px rgba(54,211,255,.8)}
+  .nav-links a:focus-visible{outline:1px solid var(--cool);outline-offset:4px}
+  .nav-links a .ext{font-size:9px;opacity:.7;margin-left:3px}
   .lb-btn{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--good);border-radius:100px;
           padding:11px 22px;font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.06em;
           color:var(--ink);text-decoration:none;background:rgba(58,210,159,.05);transition:.3s}
@@ -86,11 +81,11 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
   /* ── HERO ── */
-  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:120px 0 80px;position:relative}
+  .hero{min-height:92vh;display:flex;flex-direction:column;justify-content:center;padding:130px 0 60px;position:relative}
   .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--o2);
            margin-bottom:34px;display:flex;align-items:center;gap:14px;opacity:0}
   .eyebrow .ln{width:54px;height:1px;background:var(--o1)}
-  .hero-h1{font-family:var(--exp);font-weight:700;font-size:clamp(46px,9.2vw,134px);line-height:.94;
+  .hero-h1{font-family:var(--exp);font-weight:700;font-size:clamp(46px,9vw,128px);line-height:.94;
            letter-spacing:-.02em;max-width:13ch}
   .hero-h1 .w{display:inline-block;overflow:hidden;vertical-align:bottom}
   .hero-h1 .w>span{display:inline-block;transform:translateY(112%);
@@ -98,144 +93,97 @@
            -webkit-background-clip:text;background-clip:text;color:transparent;padding-bottom:.08em}
   .hero-h1 .accent>span{background:linear-gradient(90deg,#36d3ff,#3ad29f);-webkit-background-clip:text;background-clip:text;
            filter:drop-shadow(0 0 28px rgba(54,211,255,.45))}
-  .hero-sub{margin-top:30px;font-family:var(--mono);font-size:clamp(13px,1.5vw,17px);color:var(--dim);
+  .hero-sub{margin-top:28px;font-family:var(--mono);font-size:clamp(13px,1.5vw,17px);color:var(--dim);
             max-width:620px;line-height:1.65;min-height:3.4em}
   .hero-sub .caret{display:inline-block;width:.55em;height:1.05em;background:var(--cool);vertical-align:text-bottom;
             margin-left:3px;animation:blink .9s steps(1) infinite;box-shadow:0 0 14px var(--cool)}
+  .hero-sub .caret.off{animation:none;opacity:0}
   @keyframes blink{50%{opacity:0}}
-  .hero-proof{display:flex;gap:56px;margin-top:56px;flex-wrap:wrap;opacity:0}
+  .hero-proof{display:flex;gap:56px;margin-top:52px;flex-wrap:wrap;opacity:0}
   .hp .n{font-family:var(--exp);font-weight:600;font-size:clamp(26px,3.4vw,44px);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
   .hp .n.cyan{color:var(--cool);text-shadow:0 0 30px rgba(54,211,255,.45)}
   .hp .n.green{color:var(--good);text-shadow:0 0 30px rgba(58,210,159,.4)}
   .hp .n.orange{color:var(--o2);text-shadow:0 0 30px rgba(255,138,61,.4)}
   .hp .l{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-top:10px;line-height:1.7}
-  .scroll-hint{position:absolute;bottom:34px;left:40px;display:flex;align-items:center;gap:12px;
+  .hero-cta{display:flex;gap:16px;margin-top:46px;flex-wrap:wrap;opacity:0}
+  .btn{display:inline-flex;align-items:center;gap:10px;border-radius:100px;padding:13px 26px;font-size:13px;font-weight:700;
+       letter-spacing:.04em;text-decoration:none;color:var(--ink);transition:.3s;border:1px solid var(--hair)}
+  .btn.primary{border-color:var(--cool);background:rgba(54,211,255,.07)}
+  .btn.primary:hover{box-shadow:0 0 34px rgba(54,211,255,.4);background:rgba(54,211,255,.14)}
+  .btn.ghost:hover{border-color:var(--dim);background:rgba(255,255,255,.04)}
+  .scroll-hint{position:absolute;bottom:30px;left:40px;display:flex;align-items:center;gap:12px;
             font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)}
   .scroll-hint .bar{width:1px;height:44px;background:linear-gradient(180deg,var(--cool),transparent);animation:drip 1.8s ease-in-out infinite}
   @keyframes drip{0%{transform:scaleY(0);transform-origin:top}55%{transform:scaleY(1);transform-origin:top}
             56%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 
-  /* ── HERO VIDEO / POSTER WRAP ── */
-  /* Fixed overlay: starts offset-right in hero state, GSAP zooms it to center on scroll */
-  #hero-vid-wrap{
-    position:fixed;
-    left:50%;top:50%;
-    transform:translate(-50%,-50%);
-    width:min(40vw,480px);
-    aspect-ratio:1/1;
-    z-index:2;
-    pointer-events:none;
-    opacity:0;
-    transition:opacity .8s ease;
-    will-change:transform,width;
-  }
-  #hero-vid-wrap.vid-active{opacity:1}
-  #hero-vid-wrap video,#hero-vid-wrap img{
-    width:100%;height:100%;
-    object-fit:cover;
-    mix-blend-mode:screen;
-    display:block;
-  }
-  #hero-vid-wrap img{display:none}
-  #hero-vid-wrap.poster-only video{display:none}
-  #hero-vid-wrap.poster-only img{display:block}
-  @media(max-width:760px){#hero-vid-wrap{width:min(78vw,320px)}}
-
-  /* ── HERO TARGETING RETICLE (decorative rings framing the core area) ── */
-  #hero-frame{
-    position:absolute;
-    right:clamp(8px,7vw,90px);
-    top:50%;
-    transform:translateY(-50%);
-    width:min(42vw,500px);
-    aspect-ratio:1/1;
-    pointer-events:none;
-    opacity:0;
-    transition:opacity 1s ease 1.6s;
-    z-index:3;
-  }
-  #hero-frame.vis{opacity:1}
-  @media(max-width:760px){#hero-frame{display:none}}
-
-  .hf-r{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(54,211,255,.14)}
-  .hf-r::before,.hf-r::after{
-    content:'';position:absolute;left:50%;transform:translateX(-50%);
-    width:1px;height:9px;background:var(--cool);opacity:.7;
-    box-shadow:0 0 7px var(--cool);top:0;
-  }
-  .hf-r::after{top:auto;bottom:0}
-  .hf-r1{animation:hfSpin 22s linear infinite}
-  .hf-r2{inset:11%;border-color:rgba(58,210,159,.20);animation:hfSpin 15s linear infinite reverse}
-  .hf-r3{inset:23%;border-color:rgba(54,211,255,.26);animation:hfSpin 9s linear infinite}
-  .hf-dot{
-    position:absolute;inset:43%;border-radius:50%;
-    background:rgba(54,211,255,.06);
-    box-shadow:0 0 50px rgba(54,211,255,.25),0 0 100px rgba(54,211,255,.10);
-  }
-  @keyframes hfSpin{to{transform:rotate(360deg)}}
-
-  /* corner tick marks on outer ring */
-  .hf-tick{
-    position:absolute;font-family:var(--mono);font-size:8px;
-    letter-spacing:.14em;color:rgba(54,211,255,.38);white-space:nowrap;
-  }
-  .hf-tick-t{top:-20px;left:50%;transform:translateX(-50%)}
-  .hf-tick-b{bottom:-20px;left:50%;transform:translateX(-50%)}
-  .hf-tick-l{left:-76px;top:50%;transform:translateY(-50%)}
-  .hf-tick-r{right:-76px;top:50%;transform:translateY(-50%)}
-
-  /* crosshair lines */
-  .hf-cross{position:absolute;inset:0;pointer-events:none}
-  .hf-cross::before,.hf-cross::after{
-    content:'';position:absolute;background:rgba(54,211,255,.08);
-  }
-  .hf-cross::before{left:50%;top:0;width:1px;height:100%;transform:translateX(-50%)}
-  .hf-cross::after{top:50%;left:0;height:1px;width:100%;transform:translateY(-50%)}
-
-  /* ── SECTION 2 · COMMAND-CENTER HUD ── */
-  .lb-sec{min-height:240vh;position:relative}
-  .metric-row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
-  .metric{border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:26px 26px 22px;
-          background:rgba(10,16,22,.38);backdrop-filter:blur(18px) saturate(1.4);
-          box-shadow:0 0 60px rgba(54,211,255,.10),inset 0 1px 0 rgba(255,255,255,.08);position:relative;overflow:hidden}
-  .metric::after{content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;
-          background:linear-gradient(100deg,transparent,rgba(255,255,255,.06),transparent);
-          animation:sheen 4.5s ease-in-out infinite}
-  @keyframes sheen{0%,60%{left:-60%}100%{left:130%}}
-  .metric .mv{font-family:var(--exp);font-weight:700;font-size:clamp(28px,3.6vw,52px);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .metric .mv.cyan{color:var(--cool);text-shadow:0 0 36px rgba(54,211,255,.55)}
-  .metric .mv.green{color:var(--good);text-shadow:0 0 36px rgba(58,210,159,.5)}
-  .metric .mv.white{color:#fff;text-shadow:0 0 30px rgba(255,255,255,.35)}
-  .metric .ml{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-top:10px}
-  @media (max-width:980px){ .metric-row{grid-template-columns:1fr} }
-  .hud-pin{position:sticky;top:0;min-height:100vh;display:flex;align-items:center;padding:90px 0 40px}
-  .hud{width:100%;opacity:0;transform:translateY(70px) scale(.97)}
+  /* ── shared section scaffolding ── */
+  section{padding:13vh 0 6vh}
   .sec-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--cool);
             display:flex;align-items:center;gap:14px;margin-bottom:18px}
   .sec-eyebrow .ln{width:44px;height:1px;background:var(--cool)}
   .sec-h2{font-family:var(--exp);font-weight:700;font-size:clamp(28px,4.2vw,54px);letter-spacing:-.02em;line-height:1.02}
+  .sec-sub{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.8;max-width:680px;margin-top:18px}
+  .reveal{opacity:0;transform:translateY(36px);transition:opacity .9s ease,transform .9s cubic-bezier(.16,1,.3,1)}
+  .reveal.vis{opacity:1;transform:none}
 
-  .hud-grid{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:30px}
-  .panel{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(8,13,18,.42);backdrop-filter:blur(18px) saturate(1.4);
-         position:relative;box-shadow:0 0 90px rgba(54,211,255,.08),inset 0 1px 0 rgba(255,255,255,.05)}
-  .panel::before,.panel::after{content:'';position:absolute;width:18px;height:18px;border-color:var(--cool);border-style:solid;opacity:.7}
+  .panel{border:1px solid rgba(255,255,255,.14);border-radius:12px;background:rgba(8,13,18,.55);
+         position:relative;box-shadow:0 0 90px rgba(54,211,255,.06),inset 0 1px 0 rgba(255,255,255,.05)}
+  .panel::before,.panel::after{content:'';position:absolute;width:18px;height:18px;border-color:var(--cool);border-style:solid;opacity:.7;pointer-events:none}
   .panel::before{top:-1px;left:-1px;border-width:1px 0 0 1px;border-radius:12px 0 0 0}
   .panel::after{bottom:-1px;right:-1px;border-width:0 1px 1px 0;border-radius:0 0 12px 0}
-
-  .p-head{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--hair2)}
+  .p-head{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--hair2);gap:12px;flex-wrap:wrap}
   .p-title{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
   .src-pill{display:flex;align-items:center;gap:8px;border:1px solid var(--hair);border-radius:100px;padding:6px 13px;
             font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
   .src-pill .d{width:6px;height:6px;border-radius:50%;background:var(--warn);box-shadow:0 0 10px var(--warn)}
-  .src-pill.live .d{background:var(--good);box-shadow:0 0 10px var(--good);animation:pulse 1.6s infinite}
 
+  /* ════ SECTION · THE LIE DETECTOR (signature CO chart) ════ */
+  .lie-grid{display:grid;grid-template-columns:1fr 300px;gap:18px;margin-top:34px}
+  .chart-wrap{padding:22px 22px 14px;position:relative}
+  #coChart{display:block;width:100%;height:380px}
+  .legend{display:flex;gap:26px;margin-top:12px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;
+          letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .lg{display:flex;align-items:center;gap:9px}
+  .lg i{width:22px;height:2px;display:block;border-radius:2px}
+  .lg.naive i{background:var(--dim)}
+  .lg.co i{background:linear-gradient(90deg,#36d3ff,#3ad29f);box-shadow:0 0 10px rgba(54,211,255,.6)}
+  .lg.stall i{background:var(--o1);height:0;border-top:2px dashed var(--o1)}
+  .lie-side{display:flex;flex-direction:column;gap:18px}
+  .gap-card{padding:22px}
+  .gap-card .gn{font-family:var(--exp);font-weight:700;font-size:58px;letter-spacing:-.03em;
+                font-variant-numeric:tabular-nums;color:var(--cool);text-shadow:0 0 40px rgba(54,211,255,.5);transition:color .4s,text-shadow .4s}
+  .gap-card.hot .gn{color:var(--o2);text-shadow:0 0 40px rgba(255,138,61,.55)}
+  .gap-card .gl{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-top:10px;line-height:1.8}
+  .stall-btn{appearance:none;width:100%;cursor:pointer;border:1px solid var(--o1);border-radius:10px;background:rgba(255,90,31,.06);
+             color:var(--ink);font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+             padding:16px 18px;transition:.3s;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .stall-btn:hover{background:rgba(255,90,31,.14);box-shadow:0 0 30px rgba(255,90,31,.35)}
+  .stall-btn:focus-visible{outline:1px solid var(--o2);outline-offset:3px}
+  .stall-btn .sw{width:34px;height:18px;border-radius:100px;border:1px solid var(--o1);position:relative;flex:none;transition:.3s}
+  .stall-btn .sw::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dim);transition:.3s}
+  .stall-btn.on .sw{background:rgba(255,90,31,.35)}
+  .stall-btn.on .sw::after{left:18px;background:var(--o2);box-shadow:0 0 10px var(--o2)}
+  .lie-note{font-family:var(--mono);font-size:10px;color:var(--faint);line-height:1.9;padding:18px 20px}
+  .lie-note b{color:var(--dim);font-weight:500}
+
+  /* ════ SECTION · TELEMETRY HUD ════ */
+  .metric-row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px}
+  .metric{border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:26px 26px 22px;background:rgba(10,16,22,.5);
+          box-shadow:inset 0 1px 0 rgba(255,255,255,.07);position:relative;overflow:hidden}
+  .metric .mv{font-family:var(--exp);font-weight:700;font-size:clamp(28px,3.6vw,50px);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .metric .mv.cyan{color:var(--cool);text-shadow:0 0 36px rgba(54,211,255,.55)}
+  .metric .mv.green{color:var(--good);text-shadow:0 0 36px rgba(58,210,159,.5)}
+  .metric .mv.white{color:#fff;text-shadow:0 0 30px rgba(255,255,255,.3)}
+  .metric .ml{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin-top:10px;line-height:1.7}
+  .hud-grid{display:grid;grid-template-columns:1fr 320px;gap:18px;margin-top:18px}
   table.lb{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
   .lb th{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);
          text-align:right;padding:11px 18px;border-bottom:1px solid var(--hair2);font-weight:500}
   .lb th:nth-child(-n+3){text-align:left}
   .lb td{padding:10px 18px;border-bottom:1px solid var(--hair2);font-size:13px;text-align:right;white-space:nowrap}
   .lb td:nth-child(-n+3){text-align:left}
-  .lb tbody tr{transition:background .25s}
+  .lb tbody tr{transition:background .25s;will-change:transform}
   .lb tbody tr:hover{background:rgba(54,211,255,.05)}
   .lb tbody tr:last-child td{border-bottom:none}
   .rank{font-family:var(--mono);color:var(--faint);font-size:11px}
@@ -244,16 +192,14 @@
   .who .v{font-family:var(--mono);font-size:9px;color:var(--faint);margin-left:7px}
   .proto{font-family:var(--mono);font-size:9px;letter-spacing:.1em;border:1px solid var(--hair);border-radius:4px;padding:2px 7px;color:var(--dim)}
   td.p99{font-family:var(--mono);color:var(--cool)}
-  td.tps{font-family:var(--mono)}
-  td.cor{font-family:var(--mono)} td.cor.ok{color:var(--good)} td.cor.bad{color:var(--bad)}
+  td.tps,td.cor{font-family:var(--mono)}
+  td.cor.ok{color:var(--good)} td.cor.bad{color:var(--bad)}
   td.score{font-family:var(--exp);font-weight:600;font-size:14px}
   tr.top1 td.score{color:var(--good)}
-  tr.failed td{color:var(--bad);opacity:.6}
-  td.spark{padding:6px 18px 4px} td.spark canvas{display:block;opacity:.9}
-
+  tr.failed td{color:var(--bad);opacity:.65}
   .g-stack{display:flex;flex-direction:column;gap:18px}
   .g-pad{padding:18px 20px}
-  .big-n{font-family:var(--exp);font-weight:700;font-size:42px;letter-spacing:-.02em;color:var(--ink);
+  .big-n{font-family:var(--exp);font-weight:700;font-size:40px;letter-spacing:-.02em;color:var(--ink);
          font-variant-numeric:tabular-nums;text-shadow:0 0 32px rgba(54,211,255,.35)}
   .big-n .u{font-size:.38em;color:var(--dim);font-weight:500;margin-left:6px}
   .g-l{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);margin-top:8px}
@@ -270,18 +216,46 @@
   .chip{display:flex;align-items:center;gap:8px;border:1px solid var(--hair);border-radius:7px;padding:9px 13px;
         font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
   .chip .d{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 9px var(--good)}
-  .chip.warn .d{background:var(--warn);box-shadow:0 0 9px var(--warn)}
-
   .hud-foot{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:16px;flex-wrap:wrap}
-  .lb-note{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--faint);line-height:1.8;text-transform:uppercase}
+  .lb-note{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--faint);line-height:1.9;text-transform:uppercase;max-width:680px}
   .open-lb{display:inline-flex;align-items:center;gap:10px;border:1px solid var(--cool);border-radius:100px;
             padding:12px 24px;font-size:12px;font-weight:700;color:var(--ink);text-decoration:none;
             background:rgba(54,211,255,.05);transition:.3s}
   .open-lb:hover{box-shadow:0 0 30px rgba(54,211,255,.4);background:rgba(54,211,255,.12)}
   .open-lb .arr{transition:transform .3s}.open-lb:hover .arr{transform:translateX(5px)}
 
-  /* ── SECTION 3 · PROOF ── */
-  .proof-sec{position:relative;padding:16vh 0 10vh;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.94) 30%)}
+  /* ════ SECTION · ARCHITECTURE PIPELINE ════ */
+  .arch-wrap{margin-top:36px;padding:30px 26px 22px;overflow-x:auto}
+  #archSvg{display:block;width:100%;min-width:880px;height:auto}
+  .arch-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1px;background:var(--hair2);
+              border:1px solid var(--hair2);border-radius:14px;overflow:hidden;margin-top:22px}
+  .ac{background:#000;padding:26px 24px}
+  .ac h3{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--cool);margin-bottom:12px}
+  .ac h3 .tag{float:right;color:var(--faint);letter-spacing:.1em;font-size:9px}
+  .ac p{font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.9}
+  .ac p b{color:var(--ink);font-weight:500}
+
+  /* ════ SECTION · FLEET ════ */
+  .fleet-grid{display:grid;grid-template-columns:1fr 300px;gap:18px;margin-top:34px}
+  .nodes{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;padding:20px}
+  .node{aspect-ratio:1/1;border:1px solid var(--hair);border-radius:8px;position:relative;overflow:hidden;
+        display:flex;flex-direction:column;justify-content:space-between;padding:8px;background:rgba(10,16,22,.5)}
+  .node .nid{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--faint)}
+  .node .nr{font-family:var(--mono);font-size:10px;color:var(--cool);font-variant-numeric:tabular-nums}
+  .node .act{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(54,211,255,.12)}
+  .node .act i{display:block;height:100%;width:40%;background:linear-gradient(90deg,#36d3ff,#3ad29f);transition:width .8s ease}
+  .node.hot{border-color:rgba(255,138,61,.5)}
+  .node.hot .nr{color:var(--o2)}
+  .node.hot .act i{background:linear-gradient(90deg,#ffb23d,#ff5a1f)}
+  .fleet-side{display:flex;flex-direction:column;gap:18px}
+  .sand-list{font-family:var(--mono);font-size:10px;color:var(--dim);line-height:2.3;letter-spacing:.06em}
+  .sand-list b{color:var(--good);font-weight:500;float:right}
+
+  /* ════ SECTION · PROOF + SCORE CONTRACT ════ */
+  .contract{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:2;margin-top:26px;max-width:880px;
+            border-left:2px solid var(--cool);padding-left:20px}
+  .contract code{color:var(--ink)}
+  .contract .axis{color:var(--cool)}
   .proof-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--hair2);
             border:1px solid var(--hair2);border-radius:14px;overflow:hidden;margin-top:36px}
   .proof-cell{background:#000;padding:32px 26px}
@@ -290,66 +264,63 @@
   .proof-cell .n.green{color:var(--good);text-shadow:0 0 26px rgba(58,210,159,.4)}
   .proof-cell .n.orange{color:var(--o2);text-shadow:0 0 26px rgba(255,138,61,.4)}
   .proof-cell .l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-top:12px;line-height:1.8}
-  footer{border-top:1px solid var(--hair2);margin-top:11vh;padding:30px 0 44px;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
-            font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
 
-  @media (max-width:980px){ .hud-grid{grid-template-columns:1fr} }
+  footer{border-top:1px solid var(--hair2);margin-top:10vh;padding:34px 0 48px}
+  .foot-grid{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;
+             font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);line-height:2.2}
+  .foot-grid a{color:var(--dim);text-decoration:none}
+  .foot-grid a:hover{color:var(--ink)}
+  .foot-grid .col b{display:block;color:var(--dim);font-weight:500;margin-bottom:4px}
+
+  @media (max-width:1060px){ .lie-grid,.hud-grid,.fleet-grid{grid-template-columns:1fr} .nodes{grid-template-columns:repeat(8,1fr)} }
+  @media (max-width:980px){ .metric-row{grid-template-columns:1fr} }
   @media (max-width:760px){
-    .frame{padding:0 22px} .top-in{padding:18px 22px}
+    .frame{padding:0 22px} .top-in{padding:16px 22px}
     .nav-links a:not(.lb-btn){display:none}
     .lb td,.lb th{padding:9px 10px} .hide-m{display:none}
     .scroll-hint{left:22px}
+    .nodes{grid-template-columns:repeat(4,1fr)}
+    #coChart{height:280px}
   }
   @media (prefers-reduced-motion:reduce){
     *{animation:none!important;transition:none!important}
+    html{scroll-behavior:auto}
     .hero-h1 .w>span{transform:none}
-    .eyebrow,.hero-proof,.hud{opacity:1!important;transform:none!important}
+    .eyebrow,.hero-proof,.hero-cta{opacity:1!important;transform:none!important}
+    .reveal{opacity:1;transform:none}
     #boot{display:none}
-    .hf-r,.hf-r1,.hf-r2,.hf-r3{animation:none!important}
-    #hero-vid-wrap{opacity:1}
   }
 </style>
 </head>
 <body>
 
-<canvas id="gl" aria-hidden="true"></canvas>
 <div id="core-glow" aria-hidden="true">
-  <div class="orb"></div>
-  <div class="ring r1"></div>
-  <div class="ring r2"></div>
-  <div class="core-hot"></div>
+  <div class="orb"></div><div class="ring r1"></div><div class="ring r2"></div><div class="core-hot"></div>
 </div>
 <div class="fx" aria-hidden="true"></div>
 
-<!-- ── HIGGSFIELD HERO VIDEO / POSTER (fixed, GSAP-zoomed on scroll) ── -->
-<!-- Drop assets/hero-loop.mp4 and assets/hero-poster.jpg to activate -->
-<div id="hero-vid-wrap" aria-hidden="true">
-  <video id="hero-vid" autoplay muted loop playsinline preload="none"
-         poster="assets/hero-poster.jpg">
-    <source src="assets/hero-loop.mp4" type="video/mp4">
-  </video>
-  <img id="hero-poster-img" src="assets/hero-poster.jpg" alt="" loading="lazy">
-</div>
-
-<!-- ── BOOT SEQUENCE ── -->
-<div id="boot" aria-hidden="true">
-  <div class="boot-box" id="bootBox">
+<!-- ── BOOT (click/key to skip · sessionStorage = once per session) ── -->
+<div id="boot" aria-hidden="true" title="Click to skip">
+  <div class="boot-box">
     <div class="boot-line">[<span class="ok"> OK </span>] calibrating TSC ............ <span class="val">2.9941 GHz</span></div>
     <div class="boot-line">[<span class="ok"> OK </span>] integrity gate ............. <span class="val">p99 84&micro;s &lt; 1ms</span></div>
     <div class="boot-line">[<span class="ok"> OK </span>] bot fleet uplink ........... <span class="val">32/32 CONNECTED</span></div>
     <div class="boot-line">[<span class="ok"> OK </span>] CO correction .............. <span class="val">ARMED</span></div>
     <div class="boot-bar"><i id="bootBar"></i></div>
+    <div class="boot-skip">press any key to skip</div>
   </div>
 </div>
 
-<!-- ── NAV ── -->
+<!-- ── NAV · shared header (identical markup goes into index.html) ── -->
 <nav class="top layer">
   <div class="top-in">
-    <a class="brand" href="#"><span class="logo"></span>IICPC&nbsp;·&nbsp;HFT&nbsp;BENCH</a>
+    <a class="brand" href="landing.html"><span class="logo"></span>IICPC&nbsp;·&nbsp;HFT&nbsp;BENCH</a>
     <div class="nav-links">
+      <a href="#lie">CO&nbsp;Proof</a>
       <a href="#telemetry">Telemetry</a>
-      <a href="https://github.com/mohitt31/iicpc-hackathon-2026/blob/main/ARCHITECTURE.md">Architecture</a>
-      <a href="https://github.com/mohitt31/iicpc-hackathon-2026/blob/main/RESULTS.md">Results</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#fleet">Fleet</a>
+      <a href="https://github.com/mohitt31/iicpc-hackathon-2026" target="_blank" rel="noopener">GitHub<span class="ext">↗</span></a>
       <a class="lb-btn" href="index.html"><span class="d"></span>Live Leaderboard</a>
     </div>
   </div>
@@ -360,776 +331,587 @@
   <div class="frame">
     <div class="eyebrow"><span class="ln"></span>IICPC SUMMER HACKATHON 2026 · DISTRIBUTED BENCHMARKING &amp; HOSTING PLATFORM</div>
     <h1 class="hero-h1" id="h1"></h1>
-    <p class="hero-sub"><span id="typed"></span><span class="caret"></span></p>
+    <p class="hero-sub"><span id="typed"></span><span class="caret" id="caret"></span></p>
     <div class="hero-proof">
-      <div class="hp"><div class="n cyan">35.0×</div><div class="l">CO-corrected p99 gap<br>a naive benchmark hides</div></div>
-      <div class="hp"><div class="n green">12.9 MB</div><div class="l">live engine output —<br>byte-exact vs offline replay</div></div>
+      <div class="hp"><div class="n cyan">19.7×</div><div class="l">CO-corrected p99 gap<br>a naive benchmark hides</div></div>
+      <div class="hp"><div class="n green">25.7 MB</div><div class="l">live engine output —<br>byte-exact vs offline replay</div></div>
       <div class="hp"><div class="n orange">600k/600k</div><div class="l">orders acked ·<br>zero lost, zero collisions</div></div>
     </div>
+    <div class="hero-cta">
+      <a class="btn primary" href="#lie">See the proof ↓</a>
+      <a class="btn ghost" href="https://github.com/mohitt31/iicpc-hackathon-2026" target="_blank" rel="noopener">View source ↗</a>
+    </div>
   </div>
-
-  <!-- Decorative targeting reticle — frames the 3D core / video area -->
-  <div id="hero-frame" aria-hidden="true">
-    <div class="hf-r hf-r1"></div>
-    <div class="hf-r hf-r2"></div>
-    <div class="hf-r hf-r3"></div>
-    <div class="hf-dot"></div>
-    <div class="hf-cross"></div>
-    <span class="hf-tick hf-tick-t">ψ 0.000 · φ 0.000</span>
-    <span class="hf-tick hf-tick-b">QUANTUM CORE · ACTIVE</span>
-    <span class="hf-tick hf-tick-l">2.9941 GHz</span>
-    <span class="hf-tick hf-tick-r">32/32 NODES</span>
-  </div>
-
   <div class="scroll-hint"><span class="bar"></span>SCROLL · ENTER THE CORE</div>
 </header>
 
-<!-- ── SECTION 2 · HUD ── -->
-<section class="lb-sec layer" id="telemetry">
-  <div class="hud-pin">
-    <div class="frame" style="width:100%">
-      <div class="hud" id="hud">
-        <div class="sec-eyebrow"><span class="ln"></span>LIVE FEED · WS /leaderboard/deltas · MERGED ADDITIVE HDR</div>
-        <h2 class="sec-h2">Real-Time Telemetry</h2>
+<!-- ════ SECTION 1 · THE LIE DETECTOR ════ -->
+<section class="layer" id="lie">
+  <div class="frame">
+    <div class="reveal">
+      <div class="sec-eyebrow"><span class="ln"></span>COORDINATED OMISSION · TENE/SNYDER CORRECTION</div>
+      <h2 class="sec-h2">A naive benchmark lies.<br>Ours can't.</h2>
+      <p class="sec-sub">When the engine under test stalls, a naive closed-loop benchmark stops sending — and stops
+      measuring. The stall vanishes from the data. Our telemetry back-fills every missed send at the intended
+      interval, so the tail is recorded as the trader would have experienced it. Plant a stall and watch.</p>
+    </div>
 
-        <div class="metric-row">
-          <div class="metric"><div class="mv cyan">1.2&micro;s</div><div class="ml">P99 LATENCY · FLEET HEADLINE</div></div>
-          <div class="metric"><div class="mv white">1.5M <span style="font-size:.45em;color:var(--dim)">TPS</span></div><div class="ml">THROUGHPUT · AGGREGATE PEAK</div></div>
-          <div class="metric"><div class="mv green">CORRECTED</div><div class="ml">COORDINATED OMISSION · TENE/SNYDER</div></div>
+    <div class="lie-grid reveal">
+      <div class="panel chart-wrap">
+        <canvas id="coChart" aria-label="Latency percentile curves: naive measurement versus coordinated-omission corrected"></canvas>
+        <div class="legend">
+          <span class="lg naive"><i></i>Naive (closed-loop)</span>
+          <span class="lg co"><i></i>CO-corrected (intended-rate)</span>
+          <span class="lg stall"><i></i>Planted 5 ms stall</span>
         </div>
-
-        <div class="hud-grid">
-          <div class="panel">
-            <div class="p-head">
-              <span class="p-title">RANKED · 0.40·LAT + 0.30·TPS + 0.30·CORRECTNESS</span>
-              <span class="src-pill" id="srcPill"><span class="d"></span><span id="srcTxt">SYNTHETIC FEED</span></span>
-            </div>
-            <table class="lb">
-              <thead><tr>
-                <th>#</th><th>Contestant</th><th>Proto</th>
-                <th>p99 (CO)</th><th class="hide-m">TPS</th><th>Corr</th>
-                <th class="hide-m">Trend</th><th>Score</th>
-              </tr></thead>
-              <tbody id="lbBody"></tbody>
-            </table>
-          </div>
-
-          <div class="g-stack">
-            <div class="panel g-pad">
-              <div class="big-n"><span id="fleetTps">0</span><span class="u">orders/s</span></div>
-              <div class="g-l">FLEET THROUGHPUT · AGGREGATE</div>
-            </div>
-            <div class="panel g-pad">
-              <div class="g-l" style="margin:0 0 13px">LATENCY LADDER · CO-CORRECTED</div>
-              <div class="ladder" id="ladder">
-                <div class="lad-row"><span>p50</span><span class="lad-bar"><i></i></span><span class="lad-val">—</span></div>
-                <div class="lad-row"><span>p90</span><span class="lad-bar"><i></i></span><span class="lad-val">—</span></div>
-                <div class="lad-row"><span>p99</span><span class="lad-bar"><i></i></span><span class="lad-val">—</span></div>
-                <div class="lad-row"><span>p99.9</span><span class="lad-bar"><i></i></span><span class="lad-val">—</span></div>
-              </div>
-            </div>
-            <div class="panel g-pad">
-              <div class="g-l" style="margin:0 0 12px">PLATFORM INTEGRITY</div>
-              <div class="chips">
-                <span class="chip"><span class="d"></span>GATE PASS</span>
-                <span class="chip"><span class="d"></span>PTP LOCKED</span>
-                <span class="chip"><span class="d"></span>0 DROPS</span>
-                <span class="chip"><span class="d"></span>DIFF CLEAN</span>
-              </div>
-            </div>
-          </div>
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--faint);margin-top:8px;text-transform:uppercase">
+          600k orders · stall every 20k · Arch 16-core shared host · p99 173µs → 3.41ms = 19.7× · committed in verified_runs/
         </div>
-
-        <div class="hud-foot">
-          <span class="lb-note">PERCENTILES FROM MERGED HDR — NEVER AVERAGED · INTEGRITY-GATED · FAILED DIFF ⇒ SCORE CAPPED</span>
-          <a class="open-lb" href="index.html">OPEN FULL LEADERBOARD <span class="arr">→</span></a>
+      </div>
+      <div class="lie-side">
+        <div class="panel gap-card" id="gapCard">
+          <div class="gn" id="gapN">1.0×</div>
+          <div class="gl">p99 gap · naive vs CO-corrected<br>under the current load profile</div>
+        </div>
+        <button class="stall-btn" id="stallBtn" aria-pressed="false">
+          <span>Plant a 5 ms stall</span><span class="sw" aria-hidden="true"></span>
+        </button>
+        <div class="panel lie-note">
+          <b>What you're seeing:</b> the naive curve barely moves — it never measured the stall. The corrected
+          curve shows the true tail. Same engine, same run; only the measurement is honest.
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── SECTION 3 · PROOF ── -->
-<section class="proof-sec layer">
+<!-- ════ SECTION 2 · TELEMETRY HUD ════ -->
+<section class="layer" id="telemetry">
   <div class="frame">
-    <div class="sec-eyebrow"><span class="ln"></span>MEASURED, NOT MARKETED</div>
-    <h2 class="sec-h2">The benchmark that refuses to lie.</h2>
-    <div class="proof-grid">
-      <div class="proof-cell"><div class="n cyan"><span class="cnt" data-to="35" data-suf="×">0</span></div><div class="l">naive→CO p99 gap under a planted 5 ms stall — the stall cannot hide</div></div>
+    <div class="reveal">
+      <div class="sec-eyebrow"><span class="ln"></span>LIVE FEED · WS /leaderboard/deltas · MERGED ADDITIVE HDR</div>
+      <h2 class="sec-h2">Real-Time Telemetry</h2>
+    </div>
+
+    <div class="metric-row reveal">
+      <div class="metric"><div class="mv cyan" id="mP99">—</div><div class="ml">P99 LATENCY · FLEET HEADLINE · CO-CORRECTED</div></div>
+      <div class="metric"><div class="mv white"><span id="mTps">—</span> <span style="font-size:.45em;color:var(--dim)">TPS</span></div><div class="ml">THROUGHPUT · AGGREGATE PEAK</div></div>
+      <div class="metric"><div class="mv green">19.7×</div><div class="ml">TAIL A NAIVE BENCHMARK HIDES · PROVEN ABOVE</div></div>
+    </div>
+
+    <div class="hud-grid reveal">
+      <div class="panel">
+        <div class="p-head">
+          <span class="p-title">RANKED · 0.40·LAT + 0.30·TPS + 0.30·CORRECTNESS</span>
+          <span class="src-pill"><span class="d"></span>SYNTHETIC REPLAY · DEMO</span>
+        </div>
+        <table class="lb">
+          <thead><tr>
+            <th>#</th><th>Contestant</th><th>Proto</th>
+            <th>p99 (CO)</th><th class="hide-m">TPS</th><th>Corr</th><th>Score</th>
+          </tr></thead>
+          <tbody id="lbBody"></tbody>
+        </table>
+      </div>
+
+      <div class="g-stack">
+        <div class="panel g-pad">
+          <div class="big-n"><span id="fleetTps">0</span><span class="u">orders/s</span></div>
+          <div class="g-l">FLEET THROUGHPUT · AGGREGATE</div>
+        </div>
+        <div class="panel g-pad">
+          <div class="g-l" style="margin:0 0 13px">LATENCY LADDER · CO-CORRECTED</div>
+          <div class="ladder" id="ladder">
+            <div class="lad-row"><span>p50</span><span class="lad-bar"><i></i></span><span class="lad-val">—</span></div>
+            <div class="lad-row"><span>p90</span><span class="lad-bar"><i></i></span><span class="lad-val">—</span></div>
+            <div class="lad-row"><span>p99</span><span class="lad-bar"><i></i></span><span class="lad-val">—</span></div>
+            <div class="lad-row"><span>p99.9</span><span class="lad-bar"><i></i></span><span class="lad-val">—</span></div>
+          </div>
+        </div>
+        <div class="panel g-pad">
+          <div class="g-l" style="margin:0 0 12px">PLATFORM INTEGRITY</div>
+          <div class="chips">
+            <span class="chip"><span class="d"></span>GATE PASS</span>
+            <span class="chip"><span class="d"></span>PTP LOCKED</span>
+            <span class="chip"><span class="d"></span>0 DROPS</span>
+            <span class="chip"><span class="d"></span>DIFF CLEAN</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hud-foot reveal">
+      <span class="lb-note">PERCENTILES FROM MERGED HDR — NEVER AVERAGED · INTEGRITY-GATED · FAILED DIFF ⇒ SCORE CAPPED ·
+        STABILITY IS A GATE, NOT A WEIGHT: UNSTABLE RUNS ARE EXCLUDED, NEVER AVERAGED IN</span>
+      <a class="open-lb" href="index.html">OPEN FULL LEADERBOARD <span class="arr">→</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ════ SECTION 3 · ARCHITECTURE ════ -->
+<section class="layer" id="architecture">
+  <div class="frame">
+    <div class="reveal">
+      <div class="sec-eyebrow"><span class="ln"></span>ONE FROZEN CONTRACT · UPLOAD → SANDBOX → FLEET → SCORE</div>
+      <h2 class="sec-h2">The pipeline, end to end.</h2>
+      <p class="sec-sub">Every order on this page travels this path. Contestant code never touches the host:
+      it runs CPU-pinned inside an isolated sandbox while the fleet bombards it and the ingester measures
+      from outside the box.</p>
+    </div>
+
+    <div class="panel arch-wrap reveal">
+      <svg id="archSvg" viewBox="0 0 1180 300" xmlns="http://www.w3.org/2000/svg" role="img"
+           aria-label="System architecture: submission to sandbox to engine under test, bot fleet load, telemetry ingest, HDR merge, scoring, leaderboard">
+        <defs>
+          <linearGradient id="flowG" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#36d3ff"/><stop offset="1" stop-color="#3ad29f"/>
+          </linearGradient>
+        </defs>
+        <g id="archEdges" stroke="rgba(255,255,255,.16)" stroke-width="1" fill="none">
+          <path id="e1" d="M170,110 H250"/>
+          <path id="e2" d="M430,110 H510"/>
+          <path id="e3" d="M690,110 H770"/>
+          <path id="e4" d="M950,110 H1010"/>
+          <path id="e5" d="M340,142 V196 H520"/>
+          <path id="e6" d="M600,196 H860 V142" />
+        </g>
+        <!-- nodes -->
+        <g font-family="JetBrains Mono, monospace" font-size="11" letter-spacing="2">
+          <g>
+            <rect x="30" y="78" width="140" height="64" rx="9" fill="rgba(10,16,22,.9)" stroke="rgba(255,255,255,.2)"/>
+            <text x="100" y="105" fill="#fff" text-anchor="middle">SUBMISSION</text>
+            <text x="100" y="124" fill="rgba(255,255,255,.4)" text-anchor="middle" font-size="8">C++ · RUST · GO</text>
+          </g>
+          <g>
+            <rect x="250" y="78" width="180" height="64" rx="9" fill="rgba(10,16,22,.9)" stroke="rgba(58,210,159,.45)"/>
+            <text x="340" y="105" fill="#3ad29f" text-anchor="middle">SANDBOX</text>
+            <text x="340" y="124" fill="rgba(255,255,255,.4)" text-anchor="middle" font-size="8">CPU-PINNED · MEM-CAPPED · NO-NET</text>
+          </g>
+          <g>
+            <rect x="510" y="78" width="180" height="64" rx="9" fill="rgba(10,16,22,.9)" stroke="rgba(54,211,255,.5)"/>
+            <text x="600" y="105" fill="#36d3ff" text-anchor="middle">ENGINE UNDER TEST</text>
+            <text x="600" y="124" fill="rgba(255,255,255,.4)" text-anchor="middle" font-size="8">CONTESTANT MATCHING ENGINE</text>
+          </g>
+          <g>
+            <rect x="770" y="78" width="180" height="64" rx="9" fill="rgba(10,16,22,.9)" stroke="rgba(255,255,255,.2)"/>
+            <text x="860" y="105" fill="#fff" text-anchor="middle">TELEMETRY INGEST</text>
+            <text x="860" y="124" fill="rgba(255,255,255,.4)" text-anchor="middle" font-size="8">TSC-STAMPED · CO-CORRECTED</text>
+          </g>
+          <g>
+            <rect x="1010" y="78" width="140" height="64" rx="9" fill="rgba(10,16,22,.9)" stroke="rgba(58,210,159,.45)"/>
+            <text x="1080" y="105" fill="#3ad29f" text-anchor="middle">LEADERBOARD</text>
+            <text x="1080" y="124" fill="rgba(255,255,255,.4)" text-anchor="middle" font-size="8">HDR MERGE → SCORE → WS</text>
+          </g>
+          <g>
+            <rect x="520" y="170" width="80" height="52" rx="9" fill="rgba(20,12,8,.9)" stroke="rgba(255,138,61,.5)"/>
+            <text x="560" y="192" fill="#ff8a3d" text-anchor="middle" font-size="10">BOT</text>
+            <text x="560" y="206" fill="#ff8a3d" text-anchor="middle" font-size="10">FLEET</text>
+          </g>
+          <text x="560" y="252" fill="rgba(255,255,255,.35)" text-anchor="middle" font-size="9"
+                letter-spacing="2">32 BOTS · 8× CPU OVERSUBSCRIPTION · LIMIT / MARKET / CANCEL</text>
+        </g>
+        <g id="archDots"></g>
+      </svg>
+    </div>
+
+    <div class="arch-cards reveal">
+      <div class="ac"><h3>Submission &amp; sandboxing<span class="tag">ISOLATION</span></h3>
+        <p>Uploads are containerized and pinned: <b>dedicated cores, hard memory caps, no outbound network</b>.
+        Malicious or runaway code burns its own budget, never a neighbour's.</p></div>
+      <div class="ac"><h3>Distributed load generator<span class="tag">SPEED</span></h3>
+        <p><b>32 bots at 8× CPU oversubscription</b> stream limit orders, market orders and cancels over binary TCP
+        at the intended rate — the fleet never slows down to flatter the engine.</p></div>
+      <div class="ac"><h3>Telemetry &amp; validation<span class="tag">ACCURACY</span></h3>
+        <p>Acks are TSC-stamped outside the sandbox. <b>Price-time priority and fill accuracy</b> are verified by a
+        byte-exact diff against an offline replay — 25,743,624 bytes, zero mismatches.</p></div>
+      <div class="ac"><h3>Scoring &amp; leaderboard<span class="tag">STABILITY</span></h3>
+        <p>Per-bot HDR histograms <b>merge additively — never averaged</b>. Unstable runs fail the integrity gate and
+        are excluded, not penalized. Deltas stream to the board over WebSocket.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════ SECTION 4 · FLEET ════ -->
+<section class="layer" id="fleet">
+  <div class="frame">
+    <div class="reveal">
+      <div class="sec-eyebrow"><span class="ln"></span>DISTRIBUTED LOAD GENERATOR · LIVE VIEW</div>
+      <h2 class="sec-h2">32 bots. One target.</h2>
+    </div>
+
+    <div class="fleet-grid reveal">
+      <div class="panel">
+        <div class="p-head">
+          <span class="p-title">BOT FLEET · ORDERS/S PER NODE</span>
+          <span class="src-pill"><span class="d"></span>SYNTHETIC REPLAY · DEMO</span>
+        </div>
+        <div class="nodes" id="nodes"></div>
+      </div>
+      <div class="fleet-side">
+        <div class="panel g-pad">
+          <div class="big-n"><span id="fleetSum">0</span><span class="u">orders/s</span></div>
+          <div class="g-l">FLEET AGGREGATE · ALL NODES</div>
+        </div>
+        <div class="panel g-pad">
+          <div class="g-l" style="margin:0 0 12px">SANDBOX BUDGET · PER SUBMISSION</div>
+          <div class="sand-list">
+            CPU<b>2 cores · pinned</b><br>
+            MEMORY<b>512 MB · hard cap</b><br>
+            NETWORK<b>loopback only</b><br>
+            CLOCK<b>PTP · ±ns locked</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════ SECTION 5 · PROOF + CONTRACT ════ -->
+<section class="layer" id="proof">
+  <div class="frame">
+    <div class="reveal">
+      <div class="sec-eyebrow"><span class="ln"></span>MEASURED, NOT MARKETED</div>
+      <h2 class="sec-h2">The benchmark that refuses to lie.</h2>
+      <div class="contract">
+        <code>score = <span class="axis">0.40·latency</span> + <span class="axis">0.30·throughput</span> + <span class="axis">0.30·correctness</span></code><br>
+        Speed and accuracy are weighted. Stability is enforced harder than a weight — it's a gate:
+        a run that fails self-test latency or jitter bounds is excluded before scoring, never averaged in.
+      </div>
+    </div>
+    <div class="proof-grid reveal">
+      <div class="proof-cell"><div class="n cyan"><span class="cnt" data-to="19.7" data-dec="1" data-suf="×">0</span></div><div class="l">naive→CO p99 gap under a planted 5 ms stall — the stall cannot hide</div></div>
       <div class="proof-cell"><div class="n green"><span class="cnt" data-to="19" data-suf="/19">0</span></div><div class="l">matching-engine unit tests · price-time priority, IOC, determinism</div></div>
       <div class="proof-cell"><div class="n green"><span class="cnt" data-to="0" data-suf="">0</span></div><div class="l">ASan + UBSan findings · zero-allocation hot path, proven not claimed</div></div>
       <div class="proof-cell"><div class="n orange"><span class="cnt" data-to="32" data-suf="/32">0</span></div><div class="l">bots connected at 8× CPU oversubscription · every order accounted</div></div>
-      <div class="proof-cell"><div class="n cyan"><span class="cnt" data-to="12.9" data-dec="1" data-suf=" MB">0</span></div><div class="l">live TCP output byte-exact vs offline replay — 12,913,116 bytes</div></div>
+      <div class="proof-cell"><div class="n cyan"><span class="cnt" data-to="25.7" data-dec="1" data-suf=" MB">0</span></div><div class="l">live TCP output byte-exact vs offline replay — 25,743,624 bytes</div></div>
     </div>
+
     <footer>
-      <span>IICPC SUMMER HACKATHON 2026</span>
-      <span>BOT FLEET · SANDBOX · LEADERBOARD — ONE FROZEN CONTRACT</span>
-      <span>BUILT FOR PEAK VOLATILITY</span>
+      <div class="frame" style="padding:0">
+        <div class="foot-grid">
+          <span class="col"><b>IICPC Summer Hackathon 2026</b>Bot fleet · sandbox · leaderboard — one frozen contract</span>
+          <span class="col"><b>Deep dives</b>
+            <a href="https://github.com/mohitt31/iicpc-hackathon-2026/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener">Architecture blueprint ↗</a><br>
+            <a href="https://github.com/mohitt31/iicpc-hackathon-2026/blob/main/RESULTS.md" target="_blank" rel="noopener">Measured results ↗</a><br>
+            <a href="https://github.com/mohitt31/iicpc-hackathon-2026" target="_blank" rel="noopener">Source ↗</a></span>
+          <span class="col"><b>Stack</b>C++20 · epoll · binary TCP · HDR histograms · Docker</span>
+          <span class="col"><b>Built by</b>Manish Paul · Aftab Naik</span>
+        </div>
+      </div>
     </footer>
   </div>
 </section>
 
-<!-- GSAP self-hosted (same-origin) so ad-blockers / CDN blocks can't strip it -->
-<script src="assets/vendor/gsap/gsap.min.js"></script>
-<script src="assets/vendor/gsap/ScrollTrigger.min.js"></script>
-
 <script>
-/* ════════════════════════════════════════════════════════════════════
-   CHOREOGRAPHY — boot overlay, hero reveal, GSAP scroll, video integration.
-   Watchdog guarantees boot overlay can never trap the page (3s max).
-   window.S is shared scroll state read by the 3D module and video logic.
-   ════════════════════════════════════════════════════════════════════ */
 (function(){
-  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var hasGsap = typeof gsap !== 'undefined';
-  var hasST   = hasGsap && typeof ScrollTrigger !== 'undefined';
-  var mobile  = innerWidth < 760;
-  var HOME_X  = mobile ? 0 : 8.4;
+'use strict';
+var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* shared state: 3D module + video layer both read this */
-  window.S = { p: 0, introX: 34, vidActive: false };
+/* ───────────────── seeded RNG so both pages can share one universe ───────────────── */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+var rng = mulberry32(20260613);
 
-  /* H1 word build */
-  var h1 = document.getElementById('h1');
-  ['Simulating','Peak','Volatility.'].forEach(function(w,i){
-    var wrap=document.createElement('span'); wrap.className='w'+(i===2?' accent':'');
-    var inner=document.createElement('span'); inner.textContent=w;
-    wrap.appendChild(inner); h1.appendChild(wrap);
-    if (i<2) h1.appendChild(document.createTextNode(' '));
-  });
-
-  var SUB='A distributed load generator and telemetry engine for ultra-low latency trading systems.';
-  function typeSub(){
-    var typed=document.getElementById('typed');
-    if (reduced){ typed.textContent=SUB; return; }
-    var i=0;
-    (function tick(){ typed.textContent=SUB.slice(0,++i);
-      if (i<SUB.length) setTimeout(tick, 13+Math.random()*24); })();
-  }
-
-  var revealed=false;
-  function heroReveal(){
-    if (revealed) return; revealed=true;
-    document.querySelectorAll('.hero-h1 .w>span').forEach(function(el,i){
-      el.style.transition='transform 1.1s cubic-bezier(.16,1,.3,1) '+(0.1+i*0.13)+'s';
-      requestAnimationFrame(function(){ el.style.transform='translateY(0)'; });
-    });
-    ['.eyebrow','.hero-proof'].forEach(function(sel,i){
-      var el=document.querySelector(sel);
-      el.style.transition='opacity .9s ease '+(0.15+i*0.6)+'s, transform .9s ease '+(0.15+i*0.6)+'s';
-      el.style.transform='translateY(14px)';
-      requestAnimationFrame(function(){ el.style.opacity='1'; el.style.transform='translateY(0)'; });
-    });
-    /* show targeting reticle */
-    var hframe=document.getElementById('hero-frame');
-    if (hframe) hframe.classList.add('vis');
-    /* core float-in */
-    if (hasGsap){
-      gsap.to(window.S, {introX:HOME_X, duration:2.4, ease:'power3.out'});
-    } else {
-      var t0=performance.now();
-      (function step(now){
-        var u=Math.min(1,(now-t0)/2400), e=1-Math.pow(1-u,3);
-        window.S.introX = 34 + (HOME_X-34)*e;
-        if (u<1) requestAnimationFrame(step);
-      })(t0);
-    }
-    /* position video wrap: offset right to match 3D core */
-    if (!mobile) {
-      var vw = document.getElementById('hero-vid-wrap');
-      if (vw && hasGsap) gsap.set(vw, {x: innerWidth * 0.26});
-    }
-    typeSub();
-  }
-
-  /* boot overlay */
-  var bootEl=document.getElementById('boot'), booted=false;
-  function bootDone(){
-    if (booted) return; booted=true;
-    bootEl.classList.add('done');
-    heroReveal();
-  }
-  if (reduced){ bootDone(); }
-  else if (hasGsap){
-    var tl=gsap.timeline({onComplete:bootDone});
-    tl.to('.boot-line',{opacity:1,duration:.18,stagger:.22,ease:'none'})
-      .to('#bootBar',{scaleX:1,duration:.5,ease:'power1.inOut'},'<.2')
-      .to({},{duration:.25});
-  } else {
-    document.querySelectorAll('.boot-line').forEach(function(el,i){
-      el.style.transition='opacity .2s ease '+(i*0.2)+'s'; el.style.opacity='1';
-    });
-    var bar=document.getElementById('bootBar');
-    bar.style.transition='transform .6s ease .6s'; bar.style.transform='scaleX(1)';
-    setTimeout(bootDone, 1400);
-  }
-  /* WATCHDOG — page must never be trapped */
-  setTimeout(bootDone, 3000);
-
-  /* scroll scrub */
-  var hud=document.getElementById('hud');
-  if (hasST && !reduced){
-    gsap.registerPlugin(ScrollTrigger);
-
-    /* global scroll progress (read by 3D module) */
-    gsap.to(window.S,{p:1,ease:'none',
-      scrollTrigger:{trigger:'#telemetry',start:'top bottom',end:'top -40%',scrub:0.6}});
-
-    /* hero text recede */
-    gsap.to('#hero .frame',{opacity:0,y:-70,ease:'none',
-      scrollTrigger:{trigger:'#telemetry',start:'top bottom',end:'top 40%',scrub:0.6}});
-
-    /* hero frame (reticle) fades with text */
-    gsap.to('#hero-frame',{opacity:0,ease:'none',
-      scrollTrigger:{trigger:'#telemetry',start:'top bottom',end:'top 50%',scrub:0.6}});
-
-    /* video wrap: zoom from right to full-screen background */
-    gsap.to('#hero-vid-wrap',{
-      x:0, y:'-50%',
-      width: Math.max(innerWidth,innerHeight)*1.3,
-      ease:'none',
-      scrollTrigger:{trigger:'#telemetry',start:'top bottom',end:'top -40%',scrub:0.6}
-    });
-
-    /* HUD assembles */
-    gsap.fromTo('#hud',{opacity:0,y:90,scale:.95},{opacity:1,y:0,scale:1,ease:'power1.out',
-      scrollTrigger:{trigger:'#telemetry',start:'top 25%',end:'top -35%',scrub:0.6}});
-    gsap.from('.metric',{y:40,opacity:0,stagger:.12,ease:'power2.out',
-      scrollTrigger:{trigger:'#telemetry',start:'top 5%',end:'top -30%',scrub:0.6}});
-
-    /* proof counters */
-    document.querySelectorAll('.cnt').forEach(function(el){
-      var to=parseFloat(el.dataset.to), dec=parseInt(el.dataset.dec||'0',10), suf=el.dataset.suf||'';
-      var o={v:0};
-      gsap.to(o,{v:to,duration:1.6,ease:'power2.out',
-        scrollTrigger:{trigger:el,start:'top 88%',once:true},
-        onUpdate:function(){ el.textContent=o.v.toFixed(dec)+suf; },
-        onComplete:function(){ el.textContent=to.toFixed(dec)+suf; }});
-    });
-  } else {
-    hud.style.opacity='1'; hud.style.transform='none';
-    addEventListener('scroll',function(){
-      window.S.p=Math.min(1,Math.max(0,scrollY/(innerHeight*1.05)));
-      var hf=document.querySelector('#hero .frame');
-      hf.style.opacity=String(Math.max(0,1-window.S.p*1.55));
-    },{passive:true});
-    document.querySelectorAll('.cnt').forEach(function(el){
-      el.textContent=parseFloat(el.dataset.to).toFixed(parseInt(el.dataset.dec||'0',10))+(el.dataset.suf||'');
-    });
-  }
-})();
-</script>
-
-<script type="importmap">
-{"imports":{
-  "three":"./assets/vendor/three/three.module.js",
-  "three/addons/":"./assets/vendor/three/jsm/"
-}}
-</script>
-
-<script type="module">
-/* ════════════════════════════════════════════════════════════════════
-   3D LAYER — strictly optional fallback. All content works without it.
-   Upgraded: custom plasma ShaderMaterial nucleus, pulse shockwave rings,
-   electric arc lightning between satellites, 7 orbital rings, 96 sats,
-   outer data shells, 4-layer volumetric halo, doubled stream density.
-   ════════════════════════════════════════════════════════════════════ */
-try {
-  const THREE = await import('three');
-  const { EffectComposer }  = await import('three/addons/postprocessing/EffectComposer.js');
-  const { RenderPass }      = await import('three/addons/postprocessing/RenderPass.js');
-  const { UnrealBloomPass } = await import('three/addons/postprocessing/UnrealBloomPass.js');
-  const { OutputPass }      = await import('three/addons/postprocessing/OutputPass.js');
-
-  const S = window.S;
-  const mobile = innerWidth < 760;
-  const canvas = document.getElementById('gl');
-  const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
-
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x000000);
-  scene.fog = new THREE.FogExp2(0x000000, 0.011);
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
-  camera.position.set(0, 0.7, 26);
-
-  const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  /* threshold 0.22 keeps bloom SELECTIVE — only the hottest pixels bloom,
-     so the core glows without washing the whole frame to white */
-  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.0, 0.6, 0.22);
-  composer.addPass(bloom);
-  composer.addPass(new OutputPass());
-
-  /* ── star field ── */
-  {
-    const N=mobile?900:2600, g=new THREE.BufferGeometry();
-    const p=new Float32Array(N*3);
-    for(let i=0;i<N*3;i+=3){ p[i]=(Math.random()-.5)*190; p[i+1]=(Math.random()-.5)*110; p[i+2]=-30-Math.random()*130; }
-    g.setAttribute('position',new THREE.BufferAttribute(p,3));
-    scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0x88c8e8,size:0.13,transparent:true,opacity:0.5,depthWrite:false})));
-  }
-
-  /* ── waving data-grid floor ── */
-  const GW=96, GH=42, gridGeo=new THREE.BufferGeometry();
-  {
-    const p=new Float32Array(GW*GH*3);
-    for(let i=0,k=0;i<GW;i++) for(let j=0;j<GH;j++,k+=3){
-      p[k]=(i/(GW-1)-.5)*120; p[k+1]=-8.5; p[k+2]=(j/(GH-1)-.82)*78;
-    }
-    gridGeo.setAttribute('position',new THREE.BufferAttribute(p,3));
-  }
-  const gridPts=new THREE.Points(gridGeo,new THREE.PointsMaterial({color:0x36d3ff,size:0.08,transparent:true,opacity:0.38,depthWrite:false}));
-  scene.add(gridPts);
-
-  /* ══════════════════════════════════════════════════════════
-     THE CORE
-  ══════════════════════════════════════════════════════════ */
-  const core=new THREE.Group();
-  scene.add(core);
-  core.position.set(34,0.3,0);
-
-  /* ── Nucleus: animated plasma shader ── */
-  const nucleusMat=new THREE.ShaderMaterial({
-    uniforms:{uTime:{value:0},uDim:{value:1.0}},
-    transparent:true,
-    depthWrite:false,
-    blending:THREE.AdditiveBlending,
-    vertexShader:`
-      varying vec3 vNormal;
-      varying vec3 vViewDir;
-      varying vec2 vUv;
-      void main(){
-        vUv=uv;
-        vNormal=normalize(normalMatrix*normal);
-        vec4 mvPos=modelViewMatrix*vec4(position,1.0);
-        vViewDir=normalize(-mvPos.xyz);
-        gl_Position=projectionMatrix*mvPos;
-      }`,
-    fragmentShader:`
-      uniform float uTime;
-      uniform float uDim;
-      varying vec3 vNormal;
-      varying vec3 vViewDir;
-      varying vec2 vUv;
-      float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-      float noise(vec2 p){
-        vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
-        return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
-      }
-      float fbm(vec2 p){
-        float v=0.0,a=0.5;
-        for(int i=0;i<5;i++){v+=a*noise(p);p*=2.0;a*=0.5;}
-        return v;
-      }
-      void main(){
-        float fresnel=pow(1.0-clamp(dot(vNormal,vViewDir),0.0,1.0),2.5);
-        vec2 p=vUv*5.0;
-        float plasma=fbm(p+vec2(uTime*0.28,uTime*0.19));
-        plasma+=fbm(p*1.7-vec2(uTime*0.13,uTime*0.22))*0.55;
-        float arc=smoothstep(0.72,1.0,plasma);
-        vec3 cyan=vec3(0.208,0.827,1.0);
-        vec3 green=vec3(0.227,0.824,0.624);
-        vec3 white=vec3(1.0,1.0,1.0);
-        vec3 col=mix(cyan,green,plasma*0.7);
-        col=mix(col,white,arc*0.55);
-        col+=fresnel*cyan*1.5;
-        float alpha=(0.58+fresnel*0.28+arc*0.14)*uDim;
-        gl_FragColor=vec4(col*(1.0+arc*0.45)*uDim,alpha);
-      }`
-  });
-  core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(1.15,4),nucleusMat));
-
-  /* ── inner wireframe cage ── */
-  core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(2.05,1),
-    new THREE.MeshBasicMaterial({color:0x36d3ff,wireframe:true,transparent:true,opacity:0.45,depthWrite:false})));
-
-  /* ── outer data shells (3 nested wireframes) ── */
-  [[3.9,0x36d3ff,0.17],[5.4,0x3ad29f,0.11],[7.2,0x36d3ff,0.06]].forEach(([r,c,o])=>{
-    core.add(new THREE.Mesh(new THREE.IcosahedronGeometry(r,1),
-      new THREE.MeshBasicMaterial({color:c,wireframe:true,transparent:true,opacity:o,depthWrite:false})));
-  });
-
-  /* ── orbital rings (7) ── */
-  const rings=[];
-  [[2.9,0,0],[0,0,Math.PI/2.2],[Math.PI/2.4,Math.PI/4,0],
-   [Math.PI/3,0,Math.PI/5],[0,Math.PI/2.6,Math.PI/2.8],
-   [Math.PI/5,Math.PI/3.5,0],[0,Math.PI/1.9,Math.PI/4]].forEach((rot,i)=>{
-    const r=new THREE.Mesh(
-      new THREE.TorusGeometry(2.7+i*0.5,i<3?0.022:0.014,8,160),
-      new THREE.MeshBasicMaterial({color:i%2===1?0x3ad29f:0x36d3ff,transparent:true,
-        opacity:i<3?0.85:0.45,blending:THREE.AdditiveBlending,depthWrite:false}));
-    r.rotation.set(rot[0],rot[1],rot[2]);
-    rings.push(r); core.add(r);
-  });
-  const rSpeeds=[[0.004,0.002,0],[0,0.005,0.002],[-0.003,0,0.004],
-                 [0.006,-0.003,0],[0,-0.005,0.004],[-0.004,0.003,0],[0,0.007,-0.003]];
-
-  /* ── pulse shockwave rings (4 recycled) ── */
-  const pulseRings=[];
-  for(let i=0;i<4;i++){
-    const pr=new THREE.Mesh(
-      new THREE.TorusGeometry(1,0.018,8,100),
-      new THREE.MeshBasicMaterial({color:i%2===0?0x36d3ff:0x3ad29f,
-        transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
-    pr.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,0);
-    pr.userData={offset:i*(3.0/4)};
-    core.add(pr); pulseRings.push(pr);
-  }
-
-  /* ── satellites ── */
-  const SATS=mobile?48:96, satGeo=new THREE.SphereGeometry(0.075,8,8);
-  const sats=[], linkPts=[];
-  for(let i=0;i<SATS;i++){
-    const shell=4.4+(i%3)*0.9;
-    const y=1-(i/(SATS-1))*2, r=Math.sqrt(1-y*y), th=i*2.39996;
-    const pos=new THREE.Vector3(Math.cos(th)*r*shell,y*shell*0.8,Math.sin(th)*r*shell);
-    const m=new THREE.Mesh(satGeo,
-      new THREE.MeshBasicMaterial({color:i%4===0?0x3ad29f:0xaee9ff}));
-    m.position.copy(pos); core.add(m);
-    sats.push({m,base:pos.clone(),ph:i*0.61});
-    if(i%2===0) linkPts.push(new THREE.Vector3(0,0,0),pos.clone());
-  }
-  core.add(new THREE.LineSegments(
-    new THREE.BufferGeometry().setFromPoints(linkPts),
-    new THREE.LineBasicMaterial({color:0x36d3ff,transparent:true,opacity:0.13,depthWrite:false})));
-
-  /* ── electric arc lightning between satellites ── */
-  const ARC_N=mobile?3:6;
-  const arcMeshes=[];
-  for(let i=0;i<ARC_N;i++){
-    const SEGS=12, pts=new Float32Array(SEGS*3);
-    const geo=new THREE.BufferGeometry();
-    geo.setAttribute('position',new THREE.BufferAttribute(pts,3));
-    const line=new THREE.Line(geo,
-      new THREE.LineBasicMaterial({color:i%2===0?0x36d3ff:0x3ad29f,
-        transparent:true,opacity:0,blending:THREE.AdditiveBlending}));
-    core.add(line);
-    arcMeshes.push({line,geo,timer:i*(0.7/ARC_N),life:0});
-  }
-
-  /* ── order-flow streams (8 on desktop) ── */
-  const STREAMS=mobile?4:8, PER=mobile?40:80;
-  const flowGeo=new THREE.BufferGeometry();
-  const flowPos=new Float32Array(STREAMS*PER*3);
-  const flowCol=new Float32Array(STREAMS*PER*3);
-  const curves=[];
-  const cCool=new THREE.Color(0x36d3ff),cHot=new THREE.Color(0xff8a3d),cGreen=new THREE.Color(0x3ad29f);
-  for(let s=0;s<STREAMS;s++){
-    const a=(s/STREAMS)*Math.PI*2+0.4;
-    const start=new THREE.Vector3(Math.cos(a)*28,(Math.random()-.4)*16,Math.sin(a)*24-6);
-    const mid1=start.clone().multiplyScalar(0.5).add(new THREE.Vector3(0,(Math.random()-.5)*10,0));
-    const mid2=new THREE.Vector3((Math.random()-.5)*7,(Math.random()-.5)*7,(Math.random()-.5)*7);
-    curves.push(new THREE.CubicBezierCurve3(start,mid1,mid2,new THREE.Vector3(0,0,0)));
-    const col=s%4===0?cHot:s%3===0?cGreen:cCool;
-    for(let k=0;k<PER;k++){
-      const idx=(s*PER+k)*3;
-      flowCol[idx]=col.r; flowCol[idx+1]=col.g; flowCol[idx+2]=col.b;
-    }
-  }
-  flowGeo.setAttribute('position',new THREE.BufferAttribute(flowPos,3));
-  flowGeo.setAttribute('color',new THREE.BufferAttribute(flowCol,3));
-  const flowMat=new THREE.PointsMaterial({
-    size:0.18,vertexColors:true,transparent:true,opacity:0.95,
-    blending:THREE.AdditiveBlending,depthWrite:false});
-  core.add(new THREE.Points(flowGeo,flowMat));
-  const tmpV=new THREE.Vector3();
-
-  /* ── volumetric halo sprites (4 layers) ── */
-  const halos=[];
-  {
-    const c2d=document.createElement('canvas'); c2d.width=c2d.height=256;
-    const g2=c2d.getContext('2d');
-    const grad=g2.createRadialGradient(128,128,0,128,128,128);
-    grad.addColorStop(0,'rgba(220,248,255,.95)');
-    grad.addColorStop(0.2,'rgba(54,211,255,.6)');
-    grad.addColorStop(0.55,'rgba(54,211,255,.14)');
-    grad.addColorStop(1,'rgba(0,0,0,0)');
-    g2.fillStyle=grad; g2.fillRect(0,0,256,256);
-    const tex=new THREE.CanvasTexture(c2d);
-    [[4.5,0.34],[8,0.18],[14,0.09],[21,0.045]].forEach(([sz,op])=>{
-      const sp=new THREE.Sprite(new THREE.SpriteMaterial({
-        map:tex,color:0x36d3ff,transparent:true,opacity:op,
-        blending:THREE.AdditiveBlending,depthWrite:false}));
-      sp.scale.setScalar(sz); sp.userData.baseOp=op; core.add(sp); halos.push(sp);
-    });
-  }
-
-  /* ── lights ── */
-  scene.add(new THREE.AmbientLight(0x16242e,1.8));
-  const heart=new THREE.PointLight(0x36d3ff,80,70); core.add(heart);
-  const greenLight=new THREE.PointLight(0x3ad29f,40,50);
-  greenLight.position.set(2,1,0); core.add(greenLight);
-
-  /* ── mouse parallax ── */
-  const mouse={x:0,y:0,tx:0,ty:0};
-  addEventListener('pointermove',e=>{
-    mouse.tx=(e.clientX/innerWidth-.5);
-    mouse.ty=(e.clientY/innerHeight-.5);
-  },{passive:true});
-
-  function resize(){
-    renderer.setSize(innerWidth,innerHeight,false);
-    composer.setSize(innerWidth,innerHeight);
-    bloom.resolution.set(innerWidth,innerHeight);
-    camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
-  }
-  addEventListener('resize',resize); resize();
-
-  /* WebGL core is live — hide the CSS fallback glow (real core takes over) */
-  document.body.classList.add('webgl-ok');
-
-  let hidden=false, lastT=0;
-  document.addEventListener('visibilitychange',()=>{hidden=document.hidden;});
-
-  renderer.setAnimationLoop((now)=>{
-    if(hidden) return;
-    const t=now*0.001, dt=Math.min(0.05,t-lastT); lastT=t;
-    const p=S.p;
-
-    mouse.x+=(mouse.tx-mouse.x)*0.05;
-    mouse.y+=(mouse.ty-mouse.y)*0.05;
-
-    /* ── core transform (mirrors GSAP scroll state) ── */
-    core.position.x=S.introX*(1-p);
-    core.position.y=0.3+Math.sin(t*0.8)*0.24*(1-p*0.7);
-    core.rotation.y=t*0.14+mouse.x*0.7;
-    core.rotation.x=Math.sin(t*0.22)*0.07+mouse.y*0.45+p*0.1;
-    core.scale.setScalar(1+p*3);
-    /* reduce WebGL core opacity when Higgsfield video is active (they composite) */
-    core.visible = true;
-    camera.position.z=26-p*12.5;
-    camera.position.y=0.7-p*0.4;
-    camera.lookAt(core.position.x*(1-p*0.85),0,0);
-    /* bloom EASES DOWN as the core fills the screen — prevents white-out
-       washout so the glass HUD stays readable over it */
-    bloom.strength=1.0-p*0.45;
-    flowMat.opacity=0.95*(1-p*0.55);
-
-    /* ── plasma shader time + dim-as-background ── */
-    nucleusMat.uniforms.uTime.value=t;
-    nucleusMat.uniforms.uDim.value=1.0-p*0.6;
-    /* fade the additive halo stack so it doesn't blow out when zoomed in */
-    for(const sp of halos) sp.material.opacity=sp.userData.baseOp*(1-p*0.7);
-
-    /* ── ring rotation ── */
-    rings.forEach((r,i)=>{
-      r.rotation.x+=rSpeeds[i][0]; r.rotation.y+=rSpeeds[i][1]; r.rotation.z+=rSpeeds[i][2];
-    });
-
-    /* ── pulse shockwave rings ── */
-    for(const pr of pulseRings){
-      const phase=((t*0.75+pr.userData.offset)%3.0);
-      pr.scale.setScalar(1+phase*5.5);
-      pr.material.opacity=Math.max(0,0.65*(1-phase/3.0));
-      if(phase<dt*0.75) pr.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,0);
-    }
-
-    /* ── satellite orbit ── */
-    for(const s of sats){
-      const k=1+Math.sin(t*2.0+s.ph)*0.12;
-      s.m.position.copy(s.base).multiplyScalar(k);
-    }
-
-    /* ── electric arcs ── */
-    for(const arc of arcMeshes){
-      arc.timer+=dt;
-      if(arc.timer>arc.life){
-        const SEGS=12;
-        const i1=Math.floor(Math.random()*sats.length), i2=Math.floor(Math.random()*sats.length);
-        const p1=sats[i1].m.position, p2=sats[i2].m.position;
-        const pts=arc.geo.attributes.position.array;
-        for(let k=0;k<SEGS;k++){
-          const u=k/(SEGS-1), j=k>0&&k<SEGS-1?0.85:0;
-          pts[k*3]   =p1.x*(1-u)+p2.x*u+(Math.random()-.5)*j;
-          pts[k*3+1] =p1.y*(1-u)+p2.y*u+(Math.random()-.5)*j;
-          pts[k*3+2] =p1.z*(1-u)+p2.z*u+(Math.random()-.5)*j;
-        }
-        arc.geo.attributes.position.needsUpdate=true;
-        arc.line.material.opacity=0.88;
-        arc.timer=0;
-        arc.life=0.06+Math.random()*0.12;
-      } else {
-        arc.line.material.opacity*=0.88;
-      }
-    }
-
-    /* ── heart + green pulse (no scroll boost — avoids over-bright core) ── */
-    heart.intensity=(70+Math.sin(t*1.8)*28)*(1-p*0.4);
-    greenLight.intensity=(35+Math.sin(t*2.3+1.5)*15)*(1-p*0.4);
-
-    /* ── flow streams ── */
-    const fp=flowGeo.attributes.position.array;
-    for(let s=0;s<STREAMS;s++){
-      for(let k=0;k<PER;k++){
-        const u=((t*0.22)+k/PER+s*0.13)%1;
-        curves[s].getPoint(u,tmpV);
-        const idx=(s*PER+k)*3;
-        fp[idx]=tmpV.x; fp[idx+1]=tmpV.y; fp[idx+2]=tmpV.z;
-      }
-    }
-    flowGeo.attributes.position.needsUpdate=true;
-
-    /* ── grid wave ── */
-    const ga=gridGeo.attributes.position.array;
-    for(let i=0,k=0;i<GW;i++) for(let j=0;j<GH;j++,k+=3)
-      ga[k+1]=-8.5+Math.sin(i*0.32+t*0.9)*0.5+Math.cos(j*0.45+t*0.6)*0.35;
-    gridGeo.attributes.position.needsUpdate=true;
-    gridPts.material.opacity=0.38*(1-p*0.85);
-
-    composer.render();
-  });
-} catch(err){
-  console.warn('[3D] disabled:',err);
-  var gl=document.getElementById('gl');
-  if(gl) gl.style.display='none';
+/* ───────────────── BOOT: ≤1.6s, skippable, once per session ───────────────── */
+var bootEl=document.getElementById('boot'), booted=false;
+function bootDone(){ if(booted)return; booted=true; bootEl.classList.add('done'); heroReveal(); }
+var seen=false; try{ seen = sessionStorage.getItem('iicpc-booted')==='1'; }catch(e){}
+if (reduced || seen){ bootEl.style.display='none'; bootDone(); }
+else{
+  try{ sessionStorage.setItem('iicpc-booted','1'); }catch(e){}
+  var lines=document.querySelectorAll('.boot-line');
+  lines.forEach(function(el,i){ el.style.transition='opacity .16s ease '+(i*0.16)+'s'; requestAnimationFrame(function(){el.style.opacity='1';}); });
+  var bar=document.getElementById('bootBar');
+  bar.style.transition='transform 1.1s ease .2s'; requestAnimationFrame(function(){bar.style.transform='scaleX(1)';});
+  setTimeout(bootDone, 1600);                                  /* hard cap */
+  ['click','keydown','wheel','touchstart'].forEach(function(ev){ addEventListener(ev, bootDone, {once:true, passive:true}); });
 }
-</script>
 
-<script>
-/* ════════════════════════════════════════════════════════════════════
-   VIDEO / POSTER LOADING — with 3-second timeout and onerror fallback.
-   If the asset isn't present (404) or can't autoplay, the element
-   stays hidden and the WebGL core shows through unaffected.
-   ════════════════════════════════════════════════════════════════════ */
-(function(){
-  var wrap  = document.getElementById('hero-vid-wrap');
-  var vid   = document.getElementById('hero-vid');
-  var poster= document.getElementById('hero-poster-img');
-  if (!wrap || !vid) return;
-
-  var activated = false;
-  function activateVideo(){
-    if (activated) return; activated = true;
-    wrap.classList.add('vid-active');
-    if (window.S) window.S.vidActive = true;
-  }
-  function fallbackToPoster(){
-    if (activated) return;
-    /* check poster image actually loaded */
-    var img = new Image();
-    img.onload = function(){
-      wrap.classList.add('vid-active','poster-only');
-      if (window.S) window.S.vidActive = true;
-    };
-    img.onerror = function(){
-      /* no assets at all — stay hidden, WebGL is the hero */
-    };
-    img.src = 'assets/hero-poster.jpg';
-  }
-
-  vid.addEventListener('canplay', activateVideo, {once:true});
-  vid.addEventListener('error',   fallbackToPoster, {once:true});
-
-  /* 3-second timeout: if video hasn't started, try poster */
-  var timeout = setTimeout(fallbackToPoster, 3000);
-  vid.addEventListener('canplay', function(){ clearTimeout(timeout); }, {once:true});
-
-  /* trigger load */
-  vid.load();
-})();
-</script>
-
-<script>
-/* ════════════════════════════════════════════════════════════════════
-   HUD DATA — synthetic demo feed with realistic jitter animation.
-   Full live WebSocket feed available on index.html (OPEN FULL LEADERBOARD).
-   ════════════════════════════════════════════════════════════════════ */
-(function(){
-  var body=document.getElementById('lbBody');
-  var pill=document.getElementById('srcPill'), srcTxt=document.getElementById('srcTxt');
-  var tpsEl=document.getElementById('fleetTps');
-  var ladRows=document.querySelectorAll('#ladder .lad-row');
-
-  if(!body||!tpsEl){ return; }
-
-  function fmtP99(ns){ return ns>=1e6?(ns/1e6).toFixed(2)+' ms':(ns/1e3).toFixed(1)+' µs'; }
-  function fmtTps(t){ return (t/1000).toFixed(0)+'k'; }
-  function fmtInt(n){ return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,','); }
-
-  function spark(cv,hist,color){
-    try{
-      var g=cv.getContext('2d'),w=cv.width,h=cv.height;
-      g.clearRect(0,0,w,h);
-      if(hist.length<2) return;
-      var mx=Math.max.apply(null,hist),mn=Math.min.apply(null,hist),rng=(mx-mn)||1;
-      g.beginPath();
-      hist.forEach(function(v,i){
-        var x=i/(hist.length-1)*w,y=h-2-((v-mn)/rng)*(h-4);
-        i?g.lineTo(x,y):g.moveTo(x,y);
-      });
-      g.strokeStyle=color; g.lineWidth=1.4; g.shadowColor=color; g.shadowBlur=4; g.stroke();
-    }catch(e){}
-  }
-
-  var hists={};
-  function render(rows){
-    try{
-      rows.sort(function(a,b){ return (b.score||0)-(a.score||0); });
-      var top=rows.slice(0,8);
-      body.innerHTML=top.map(function(r,i){
-        var ok=r.cor>=0.999;
-        var sc=typeof r.score==='number'?r.score.toFixed(1):'0.0';
-        return '<tr class="'+(i===0?'top1':'')+(r.failed?' failed':'')+'">'
-          +'<td class="rank">'+String(i+1).padStart(2,'0')+'</td>'
-          +'<td class="who">'+r.name+'<span class="v">'+r.ver+'</span></td>'
-          +'<td><span class="proto">'+r.proto+'</span></td>'
-          +'<td class="p99">'+fmtP99(r.p99)+'</td>'
-          +'<td class="tps hide-m">'+fmtTps(r.tps)+'/s</td>'
-          +'<td class="cor '+(ok?'ok':'bad')+'">'+(r.cor*100).toFixed(2)+'%</td>'
-          +'<td class="spark hide-m"><canvas width="64" height="16" data-k="'+r.name+'"></canvas></td>'
-          +'<td class="score">'+(r.failed?'FAILED':sc)+'</td></tr>';
-      }).join('');
-      top.forEach(function(r){
-        var h=hists[r.name]=(hists[r.name]||[]);
-        h.push(r.p99); if(h.length>24) h.shift();
-      });
-      body.querySelectorAll('canvas').forEach(function(cv){
-        spark(cv,hists[cv.dataset.k]||[],'#36d3ff');
-      });
-      var fleet=top.reduce(function(a,r){ return a+(r.failed?0:r.tps); },0);
-      tpsEl.textContent=fmtInt(fleet);
-      var lead=top[0]||{};
-      var lat=[lead.p50||(lead.p99||0)*0.4,lead.p90||(lead.p99||0)*0.6,lead.p99||0,(lead.p99||0)*2.8];
-      var names=['p50','p90','p99','p99.9'];
-      var mx=lat[3]||1;
-      ladRows.forEach(function(row,i){
-        row.querySelector('.lad-bar i').style.width=Math.max(6,Math.sqrt((lat[i]||0)/mx)*100)+'%';
-        row.querySelector('.lad-val').textContent=fmtP99(lat[i]||0);
-        row.children[0].textContent=names[i];
-      });
-    }catch(e){ console.error('[HUD render]',e); }
-  }
-
-  var mock=[
-    ['Priya Sharma','BINARY TCP', 18,168,'v1.0.0'],['Arjun Mehta','BINARY TCP', 24,151,'v2.1.1'],
-    ['Sanya Rao','BINARY TCP',    31,140,'v3.2.2'],['Kiran Nair','WEBSOCKET (Roadmap)',   52,118,'v2.4.4'],
-    ['Rohan Gupta','WEBSOCKET (Roadmap)',   67,101,'v3.0.5'],['Ananya Iyer','WEBSOCKET (Roadmap)',  88, 94,'v1.1.6'],
-    ['Meera Joshi','REST (Roadmap)',210, 62,'v3.3.8'],['Aditya Rao','REST (Roadmap)',340, 48,'v1.4.0'],
-  ].map(function(d,i){
-    return {name:d[0],proto:d[1],p99:d[2]*1000,p50:d[2]*420,p90:d[2]*640,tps:d[3]*1000,ver:d[4],
-            cor:i===5?0.9961:1.0,failed:i===5,score:i===5?-1:92-i*7.3};
+/* ───────────────── HERO reveal + typed sub ───────────────── */
+var h1=document.getElementById('h1');
+['Simulating','Peak','Volatility.'].forEach(function(w,i){
+  var wrap=document.createElement('span'); wrap.className='w'+(i===2?' accent':'');
+  var inner=document.createElement('span'); inner.textContent=w;
+  wrap.appendChild(inner); h1.appendChild(wrap);
+  if(i<2) h1.appendChild(document.createTextNode(' '));
+});
+var SUB='A distributed load generator and telemetry engine for ultra-low latency trading systems.';
+function typeSub(){
+  var typed=document.getElementById('typed'), caret=document.getElementById('caret');
+  if(reduced){ typed.textContent=SUB; caret.classList.add('off'); return; }
+  var i=0;
+  (function tick(){ typed.textContent=SUB.slice(0,++i);
+    if(i<SUB.length) setTimeout(tick, 12+rng()*22);
+    else setTimeout(function(){caret.classList.add('off');}, 2400);   /* caret retires */
+  })();
+}
+var revealed=false;
+function heroReveal(){
+  if(revealed) return; revealed=true;
+  document.querySelectorAll('.hero-h1 .w>span').forEach(function(el,i){
+    el.style.transition='transform 1.05s cubic-bezier(.16,1,.3,1) '+(0.08+i*0.12)+'s';
+    requestAnimationFrame(function(){ el.style.transform='translateY(0)'; });
   });
-  function jitter(){
-    mock.forEach(function(r){
-      if(r.failed) return;
-      r.p99=Math.max(9000,r.p99*(0.93+Math.random()*0.14));
-      r.p50=r.p99*0.42; r.p90=r.p99*0.63;
-      r.tps=Math.max(20000,r.tps*(0.96+Math.random()*0.08));
-      r.score=Math.max(1,r.score+(Math.random()-.5)*1.6);
-    });
-    render(mock);
+  ['.eyebrow','.hero-proof','.hero-cta'].forEach(function(sel,i){
+    var el=document.querySelector(sel); if(!el) return;
+    el.style.transition='opacity .85s ease '+(0.15+i*0.4)+'s, transform .85s ease '+(0.15+i*0.4)+'s';
+    el.style.transform='translateY(14px)';
+    requestAnimationFrame(function(){ el.style.opacity='1'; el.style.transform='translateY(0)'; });
+  });
+  typeSub();
+}
+
+/* ───────────────── scroll reveals ───────────────── */
+var io=new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target);} });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+
+/* ───────────────── THE LIE DETECTOR · CO chart ─────────────────
+   x: percentile (p50 → p99.99, log-ish spacing) · y: latency, log scale.
+   Two curves; planting a stall lifts the CO tail to ms while naive barely moves. */
+var canvas=document.getElementById('coChart'), ctx=canvas.getContext('2d');
+var PCT=[50,75,90,95,99,99.9,99.99];
+var PCTX=[0,.18,.38,.52,.72,.88,1];                          /* x positions */
+/* All values µs, from verified_runs/canonical.json · coordinated_omission.percentiles_ns.
+   p75/p95 interpolated between committed points. "Naive" = what a CO-blind benchmark
+   reports; "CO" = the true intended-rate tail. Same run, honest vs not. */
+var BASE_N =[25.9,42,80.9,118,173.4,520.2,5190];            /* naive — committed */
+var BASE_C =[26.5,40,80,110,160,300,900];                    /* CO, no stall planted — calm tail */
+var STALL_N=[25.9,42,80.9,118,173.4,520.2,5190];            /* naive: blind to the stall */
+var STALL_C=[26.5,55,141.8,420,3414,4821,5251];             /* CO: stall exposed — committed */
+var stall=false, t=0, drawn=reduced?1:0;
+var cur={n:BASE_N.slice(), c:BASE_C.slice()};
+function lerp(a,b,u){return a+(b-a)*u}
+function yOf(v,h,pad){ /* log scale 8µs..8000µs */
+  var lo=Math.log10(8), hi=Math.log10(8000);
+  return pad + (1-(Math.log10(Math.max(v,8))-lo)/(hi-lo))*(h-pad*2);
+}
+function sizeCanvas(){
+  var r=canvas.getBoundingClientRect(), d=devicePixelRatio||1;
+  canvas.width=r.width*d; canvas.height=r.height*d; ctx.setTransform(d,0,0,d,0,0);
+  return r;
+}
+function drawChart(){
+  var r=sizeCanvas(), W=r.width, H=r.height, padX=52, padY=26;
+  ctx.clearRect(0,0,W,H);
+  ctx.font='9px JetBrains Mono, monospace';
+  /* y gridlines */
+  [10,100,1000,5000].forEach(function(v){
+    var y=yOf(v,H,padY);
+    ctx.strokeStyle='rgba(255,255,255,.07)'; ctx.beginPath(); ctx.moveTo(padX,y); ctx.lineTo(W-14,y); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.34)'; ctx.textAlign='right';
+    ctx.fillText(v>=1000?(v/1000)+'ms':v+'µs', padX-9, y+3);
+  });
+  /* x labels */
+  ctx.textAlign='center';
+  PCT.forEach(function(p,i){
+    var x=padX+PCTX[i]*(W-padX-22);
+    ctx.fillStyle='rgba(255,255,255,.34)';
+    ctx.fillText('p'+p, x, H-6);
+  });
+  /* stall reference line */
+  if(stall){
+    var ys=yOf(5000,H,padY);
+    ctx.setLineDash([5,5]); ctx.strokeStyle='rgba(255,90,31,.55)';
+    ctx.beginPath(); ctx.moveTo(padX,ys); ctx.lineTo(W-14,ys); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,138,61,.8)'; ctx.textAlign='left';
+    ctx.fillText('5 ms STALL', padX+6, ys-6);
   }
+  function curve(vals, stroke, glow){
+    ctx.beginPath();
+    var lastI=Math.max(1, Math.ceil(drawn*(PCT.length-1)));
+    for(var i=0;i<=lastI && i<PCT.length;i++){
+      var u=(i===lastI)?(drawn*(PCT.length-1))%1||1:1;
+      var x=padX+PCTX[i]*(W-padX-22);
+      var v=vals[i];
+      if(i===lastI && i>0 && u<1){
+        x=lerp(padX+PCTX[i-1]*(W-padX-22), x, u);
+        v=lerp(vals[i-1], vals[i], u);
+      }
+      var y=yOf(v,H,padY);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.lineWidth=2; ctx.strokeStyle=stroke;
+    ctx.shadowColor=glow||'transparent'; ctx.shadowBlur=glow?14:0;
+    ctx.stroke(); ctx.shadowBlur=0;
+  }
+  curve(cur.n,'rgba(255,255,255,.4)');
+  var g=ctx.createLinearGradient(padX,0,W,0); g.addColorStop(0,'#36d3ff'); g.addColorStop(1, stall?'#ff8a3d':'#3ad29f');
+  curve(cur.c,g, stall?'rgba(255,138,61,.5)':'rgba(54,211,255,.45)');
+  /* point markers on key percentiles */
+  [4,5,6].forEach(function(i){
+    if(drawn<1) return;
+    var x=padX+PCTX[i]*(W-padX-22), y=yOf(cur.c[i],H,padY);
+    ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fillStyle=stall?'#ff8a3d':'#3ad29f'; ctx.fill();
+  });
+}
+function animateChart(){
+  var tgtN=stall?STALL_N:BASE_N, tgtC=stall?STALL_C:BASE_C, dirty=false;
+  for(var i=0;i<PCT.length;i++){
+    var k=reduced?1:.10;
+    if(Math.abs(cur.n[i]-tgtN[i])>.5){cur.n[i]=lerp(cur.n[i],tgtN[i],k);dirty=true;}else cur.n[i]=tgtN[i];
+    if(Math.abs(cur.c[i]-tgtC[i])>.5){cur.c[i]=lerp(cur.c[i],tgtC[i],k);dirty=true;}else cur.c[i]=tgtC[i];
+  }
+  if(drawn<1){ drawn=Math.min(1,drawn+.022); dirty=true; }
+  drawChart();
+  /* gap readout */
+  var gap=cur.c[4]/cur.n[4];
+  document.getElementById('gapN').textContent=gap.toFixed(1)+'×';
+  document.getElementById('gapCard').classList.toggle('hot', gap>5);
+  if(dirty || !reduced) requestAnimationFrame(animateChart);
+}
+var chartStarted=false;
+new IntersectionObserver(function(es,obs){
+  es.forEach(function(e){ if(e.isIntersecting && !chartStarted){ chartStarted=true; animateChart(); obs.disconnect(); } });
+},{threshold:.3}).observe(canvas);
+addEventListener('resize', function(){ if(chartStarted) drawChart(); });
+document.getElementById('stallBtn').addEventListener('click', function(){
+  stall=!stall;
+  this.classList.toggle('on', stall);
+  this.setAttribute('aria-pressed', stall);
+  this.querySelector('span').textContent = stall ? 'Remove the stall' : 'Plant a 5 ms stall';
+  if(reduced){ cur.n=(stall?STALL_N:BASE_N).slice(); cur.c=(stall?STALL_C:BASE_C).slice(); drawChart();
+    var gap=cur.c[4]/cur.n[4];
+    document.getElementById('gapN').textContent=gap.toFixed(1)+'×';
+    document.getElementById('gapCard').classList.toggle('hot', gap>5);
+  }
+});
 
-  /* render immediately, then animate with jitter every 2.2s */
-  jitter();
-  setInterval(jitter,2200);
+/* ───────────────── TELEMETRY · calm seeded sim, FLIP rank moves ─────────────────
+   Slow tick (6s), damped values, rank changes rare and animated. */
+var CONTESTANTS=[
+  {name:'Priya Sharma', v:'v1.0.0', proto:'BINARY TCP', p99:21.8, tps:196, corr:100, score:94.1},
+  {name:'Arjun Mehta',  v:'v2.1.1', proto:'BINARY TCP', p99:19.6, tps:144, corr:100, score:87.3},
+  {name:'Sanya Rao',    v:'v3.2.2', proto:'BINARY TCP', p99:46.1, tps:150, corr:100, score:78.6},
+  {name:'Kiran Nair',   v:'v2.4.4', proto:'WEBSOCKET',  p99:41.7, tps:134, corr:100, score:71.2},
+  {name:'Rohan Gupta',  v:'v3.0.5', proto:'WEBSOCKET',  p99:57.9, tps:97,  corr:100, score:63.0},
+  {name:'Meera Joshi',  v:'v3.3.8', proto:'REST',       p99:188.2,tps:58,  corr:100, score:49.3},
+  {name:'Aditya Rao',   v:'v1.4.0', proto:'REST',       p99:305.5,tps:45,  corr:100, score:39.4},
+  {name:'Ananya Iyer',  v:'v1.1.6', proto:'WEBSOCKET',  p99:88.0, tps:94,  corr:99.61, score:0, failed:true}
+];
+var lbBody=document.getElementById('lbBody');
+function fmtP99(v){ return v>=1000?(v/1000).toFixed(1)+' ms':v.toFixed(1)+' µs'; }
+function renderRows(){
+  var order=CONTESTANTS.slice().sort(function(a,b){ return (b.failed?-1:b.score)-(a.failed?-1:a.score); });
+  /* FLIP: record old positions */
+  var old={};
+  lbBody.querySelectorAll('tr').forEach(function(tr){ old[tr.dataset.k]=tr.getBoundingClientRect().top; });
+  lbBody.innerHTML='';
+  order.forEach(function(c,i){
+    var tr=document.createElement('tr');
+    tr.dataset.k=c.name;
+    tr.className=(i===0?'top1':'')+(c.failed?' failed':'');
+    tr.innerHTML='<td class="rank">'+String(i+1).padStart(2,'0')+'</td>'+
+      '<td class="who">'+c.name+'<span class="v">'+c.v+'</span></td>'+
+      '<td><span class="proto">'+c.proto+'</span></td>'+
+      '<td class="p99">'+fmtP99(c.p99)+'</td>'+
+      '<td class="tps hide-m">'+Math.round(c.tps)+'k/s</td>'+
+      '<td class="cor '+(c.corr>=100?'ok':'bad')+'">'+c.corr.toFixed(2)+'%</td>'+
+      '<td class="score">'+(c.failed?'FAILED':c.score.toFixed(1))+'</td>';
+    lbBody.appendChild(tr);
+  });
+  /* FLIP: play moves */
+  if(!reduced) lbBody.querySelectorAll('tr').forEach(function(tr){
+    var prev=old[tr.dataset.k]; if(prev===undefined) return;
+    var dy=prev-tr.getBoundingClientRect().top; if(!dy) return;
+    tr.style.transform='translateY('+dy+'px)'; tr.style.transition='none';
+    requestAnimationFrame(function(){
+      tr.style.transition='transform .7s cubic-bezier(.22,1,.36,1)'; tr.style.transform='';
+    });
+  });
+}
+function jitter(v,amt){ return v + (rng()-.5)*2*amt; }
+function tickSim(){
+  CONTESTANTS.forEach(function(c){
+    if(c.failed) return;
+    c.p99 = Math.max(9, jitter(c.p99, c.p99*.03));         /* ±3% — calm */
+    c.tps = Math.max(20, jitter(c.tps, c.tps*.02));
+    c.score = Math.max(5, Math.min(99.9, jitter(c.score, .6)));
+  });
+  renderRows();
+  /* headline metrics + ladder follow the leader */
+  var lead=CONTESTANTS.slice().sort(function(a,b){return b.score-a.score})[0];
+  document.getElementById('mP99').textContent=fmtP99(lead.p99);
+  var agg=CONTESTANTS.reduce(function(s,c){return s+(c.failed?0:c.tps)},0);
+  document.getElementById('mTps').textContent=(agg/1000).toFixed(2)+'M';
+  document.getElementById('fleetTps').textContent=Math.round(agg*1000).toLocaleString();
+  var lads=document.querySelectorAll('#ladder .lad-row');
+  var vals=[lead.p99*.45, lead.p99*.66, lead.p99, lead.p99*2.8];
+  lads.forEach(function(row,i){
+    row.querySelector('.lad-val').textContent=fmtP99(vals[i]);
+    row.querySelector('.lad-bar i').style.width=Math.min(96, 8+ (Math.log10(vals[i])/Math.log10(800))*88 )+'%';
+  });
+}
+tickSim();                                                   /* synchronous seed: no blank state */
+setInterval(tickSim, 6000);
 
-  /* mark as live demo feed */
-  if(pill) pill.classList.add('live');
-  if(srcTxt) srcTxt.textContent='LIVE FEED';
+/* ───────────────── ARCHITECTURE · particles along edges ───────────────── */
+var dotsG=document.getElementById('archDots');
+var EDGES=['e1','e2','e3','e4','e5','e6'].map(function(id){return document.getElementById(id)});
+var DOTS=[];
+EDGES.forEach(function(p,ei){
+  var n = ei>=4?3:2;
+  for(var i=0;i<n;i++){
+    var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('r', 2.4);
+    c.setAttribute('fill', ei>=4 ? '#ff8a3d' : 'url(#flowG)');
+    if(ei<4) c.setAttribute('fill','#36d3ff');
+    dotsG.appendChild(c);
+    DOTS.push({el:c, path:p, len:p.getTotalLength(), t:(i/n)+rng()*.2, sp:.0021+rng()*.0014});
+  }
+});
+function moveDots(){
+  DOTS.forEach(function(d){
+    d.t=(d.t+d.sp)%1;
+    var pt=d.path.getPointAtLength(d.t*d.len);
+    d.el.setAttribute('cx',pt.x); d.el.setAttribute('cy',pt.y);
+  });
+  requestAnimationFrame(moveDots);
+}
+if(!reduced) moveDots();
+else DOTS.forEach(function(d){ var pt=d.path.getPointAtLength(d.t*d.len);
+  d.el.setAttribute('cx',pt.x); d.el.setAttribute('cy',pt.y); });
+
+/* ───────────────── FLEET · 32 node grid ───────────────── */
+var nodesEl=document.getElementById('nodes'), NODES=[];
+for(var i=0;i<32;i++){
+  var div=document.createElement('div'); div.className='node';
+  div.innerHTML='<span class="nid">B'+String(i+1).padStart(2,'0')+'</span>'+
+                '<span class="nr">0</span><span class="act"><i></i></span>';
+  nodesEl.appendChild(div);
+  NODES.push({el:div, r:18000+rng()*9000});
+}
+function tickFleet(){
+  var sum=0;
+  NODES.forEach(function(n){
+    n.r=Math.max(8000, n.r + (rng()-.5)*2200);
+    sum+=n.r;
+    var hot=n.r>25500;
+    n.el.classList.toggle('hot', hot);
+    n.el.querySelector('.nr').textContent=(n.r/1000).toFixed(1)+'k';
+    n.el.querySelector('.act i').style.width=Math.min(96, n.r/300)+'%';
+  });
+  document.getElementById('fleetSum').textContent=Math.round(sum).toLocaleString();
+}
+tickFleet();
+setInterval(tickFleet, reduced?60000:2500);
+
+/* ───────────────── proof counters ───────────────── */
+var cio=new IntersectionObserver(function(es,obs){
+  es.forEach(function(e){
+    if(!e.isIntersecting) return; obs.unobserve(e.target);
+    var el=e.target, to=parseFloat(el.dataset.to), dec=parseInt(el.dataset.dec||'0'), suf=el.dataset.suf||'';
+    if(reduced){ el.textContent=to.toFixed(dec)+suf; return; }
+    var t0=performance.now();
+    (function step(now){
+      var u=Math.min(1,(now-t0)/1300), ease=1-Math.pow(1-u,3);
+      el.textContent=(to*ease).toFixed(dec)+suf;
+      if(u<1) requestAnimationFrame(step);
+    })(t0);
+  });
+},{threshold:.5});
+document.querySelectorAll('.cnt').forEach(function(el){ cio.observe(el); });
 })();
 </script>
 </body>

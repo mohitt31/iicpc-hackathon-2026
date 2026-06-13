@@ -47,7 +47,7 @@ spec:
       hostNetwork: true            # avoid the CNI overlay for the hot path
       containers:
         - name: bot
-          image: ghcr.io/REPLACE_ORG/iicpc-bot-engine:latest
+          image: ghcr.io/mohitt31/iicpc-bot-engine:latest
           command: ["./build/bot"]
           args:
             - "--bots=8"
@@ -90,7 +90,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: ghcr.io/REPLACE_ORG/iicpc-telemetry-gateway:latest
+          image: ghcr.io/mohitt31/iicpc-telemetry-gateway:latest
           args: ["node", "telemetry_server.js", "--port=8080", "--snapshot-dir=/telemetry"]
           ports: [{ containerPort: 8080, name: ws }]
           resources:
@@ -128,7 +128,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: ghcr.io/REPLACE_ORG/iicpc-leaderboard:latest   # nginx + frontend/
+          image: ghcr.io/mohitt31/iicpc-leaderboard:latest   # nginx + frontend/
           ports: [{ containerPort: 80, name: http }]
           resources:
             requests: { cpu: "100m", memory: "64Mi" }
