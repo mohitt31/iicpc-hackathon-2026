@@ -1,0 +1,54 @@
+name: WS/REST bots — compile check
+
+# Step 1 verifier for the WS/REST CI route: the draft ws_bot/rest_bot are now
+# real CMake targets, so this proves they actually COMPILE on x86 (they never
+# were before — they sat in src/ unbuilt). Green here = the drafts are buildable;
+# red = the exact compile error Manish fixes next. No synthetic claims, just "does
+# it build".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bot-engine/src/ws_bot.cpp'
+      - 'bot-engine/src/rest_bot.cpp'
+      - 'bot-engine/CMakeLists.txt'
+      - '.github/workflows/wsrest-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'bot-engine/src/ws_bot.cpp'
+      - 'bot-engine/src/rest_bot.cpp'
+      - 'bot-engine/CMakeLists.txt'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain + HdrHistogram_c
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential cmake g++ git zlib1g-dev
+          git clone --depth 1 --branch 0.11.8 https://github.com/HdrHistogram/HdrHistogram_c.git /tmp/hdr_c
+          cd /tmp/hdr_c && mkdir build && cd build
+          cmake .. -DHDR_HISTOGRAM_BUILD_PROGRAMS=OFF -DHDR_HISTOGRAM_BUILD_SHARED=OFF
+          make -j && sudo make install && sudo ldconfig
+
+      - name: Build bot-engine (incl. ws_bot + rest_bot)
+        working-directory: bot-engine
+        env:
+          CMAKE_PREFIX_PATH: /usr/local
+        run: |
+          mkdir -p build && cd build
+          cmake ..
+          make -j ws_bot rest_bot
+
+      - name: Assert the WS/REST bot binaries exist
+        working-directory: bot-engine/build
+        run: |
+          ls -la ws_bot rest_bot
+          echo "✅ ws_bot + rest_bot compile on x86"

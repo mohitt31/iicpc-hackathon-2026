@@ -179,7 +179,7 @@ common way to read an HFT benchmark wrong, so we state the boundary explicitly.
   `EAGAIN=160,828,157` and `PoolExhausted=3,727,008`. Under extreme oversubscription
   the bot **throttles rather than loses or double-counts** - backpressure made
   visible, not hidden. We label this exactly: **scale + accounting under
-  backpressure**, not "Sent==Acked".
+  backpressure** — never a flat "Sent equals Acked" claim.
 - **Does NOT measure latency.** With 2989 bots time-sliced across 16 cores, per-bot
   timing is dominated by scheduler wait, not the engine. Any "latency" from this run
   would be measuring the OS scheduler, so we do not report one. This is the same
