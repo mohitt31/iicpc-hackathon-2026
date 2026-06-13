@@ -1,7 +1,7 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for every headline number on this platform. Frontend, RESULTS.md, and the demo script must read/copy from this file only — never hand-type a number. This kills landing/board/RESULTS drift permanently (Phase 0.3). Every value carries a `source` pointing at committed evidence. `open_items` records known conflicts to reconcile in the Phase 4.4 consistency sweep.",
   "schema_version": "1.0",
-  "status": "provisional - only the isolcpus Arch run commit + measured bare-metal p99 remain (both hardware-bound); all text/number/PTP reconciliation done",
+  "status": "evidence-complete for the measurement claims: isolcpus run committed (verified_runs/aftab/) and bare-metal p99 MEASURED (7.7µs). Remaining is no-hardware surface propagation: push the 76x CO range, the measured bare-metal p99, and the run-dependent byte-count framing into RESULTS.md/README/ARCHITECTURE/frontend, and delete the 'design target' labels (Phase 4.4 round 2).",
   "generated": "2026-06-13",
   "naming": {
     "wire_protocol": "BINARY (SBE v1)",
@@ -28,9 +28,9 @@
       "co_samples": 369785,
       "interval_us": 50,
       "deterministic": true,
-      "claim": "Live TCP server output journal == offline replay, byte-for-byte",
-      "source": "bot-engine/verified_runs/ARCH_LINUX_RUN.md §5; RESULTS.md §3; DESIGN_DOCUMENT.md",
-      "note": "A newer isolcpus Arch run (not yet committed) measured 25,759,344 bytes / 200k orders / 309,320 fills / 300,340 CO samples. Commit that run log to verified_runs/ and reconcile this figure in Phase 1/4."
+      "claim": "Live TCP server output journal == offline replay, byte-for-byte (diff exit 0)",
+      "source": "bot-engine/verified_runs/ARCH_LINUX_RUN.md §5; RESULTS.md §3; verified_runs/aftab/live_replay.txt",
+      "note": "The byte COUNT is run-dependent — fill count varies with the order stream. Committed runs measured IDENTICAL at 25,743,624 (ARCH_LINUX_RUN), 25,759,344, and 25,797,720 (verified_runs/aftab/live_replay.txt, 200k/200k, 309,962 fills) bytes. What reproduces every time is the INVARIANT claim: live == offline, IDENTICAL, exit 0. Surfaces cite 25,743,624 as the representative figure; never present it as a fixed constant — lead with the identical-match claim, not the number."
     }
   },
   "coordinated_omission": {
@@ -72,10 +72,11 @@
     },
     "headline_gap": {
       "value": "19.7x",
-      "basis": "p99 naive 173µs → CO-corrected 3.41ms, the only fully-tabulated run",
-      "host_range": "20x–75x, host-dependent (tracks each host's baseline jitter)",
-      "source": "RESULTS.md §4; bot-engine/verified_runs/ARCH_LINUX_RUN.md §3",
-      "note": "Earlier prose on landing.html/README/ARCHITECTURE cited ~35x, derived from a ~98µs naive baseline with no committed ns table. 19.7x is the defensible canonical figure (judge can verify line-by-line). Reconcile all surfaces to this in Phase 4.4."
+      "basis": "p99 naive 173µs → CO-corrected 3.41ms, the fully-tabulated shared-host run",
+      "host_range": "19.7x (shared host) up to 76x (isolcpus) — host-dependent: the cleaner the host, the harder naive lies, because the baseline drops while the planted 5ms stall stays fixed",
+      "isolcpus_run": "verified_runs/aftab/co_proof.txt (i7-13620H, isolcpus): naive p99 41,119ns → CO 3,135,487ns = 76.3x, 600k/600k acked, 49,566 phantom backfilled",
+      "source": "RESULTS.md §4; bot-engine/verified_runs/ARCH_LINUX_RUN.md §3; verified_runs/aftab/co_proof.txt",
+      "note": "19.7x is the conservative tabulated headline (judge can verify line-by-line). The isolcpus run measured 76.3x — above the old '20-75x' band, so the range is now 19.7x-76x. Earlier prose cited ~35x (a ~98µs naive baseline, no committed table) — that is retired. Surfaces should say '19.7x tabulated, up to 76x on isolated hardware'."
     }
   },
   "fleet_merge": {
@@ -114,17 +115,41 @@
     "note": "Committed figure 1,279,594. Newer isolcpus run reports 1,279,829 — throughput-bound, varies per run; both show Sent==Acked, 0 lost/double-counted."
   },
   "latency_design": {
-    "p50_us": 23,
-    "shared_host_gate_us": 84,
-    "baremetal_p99": "design target — low tens of µs, NOT yet measured",
-    "source": "RESULTS.md §Production target / Measurement environment",
-    "note": "Latency µs are host-dependent. macOS pinning is a no-op. Bare-metal isolated-hardware run is Phase 2.4; the isolcpus Arch run shows p50 ≈ 4.9µs naive on isolated cores."
+    "shared_host": {
+      "p50_us": 23,
+      "gate_us": 84,
+      "note": "un-isolated / shared host; scheduler jitter dominates the tail. This is the deliberately-hostile measurement environment."
+    },
+    "baremetal_measured": {
+      "p50_ns": 5859,
+      "p90_ns": 6155,
+      "p99_ns": 7671,
+      "p99_9_ns": 11295,
+      "p99_99_ns": 20175,
+      "host": "Intel i7-13620H, isolcpus=0,1 nohz_full=0,1 rcu_nocbs=0,1, clean run (no planted stall)",
+      "naive_equals_co": true,
+      "note": "MEASURED, not a target: p99 = 7.7µs on isolated cores (300k/300k acked, EAGAIN=0). Naive == CO (ratio 1.0) because a quiet isolated machine has no coordinated-omission gap to hide — the methodology's own honesty check. This RETIRES the 'design target — not yet measured' label: delete every such label from RESULTS.md, README, ARCHITECTURE, frontend, and publish 'measured p99 7.7µs on an isolated consumer desktop (i7-13620H), not server hardware'.",
+      "source": "verified_runs/aftab/baremetal_latency.txt"
+    }
+  },
+  "scale_thousands": {
+    "bots_requested": 3000,
+    "connected": 2989,
+    "sent": 3616681,
+    "acked": 3616637,
+    "partial_aborts": 16,
+    "collisions": 0,
+    "pool_exhausted": 3727008,
+    "pending_slots": 16384,
+    "note": "Thousands-capable demonstrated on one box: 2989 concurrent connections, 3.6M orders. Under extreme oversubscription the bot THROTTLES (PoolExhausted, EAGAIN) rather than lose or double-count — Sent and Acked stay within 44 across 3.6M (in-flight-at-shutdown + 16 partial aborts), 0 collisions, 0 double-counts. Backpressure made visible, not hidden. Label it exactly as 'scale + accounting under backpressure', not latency. The clean 1000+-per-node run is the distributed Phase 2.3.",
+    "source": "verified_runs/aftab/scale_3000bots.txt"
   },
   "open_items": [
     "RESOLVED (Phase 4.4): landing.html, README, ARCHITECTURE, DESIGN reconciled to 19.7x headline (20-75x host range) and 25,743,624 bytes / 200k orders.",
     "RESOLVED (Phase 4.1): PTP 'LOCKED/badge' claims reworded to single-clock RTT across index.html, landing.html, ARCHITECTURE; PTP retained only as a production-roadmap item.",
     "RESOLVED (Phase 0.3): RESULTS.md §3 order-count corrected 100,000 -> 200,000 (matches ARCH_LINUX_RUN.md §5 + canonical); unverifiable 'Fills 155,218' row removed.",
-    "HARDWARE (Aftab): commit the isolcpus Arch run (live_replay.txt / bots32.txt) to verified_runs/ and update byte/latency figures (25,759,344 bytes / p50~4.9us).",
-    "HARDWARE (Aftab): once isolcpus run committed + a measured bare-metal p99 lands, flip status from provisional to final."
+    "RESOLVED (Aftab, PR #40): isolcpus runs committed to verified_runs/aftab/ — live_replay.txt (determinism), co_proof.txt (76.3x CO), baremetal_latency.txt (measured p99 7.7µs), scale_3000bots.txt (2989 connections), resilience_engine_kill.txt, terraform_apply.txt (3 libvirt VMs booted).",
+    "TODO (no-hardware, Phase 4.4 round 2): propagate into all surfaces — (a) CO range 19.7x-76x, (b) MEASURED bare-metal p99 7.7µs + DELETE every 'design target' label, (c) run-dependent byte-count framing (lead with 'IDENTICAL match', not a fixed number), (d) add the 2989-bot scale accounting result.",
+    "TODO (no-hardware): soften the seccomp/'hardened isolation' claims (README §Sandbox isolation, ARCHITECTURE §Component 1) to 'Firecracker microVM + read-only rootfs; seccomp specified, runtime enforcement in progress' until Phase 1.4 builds the enforcing init (see sandbox/test/malicious/README.md)."
   ]
 }
