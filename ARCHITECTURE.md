@@ -98,8 +98,8 @@ The fix is structural:
   buffers.
 
 Both histograms are reported side-by-side so the gap is provable. On a
-deterministic 5 ms stall every 20 k orders, naive p99 reads ~98 µs while
-CO-corrected p99 reads ~3.4 ms — a ~35x gap. Every contestant is measured the
+deterministic 5 ms stall every 20 k orders, naive p99 reads 173 µs while
+CO-corrected p99 reads 3.41 ms — a 19.7x gap (host-dependent, 20-75x range). Every contestant is measured the
 honest way.
 
 ### Honest measurement under load
@@ -137,8 +137,9 @@ Features that map directly to the spec:
 - **Integrity gate** surfaced: submissions whose self-test p99 (>5 µs) or
   software-jitter (>1 µs) failed are *excluded* before ranking — a filter, not a
   penalty.
-- **PTP sync-quality badge** per board (first-class metadata, separate from the
-  integrity gate).
+- **Single-clock RTT** per sample (`now - intended_send`, measured on the bot):
+  no cross-machine clock sync, so there is nothing to drift or mis-configure.
+  HW/PTP timestamping is a production decomposition step, not required here.
 - **Composite score** `0.40·latency + 0.30·throughput + 0.30·correctness`, with
   a hard-fail cap: a correctness failure caps the total — speed never buys back
   incorrectness.

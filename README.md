@@ -22,7 +22,7 @@ The bot in this repository fixes this with the structural Tene/Snyder correction
 - Backfills phantom samples during stalls via `hdr_record_corrected_value`
 - Pins SO_SNDBUF small so backpressure is visible, not hidden in kernel buffers
 
-On a deterministic 5 ms stall every 20,000 orders, the measurement is **naive p99 ~98 µs vs CO-corrected p99 ~3.4 ms - a 35x gap**. Every contestant on this platform is measured the honest way.
+On a deterministic 5 ms stall every 20,000 orders, the measurement is **naive p99 173 µs vs CO-corrected p99 3.41 ms - a 19.7x gap** (the gap is host-dependent and ranges 20-75x as a host's baseline jitter rises). Every contestant on this platform is measured the honest way.
 
 A second distinctive choice: a **byte-exact correctness validator**. The platform ships a gold-standard reference matching engine. Every contestant's output journal is diffed against the reference's output on the same input. The included demo plants one common HFT bug (price-time priority violation - newest order matches first instead of oldest) into a buggy engine and shows the validator pinpointing the divergence on the first aggressive trade. No heuristics, no thresholds.
 
