@@ -69,3 +69,23 @@ jobs:
           assert acked >= sent * 0.95, f"FAIL: too many unacked ({sent-acked}/{sent})"
           print("✅ WebSocket board is REAL: Sent==Acked over ws_bot -> ws_adapter -> reference-engine")
           PY
+
+      - name: REST end-to-end smoke — assert Sent==Acked (real loop, JSON↔SBE↔engine)
+        run: |
+          ./bot-engine/build/refserver --port 9010 --journal /tmp/ref_rest.jrn & RS=$!
+          sleep 1
+          node platform/wsrest-adapters/rest_adapter.js --port 9002 --engine-host 127.0.0.1 --engine-port 9010 & AD=$!
+          sleep 1
+          ./bot-engine/build/rest_bot --ip 127.0.0.1 --port 9002 --interval-us 400 --duration-sec 5 | tee /tmp/rest_out.txt
+          kill -9 $RS $AD 2>/dev/null || true
+          python3 - <<'PY'
+          import re
+          t = open('/tmp/rest_out.txt').read()
+          m = re.search(r'sent=(\d+)\s+acked=(\d+)', t)
+          assert m, "no sent/acked line in rest_bot output:\n" + t
+          sent, acked = int(m.group(1)), int(m.group(2))
+          print(f"sent={sent} acked={acked}")
+          assert acked > 0, "FAIL: acked==0 — REST adapter not acking"
+          assert acked >= sent * 0.95, f"FAIL: too many unacked ({sent-acked}/{sent})"
+          print("✅ REST board is REAL: Sent==Acked over rest_bot -> rest_adapter -> reference-engine")
+          PY
