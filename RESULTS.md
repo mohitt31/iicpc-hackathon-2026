@@ -43,12 +43,14 @@ DIVERGE @ byte 244: A=0x01 B=0x05
 
 The strongest claim in the repo: 200,000 orders fired over TCP at the
 reference server, its journal then compared against an offline replay of the
-captured input through the same matching core:
+captured input through the same matching core. The invariant that reproduces on
+**every** run is the match itself - `IDENTICAL, exit 0` - not a fixed byte count
+(the byte total moves with the order stream and fill count):
 
 ```
 ./build/refengine replay live_in.jrn offline_replay.jrn
 ./build/refengine diff   live_out.jrn offline_replay.jrn
--> IDENTICAL: 25,743,624 bytes match
+-> IDENTICAL: exit 0  (25,743,624 bytes on this run; 25,759,344 and 25,797,720 on others)
 ```
 
 Replaying the same input twice is also byte-identical - the engine is fully
@@ -85,8 +87,9 @@ no isolcpus). 600,000/600,000 acked, 0 violations, 53,584 phantom samples backfi
 
 Reproduced independently on Arch Linux (pinning engaged) and macOS (pinning is a
 no-op): the CO-corrected p99 stays ~3.4–5.1 ms on every host because it captures the
-injected 5 ms stall; the naive-vs-CO ratio (~20x–75x) tracks each host's baseline
-jitter. Tuned bare-metal (isolcpus + nohz_full + SO_BUSY_POLL) remains the design target.
+injected 5 ms stall; the naive-vs-CO ratio (19.7x shared host, up to 76x isolcpus)
+tracks each host's baseline jitter. Tuned bare-metal (isolcpus + nohz_full +
+SO_BUSY_POLL) measures p99 7.7µs (`verified_runs/aftab/baremetal_latency.txt`).
 
 naive p99 ~173 µs vs CO-corrected p99 ~3.41 ms - a 19.7x gap. The corrected tail reproduces our earlier 3.43 ms measurement within 0.5%; the ratio is host-dependent.
 
@@ -157,19 +160,19 @@ All headline numbers were measured in a deliberately hostile, un-isolated enviro
 (shared cloud Linux container; on macOS the Linux-only pthread_setaffinity_np and 
 SO_BUSY_POLL are no-ops). On such a host you are seeing scheduler jitter, not the 
 engine - which is why the CO-corrected p99 is the honest reading. The engine's designed 
-operating point is an isolated bare-metal Linux node (isolcpus + nohz_full + rcu_nocbs 
-+ SO_BUSY_POLL); bare-metal latency is presented as a design target, not a measured 
-result - we don't publish a number we haven't run.
+operating point is an isolated bare-metal Linux node (isolcpus + nohz_full + rcu_nocbs
++ SO_BUSY_POLL); bare-metal latency is **measured** at p99 7.7µs on an isolated
+consumer desktop (i7-13620H) - `verified_runs/aftab/baremetal_latency.txt`.
 
 Proof that this is environment, not engine: On a quiet, otherwise-idle machine, naive and CO-corrected p99 agree within ~1.1x. 
 In our shared CI container, even 'clean' runs show inflated CO tails - that is the 
 methodology correctly reporting real scheduler stalls, not a bug.
 
-## Production target: isolated bare-metal Linux  (DESIGN TARGET - not yet measured)
+## Production: isolated bare-metal Linux  (MEASURED)
 
-The engine is architected for an isolated bare-metal node (AWS `c6i.metal`),
-provisioned by `infra/terraform/benchmark_pool.tf` with
-`isolcpus=1-15 nohz_full=1-15 rcu_nocbs=1-15`. There the Linux-only paths engage:
+The engine is architected for an isolated node, provisioned by
+`infra/terraform/benchmark_pool.tf` with `isolcpus nohz_full rcu_nocbs`. There the
+Linux-only paths engage:
 
 - **isolcpus** removes the cores from the scheduler's load balancer - no task
   migration, no involuntary preemption.
@@ -179,13 +182,22 @@ provisioned by `infra/terraform/benchmark_pool.tf` with
 - **SO_BUSY_POLL** spins on the NIC RX ring instead of sleeping for the hardware IRQ.
 
 These knobs **collapse the p99 tail toward the median** - they remove the
-preemption / tick / IRQ-wakeup events that *are* the tail. They do **not** lower
-the median. Our measured median (p50) is **~23µs**, so we expect a bare-metal p99
-in the **low tens of microseconds**, approaching that median - versus the ~84µs we
-measure on a shared host. Pushing the **median** below ~15µs would require
-kernel-bypass transport (AF_XDP / Aeron), which we **deliberately deferred**.
+preemption / tick / IRQ-wakeup events that *are* the tail.
 
-**We do not publish a bare-metal number we have not run.** The figures above are
-the design target and the mechanism; the procedure to turn them into a measured,
-defensible result is in `BAREMETAL_TEST_PLAN.md`. Until that run exists, this
-section stays labelled a target. That discipline is the entire point of the platform.
+**Measured result** (`verified_runs/aftab/baremetal_latency.txt`, Intel i7-13620H,
+`isolcpus=0,1 nohz_full=0,1 rcu_nocbs=0,1`, 300k/300k acked, EAGAIN=0):
+
+| Percentile | Latency |
+|---|---|
+| p50 | 5.9 µs |
+| p90 | 6.2 µs |
+| p99 | **7.7 µs** |
+| p99.9 | 11.3 µs |
+| p99.99 | 20.2 µs |
+
+This is **measured on an isolated consumer desktop (i7-13620H), not server hardware** -
+the honest qualifier. On this clean run naive and CO-corrected p99 are equal (ratio 1.0):
+a quiet isolated machine has no coordinated-omission gap to hide, which is the
+methodology's own honesty check. Pushing the **median** below ~5µs would require
+kernel-bypass transport (AF_XDP / Aeron), which we **deliberately deferred**.
+The procedure is in `BAREMETAL_TEST_PLAN.md`; the committed log is in `verified_runs/aftab/`.

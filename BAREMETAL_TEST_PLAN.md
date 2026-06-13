@@ -1,5 +1,10 @@
 # Bare-Metal Production Measurement — Test Plan
 
+> **STATUS: DONE (PR #40).** The bare-metal run was executed on an isolated i7-13620H
+> (`verified_runs/aftab/baremetal_latency.txt`): measured p99 = 7.7µs, clean-run
+> naive≈CO confirmed. RESULTS.md now carries the measured block. This file is retained
+> as the reproduction procedure.
+
 Goal: replace the "design target" label in RESULTS.md with a measured, reproducible
 bare-metal p99, plus the honesty checks (clean-run naive≈CO; planted-stall CO gap).
 

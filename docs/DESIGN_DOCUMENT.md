@@ -164,7 +164,7 @@ Engineering is about trade-offs. Here are the paths we chose not to take, and wh
 Every number is reproducible.
 - **Correctness:** 19/19 unit tests passed. Our byte-exact validator accurately catches the planted LIFO bug.
 - **Live TCP == Offline Replay:** 200,000 orders fired over TCP yield a journal identical to the offline replay: `IDENTICAL: 25,743,624 bytes match.`
-- **CO Proof:** On a deterministic 5 ms stall every 20,000 orders, the naive p99 reads `173 µs` while our CO-corrected p99 reads `3.41 ms` - a 19.7x gap (host-dependent, 20-75x range). The CO number is the truth. 
+- **CO Proof:** On a deterministic 5 ms stall every 20,000 orders, the naive p99 reads `173 µs` while our CO-corrected p99 reads `3.41 ms` - a 19.7x gap tabulated on a shared host, up to 76x on isolated hardware. The CO number is the truth. 
 - **Memory Safety:** ASan + UBSan runs yielded 0 findings.
 
 ---
@@ -186,3 +186,10 @@ Every tool was chosen to preserve measurement integrity:
 4. Multi-symbol sharded books with one writer thread per symbol shard.
 
 > **One sentence to leave you with:** Anyone can draw a leaderboard. We built the one that refuses to show you a number it can't stand behind.
+
+## Considered Alternatives (and why not)
+
+- **gRPC** — rejected on the measured wire (HTTP/2 + protobuf would add tens of µs to the hot path); fine for the control plane. The intake API is plain HTTP so it stays curl-able. The bot↔engine contract is fixed-layout binary, parsed by pointer-cast.
+- **Kafka / Redpanda** — not on the telemetry path. HDR histograms are additively mergeable, so bots ship pre-aggregated blobs cold; a log bus adds a hop + serialization for durable replay we don't need at benchmark timescale.
+- **VictoriaMetrics over TimescaleDB / InfluxDB** — high-cardinality histogram aggregation at a fraction of the RAM, where TimescaleDB / Prometheus struggle (documented scale-out target; demo path is CSV snapshots → gateway).
+- **Redis** — used, not just discussed: the submission work-queue in `platform/intake-api/` (control plane, never the hot path).
