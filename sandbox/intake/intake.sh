@@ -88,6 +88,14 @@ tar xf "$TARBALL" -C "$SUBMISSION_DIR/src" 2>/dev/null || {
     exit 1
 }
 
+# Strip macOS AppleDouble / resource-fork cruft. A contestant who tars their
+# source on a Mac ships hidden ._* files (and sometimes __MACOSX/); GNU tar
+# extracts them as real files, which would otherwise pollute the syscall scan
+# and get fed to the compiler as garbage "source". Not a security boundary —
+# just hygiene so a Mac-made submission isn't spuriously rejected.
+find "$SUBMISSION_DIR/src" -name '._*' -delete 2>/dev/null || true
+rm -rf "$SUBMISSION_DIR/src/__MACOSX" 2>/dev/null || true
+
 # ── Check 3: Banned syscall scan ────────────────────────────  # NOTE: source-scan is a lint heuristic only — defeated by syscall(2) by number, inline asm, dlopen. Runtime seccomp is the enforced boundary.
 if [[ ! -f "$BANNED_FILE" ]]; then
     echo "WARNING: Banned syscalls file not found at $BANNED_FILE, skipping scan" >&2

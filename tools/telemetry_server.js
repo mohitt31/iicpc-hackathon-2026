@@ -15,14 +15,19 @@
  * VictoriaMetrics + additive HDR blobs from the bot fleet) is a drop-in
  * replacement that emits the same JSON — the frontend never changes.
  *
- * Two data sources:
- *   --snapshot-dir <path>  (reserved — CSV ingestion not yet implemented;
- *                           falls back to synthetic generator).
- *   (default)               synthetic generator (contract-faithful mock) so a
- *                           demo works with zero backend.
+ * Two data sources (every frame carries "source" so the live badge can't lie):
+ *   (default)               LIVE_CSV — ingests the fleet's per-second HDR
+ *                           snapshots from --snapshot-dir (default /telemetry).
+ *                           Frames carry  "source":"LIVE_CSV".
+ *   --demo                  DEMO — contract-faithful synthetic generator so a
+ *                           demo works with zero backend. Frames carry
+ *                           "source":"DEMO". The gateway ALSO falls back to DEMO
+ *                           (honestly labelled) when the snapshot dir is absent
+ *                           or empty — the LIVE badge is honest by construction.
  *
  * Usage:
- *   node telemetry_server.js --port 8080 [--snapshot-dir /telemetry]
+ *   node telemetry_server.js --port 8080 [--snapshot-dir /telemetry]   # live (default)
+ *   node telemetry_server.js --port 8080 --demo                        # synthetic
  *   → ws://localhost:8080/leaderboard/deltas
  *
  * Dependency: ws  (npm i ws)
@@ -43,7 +48,9 @@ catch (e) {
 const args = process.argv.slice(2);
 function arg(name, def) { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; }
 const PORT = parseInt(arg('--port', '8080'), 10);
-const SNAPSHOT_DIR = arg('--snapshot-dir', null);
+const DEMO = args.includes('--demo');
+// Live by default: ingest the fleet's CSV snapshots. --demo forces synthetic.
+const SNAPSHOT_DIR = DEMO ? null : arg('--snapshot-dir', '/telemetry');
 const CADENCE_MS = parseInt(arg('--cadence-ms', '2500'), 10);   // 1–5s per spec
 
 /* ============================================================================
@@ -121,8 +128,14 @@ const Source = (() => {
       mean_offset_ns: holdover ? 220 + Math.random() * 400 : 9 + Math.random() * 30,
       sync_state: holdover ? 'HOLDOVER' : 'LOCKED' };
   }
+  let curSource = 'DEMO';
   function tick() {
-    if (SNAPSHOT_DIR && fs.existsSync(SNAPSHOT_DIR)) {
+    // Re-evaluate freshness every tick: a sub is only "from_csv" if a real CSV
+    // row fed it THIS tick. Without this reset, stale data sticks when a file
+    // disappears, and the LIVE badge would lie.
+    subs.forEach(s => s.from_csv = false);
+    let csvRows = 0;
+    if (!DEMO && SNAPSHOT_DIR && fs.existsSync(SNAPSHOT_DIR)) {
       // sort() — readdir order is filesystem-dependent; keep the
       // file→contestant mapping deterministic across platforms.
       const files = fs.readdirSync(SNAPSHOT_DIR).filter(f => f.endsWith('.csv')).sort();
@@ -151,21 +164,26 @@ const Source = (() => {
               s.integrity.software_jitter_ns = 200;
               s.integrity.gate_passed = true;
               s.from_csv = true;
+              csvRows++;
             }
           } catch(e) {}
         }
       });
     }
 
-    subs.forEach(s => { 
+    // Honest by construction: the frame is LIVE_CSV only if real fleet rows fed
+    // it this tick; otherwise (--demo, or snapshot dir absent/empty) it's DEMO.
+    curSource = csvRows > 0 ? 'LIVE_CSV' : 'DEMO';
+
+    subs.forEach(s => {
       if (!s.from_csv) {
         const d = hdrNew(); sampleInto(d, s._median * (0.92 + Math.random() * 0.18), s._tail, 4000);
-        s.hdr = hdrMerge(s.hdr, d); refresh(s); 
+        s.hdr = hdrMerge(s.hdr, d); refresh(s);
       }
     });
     return subs;
   }
-  return { init, tick, all: () => subs };
+  return { init, tick, all: () => subs, source: () => curSource };
 })();
 
 /* ============================================================================
@@ -215,6 +233,7 @@ function buildDeltas(subs) {
  * blank.
  * ========================================================================== */
 Source.init();
+Source.tick();   // settle the source label so the very first frame is honest
 
 const server = http.createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200); res.end('ok'); return; }
@@ -223,7 +242,7 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server, path: '/leaderboard/deltas' });
-function frame() { return JSON.stringify({ type: 'deltas', deltas: buildDeltas(Source.all()) }); }
+function frame() { return JSON.stringify({ type: 'deltas', source: Source.source(), deltas: buildDeltas(Source.all()) }); }
 
 wss.on('connection', (ws) => {
   console.log('[gateway] client connected (' + wss.clients.size + ' total)');
@@ -240,8 +259,11 @@ setInterval(() => {
 server.listen(PORT, () => {
   console.log('[gateway] IICPC telemetry gateway listening on :' + PORT);
   console.log('[gateway] leaderboard feed → ws://localhost:' + PORT + '/leaderboard/deltas');
-  console.log('[gateway] cadence ' + CADENCE_MS + 'ms · source: ' + (SNAPSHOT_DIR ? ('snapshots(' + SNAPSHOT_DIR + ') + ') : '') + 'synthetic');
-  if (SNAPSHOT_DIR && !fs.existsSync(SNAPSHOT_DIR)) {
-    console.log('[gateway] note: snapshot-dir not found, using synthetic source only');
+  console.log('[gateway] cadence ' + CADENCE_MS + 'ms · mode: ' +
+    (DEMO ? 'DEMO (synthetic, forced via --demo)'
+          : 'LIVE_CSV from ' + SNAPSHOT_DIR + ' (falls back to DEMO if absent/empty)'));
+  console.log('[gateway] current source label: ' + Source.source());
+  if (!DEMO && SNAPSHOT_DIR && !fs.existsSync(SNAPSHOT_DIR)) {
+    console.log('[gateway] note: snapshot-dir "' + SNAPSHOT_DIR + '" not found — serving DEMO until it appears');
   }
 });

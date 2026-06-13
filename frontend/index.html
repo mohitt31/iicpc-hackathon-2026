@@ -163,7 +163,7 @@
     <div class="top-right">
       <a class="stat-pill" href="landing.html" style="text-decoration:none;color:var(--dim)"><span class="d" style="background:var(--cool);box-shadow:0 0 10px var(--cool)"></span>3D&nbsp;INTRO</a>
       <div class="stat-pill" id="ptpPill"><span class="d" style="background:var(--good)"></span><span id="ptpTxt">PTP LOCKED</span></div>
-      <div class="stat-pill live"><span class="d"></span><span>DEMO · SBE v1</span></div>
+      <div class="stat-pill live" id="srcPill"><span class="d"></span><span>DEMO · SBE v1</span></div>
     </div>
   </div>
 
@@ -511,14 +511,24 @@ function startMock(){
   render(Gateway.diff(Gateway.buildRows(MockSource.all())));
   if(mockTimer) clearInterval(mockTimer);
   mockTimer=setInterval(()=>render(Gateway.diff(Gateway.buildRows(MockSource.tick()))),2500);
-  document.querySelector('.stat-pill.live span:last-child').textContent='MOCK · SBE v1';
+  setBadge('MOCK · SBE v1', false);
 }
 function stopMock(){ if(mockTimer){clearInterval(mockTimer);mockTimer=null;} }
 
-function markLive(on){
-  const el=document.querySelector('.stat-pill.live span:last-child');
-  if(el) el.textContent = on ? 'LIVE · SBE v1' : 'MOCK · SBE v1';
+/* The live badge is driven by the data, never by the socket: it reads each
+ * frame's "source" so it can't claim LIVE while the gateway serves synthetic
+ * DEMO data. LIVE_CSV → LIVE, DEMO → DEMO, socket down → MOCK. */
+function setBadge(text, live){
+  const pill=document.getElementById('srcPill'); if(!pill) return;
+  const el=pill.querySelector('span:last-child'); if(el) el.textContent=text;
+  pill.classList.toggle('live', !!live);
 }
+function badgeFromSource(source){
+  if(source==='DEMO') return setBadge('DEMO · SBE v1', false);
+  // LIVE_CSV, or an older gateway that omits the field → a real backend feed.
+  return setBadge('LIVE · SBE v1', true);
+}
+function markLive(on){ setBadge(on ? 'LIVE · SBE v1' : 'MOCK · SBE v1', on); }
 
 function connectLive(){
   let ws, gotData=false, retry=0;
@@ -526,12 +536,14 @@ function connectLive(){
     try{ ws=new WebSocket(LIVE_WS_URL); }
     catch(e){ return fallback(); }
 
-    ws.onopen=()=>{ retry=0; stopMock(); markLive(true); };
+    // Don't claim LIVE on connect — wait for the first frame's source to decide.
+    ws.onopen=()=>{ retry=0; stopMock(); };
     ws.onmessage=(ev)=>{
       let msg; try{ msg=JSON.parse(ev.data); }catch(e){ return; }   // ignore malformed frames
       gotData=true;
       if(msg && msg.type==='deltas' && msg.deltas){
         // spec-pure path: backend already scored+ranked. Display only.
+        badgeFromSource(msg.source);
         render(msg.deltas);
       } else if(msg && msg.type==='subs' && Array.isArray(msg.subs)){
         // tolerated fallback: raw submissions → score/rank locally via Gateway.

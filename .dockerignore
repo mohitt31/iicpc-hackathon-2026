@@ -1,0 +1,12 @@
+# Keep the Docker build context lean — these are never needed in any image.
+.git
+node_modules
+tools/node_modules
+**/node_modules
+.DS_Store
+**/.DS_Store
+*.jrn
+bot-engine/build
+verified_runs
+repo_dump
+market-storm

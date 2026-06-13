@@ -90,3 +90,9 @@ node_modules/
 tools/node_modules/
 .DS_Store
 **/.DS_Store
+
+# ── Go build artifacts (Phase 1.1 intake-api) ──
+platform/intake-api/intake-api
+
+# go.mod is NOT a Fortran module — undo the *.mod rule above for Go modules
+!**/go.mod
