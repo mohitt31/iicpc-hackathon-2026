@@ -10,6 +10,37 @@ The platform has three pieces: a low-latency C++ bot fleet that generates load, 
 
 ---
 
+## Reproduce in 3 commands
+
+On an **x86-64 Linux** host (the bot uses `rdtscp` and Linux core-pinning; see
+`BUILD.md` for the one-line dependency install - `build-essential cmake g++` plus
+`HdrHistogram_c`). Each command is the real thing a judge can run on a fresh checkout:
+
+```bash
+# 1. Build the engine, bot, and reference tools
+cd bot-engine && mkdir -p build && cd build && cmake .. && make -j && cd ..
+
+# 2. Run the Coordinated-Omission proof (the centrepiece): 5ms stall every 20k orders
+./build/null_responder --stall-mode --stall-every 20000 --stall-ms 5 &
+./build/bot --bots 1 --interval-us 100 --duration-sec 60 --no-gate ; kill %1
+
+# 3. See the live board: start the gateway, open the frontend
+cd ../tools && npm install && node telemetry_server.js --port 8080 &
+cd ../frontend && python3 -m http.server 8088   # → http://localhost:8088
+```
+
+Command 2 prints the naive-vs-CO histograms - the naive p99 reads ~170 µs while the
+CO-corrected p99 exposes the real ~3.4 ms tail (the 19.7x gap). Full correctness,
+soak, and the byte-exact planted-bug demo are in `DESIGN_DOCUMENT.md §14` and `BUILD.md`.
+
+**Honest caveats:** the C++ bot is x86-64/Linux (rdtscp + `pthread_setaffinity_np` +
+`SO_BUSY_POLL`); on macOS the pinning/busy-poll calls degrade to no-ops and you see
+scheduler jitter, not engine latency. Firecracker sandboxing and the measured 7.7 µs
+bare-metal number require a Linux + `/dev/kvm` host (see `RESULTS.md §9` for what each
+run does and does not prove).
+
+---
+
 ## What's distinctive about this submission
 
 Most teams will build "broad and fast" - a working pipeline, a leaderboard, some numbers on the page. This submission picks one thing that most benchmarks get wrong and makes it the centrepiece: **Coordinated Omission**.
