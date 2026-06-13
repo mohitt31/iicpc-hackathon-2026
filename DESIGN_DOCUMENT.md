@@ -345,7 +345,7 @@ The structural Tene/Snyder fix:
  hidden in kernel buffers.
 
 Both histograms are reported **side by side**, so the CO gap is *provable*, not
-asserted. (See §11.4 for the verified 35x gap.)
+asserted. (See §11.4 for the verified 19.7× gap.)
 
 ### 7.2 Honest measurement under load
 
@@ -446,7 +446,7 @@ Every row is a real fork in the road with the path not taken.
 
 | # | Decision | Chosen | Alternative(s) rejected | Why |
 |---|---|---|---|---|
-| 1 | Measurement methodology | **CO-corrected (Tene/Snyder)** | Naive round-trip histograms | Naive numbers are wrong by ~35x under stalls; they'd rank engines incorrectly |
+| 1 | Measurement methodology | **CO-corrected (Tene/Snyder)** | Naive round-trip histograms | Naive numbers are wrong by ~20–75× under stalls (19.7× in our tabulated run); they'd rank engines incorrectly |
 | 2 | Submission isolation (runtime) | **Firecracker microVM** | Docker container | Container shares host scheduler to pollutes the *latency* being measured |
 | 3 | Build isolation | **Docker `--network none`** | Build on host | Hermetic, no supply-chain fetch; filesystem isolation is the right tool *here* |
 | 4 | Wire format | **Binary SBE, 4B-framed** | JSON / gRPC | JSON/gRPC add tens of µs to the path we're measuring |
