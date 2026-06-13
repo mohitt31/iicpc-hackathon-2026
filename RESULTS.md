@@ -189,15 +189,28 @@ common way to read an HFT benchmark wrong, so we state the boundary explicitly.
 ### True parallel scale comes from distributing across machines
 
 Oversubscribing one box proves the accounting holds under pressure; it does not
-manufacture cores. Genuine parallel scale - many bots *and* honest per-bot latency -
-comes from spreading the fleet across nodes (Phase 2.3, k3s across ≥3 machines). That
-run is the one that will report both a large concurrent count *and* a latency, because
-each bot has real CPU rather than a scheduler slice.
+manufacture cores. The deployment shape that delivers genuine parallel scale — many
+bots *and* honest per-bot latency — is the bot fleet as a k8s `DaemonSet`,
+distributable across nodes. Current status, stated precisely:
+
+- **Single-node k3s deploy: verified** (#42) — the manifests apply, the DaemonSet
+  schedules, the deploy path works.
+- **Single-box accounting: verified** at 2,989 concurrent connections (scale +
+  accounting under backpressure; see §8 and above).
+- **Multi-node ≥3-node scale run (~30k target): NOT YET RUN** — this is the planned
+  parallel-scale demonstration, pending the cluster session. It is the run that will
+  report both a large concurrent count *and* a per-bot latency (each bot on real CPU,
+  not a scheduler slice).
+
+We label the multi-node run not-yet-run with the same discipline as the WebSocket/REST
+boards: capability is real and the path is verified single-node, but the multi-node
+*scale run* is pending and is not claimed as done anywhere until its log is committed to
+`verified_runs/`.
 
 > If a judge asks "your 3000-bot run on 16 cores isn't really parallel" - correct, and
 > that's the point. It is a scale + integrity test, not a latency test. The latency
-> number comes from the isolated-core run; the distributed run (2.3) is where the two
-> meet.
+> number comes from the isolated-core run; the planned multi-node run (2.3, not yet run)
+> is where the two will meet.
 
 ---
 
