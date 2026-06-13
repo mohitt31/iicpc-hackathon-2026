@@ -1,0 +1,153 @@
+name: Compose Smoke
+
+# Boots the full single-machine stack (infra/docker-compose.yml) on an x86 Linux
+# runner and proves the end-to-end loop actually runs:
+#   reference-engine ← bot-fleet → /telemetry CSVs → gateway (LIVE_CSV) → leaderboard
+#   intake-api: a real submission goes RECEIVED → BUILDING → ATTESTED
+# This is the evidence behind the compose header's "CI-SMOKED" claim.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'tools/**'
+      - 'platform/**'
+      - 'frontend/**'
+      - 'sandbox/**'
+      - 'bot-engine/**'
+      - '.github/workflows/compose-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - 'tools/**'
+      - 'platform/**'
+      - 'frontend/**'
+      - 'sandbox/**'
+      - 'bot-engine/**'
+      - '.github/workflows/compose-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  compose-smoke:
+    name: Boot full stack + assert live loop
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      COMPOSE: docker compose -f infra/docker-compose.yml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show environment
+        run: |
+          uname -a
+          docker --version
+          docker compose version
+
+      - name: Build + start the stack
+        run: $COMPOSE up -d --build
+
+      - name: Wait for services to report healthy
+        run: |
+          set -e
+          # redis, reference-engine, and intake-api declare healthchecks; wait on them.
+          for svc in redis reference-engine intake-api; do
+            echo "waiting for $svc ..."
+            for i in $(seq 1 60); do
+              cid=$($COMPOSE ps -q "$svc")
+              if [ -z "$cid" ]; then echo "  ($svc has no container yet)"; sleep 2; continue; fi
+              status=$(docker inspect -f '{{ if .State.Health }}{{ .State.Health.Status }}{{ else }}{{ .State.Status }}{{ end }}' "$cid" 2>/dev/null || echo unknown)
+              echo "  $svc: $status"
+              case "$status" in
+                healthy|running) break ;;
+                exited|dead) echo "::error::$svc is $status"; exit 1 ;;
+              esac
+              sleep 2
+            done
+          done
+
+      - name: Assert leaderboard (nginx) serves the frontend
+        run: |
+          set -e
+          for i in $(seq 1 15); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/ || true)
+            echo "leaderboard HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 2
+          done
+          echo "::error::leaderboard did not return 200"; exit 1
+
+      - name: Assert gateway emits a LIVE_CSV frame fed by the bot fleet
+        run: |
+          set -e
+          # Use the gateway container's own ws + node to read a real frame. Poll up
+          # to ~90s: the bot fleet must connect to the engine and write the first
+          # per-second /telemetry CSV before the gateway flips DEMO → LIVE_CSV.
+          read -r -d '' SCRIPT <<'JS' || true
+          const WebSocket = require('ws');
+          const deadline = Date.now() + 85000;
+          function once() {
+            return new Promise((resolve) => {
+              const ws = new WebSocket('ws://localhost:8080/leaderboard/deltas');
+              let done = false;
+              const fin = (v) => { if (done) return; done = true; try { ws.close(); } catch (e) {} resolve(v); };
+              ws.on('message', (b) => {
+                let f; try { f = JSON.parse(b); } catch (e) { return fin(null); }
+                const boards = f.deltas ? Object.values(f.deltas).flat() : [];
+                const p99 = boards.length ? Number(boards[0].g && boards[0].g.p99) : 0;
+                fin({ type: f.type, source: f.source, rows: boards.length, p99 });
+              });
+              ws.on('error', () => fin(null));
+              setTimeout(() => fin(null), 4000);
+            });
+          }
+          (async () => {
+            let last = null;
+            while (Date.now() < deadline) {
+              const r = await once();
+              if (r) { last = r; console.log('frame:', JSON.stringify(r)); }
+              if (r && r.type === 'deltas' && r.source === 'LIVE_CSV' && r.rows > 0 && r.p99 > 0) {
+                console.log('OK: live frame from the bot fleet'); process.exit(0);
+              }
+              await new Promise(r => setTimeout(r, 3000));
+            }
+            console.error('FAIL: never saw a LIVE_CSV frame with real rows. last=', JSON.stringify(last));
+            process.exit(1);
+          })();
+          JS
+          $COMPOSE exec -T telemetry-gateway node -e "$SCRIPT"
+
+      - name: Assert intake-api takes a submission to ATTESTED
+        run: |
+          set -e
+          # Build a trivial, clean engine tarball on the runner (no AppleDouble junk).
+          mkdir -p /tmp/eng/src
+          printf '#include <cstdio>\nint main(){std::printf("ok\\n");return 0;}\n' > /tmp/eng/src/main.cpp
+          tar czf /tmp/eng.tar.gz -C /tmp/eng/src main.cpp
+          resp=$(curl -s -F engine=@/tmp/eng.tar.gz http://localhost:9090/api/v1/submissions)
+          echo "POST response: $resp"
+          id=$(echo "$resp" | python3 -c 'import sys,json; print(json.load(sys.stdin)["submission_id"])')
+          echo "submission_id: $id"
+          for i in $(seq 1 30); do
+            st=$(curl -s http://localhost:9090/api/v1/submissions/$id | python3 -c 'import sys,json; print(json.load(sys.stdin).get("state"))')
+            echo "  state=$st"
+            [ "$st" = "ATTESTED" ] && exit 0
+            if [ "$st" = "REJECTED" ]; then
+              curl -s http://localhost:9090/api/v1/submissions/$id; echo
+              echo "::error::submission was REJECTED"; exit 1
+            fi
+            sleep 2
+          done
+          echo "::error::submission did not reach ATTESTED in time"; exit 1
+
+      - name: Dump logs on failure
+        if: failure()
+        run: $COMPOSE logs --tail=200
+
+      - name: Tear down
+        if: always()
+        run: $COMPOSE down -v
