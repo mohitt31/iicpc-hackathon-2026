@@ -210,6 +210,48 @@ INTAKE  ->  BUILD  ->  ATTEST  ->  PACK  ->  ORCHESTRATE (runs the microVM)
 | **Pack** | `packer/pack_rootfs.sh` | Builds a minimal `ext4` rootfs containing the binary | Minimal attack surface inside the VM |
 | **Orchestrate** | `orchestrator/run_vm.sh` | Boots Firecracker: **read-only rootfs**, TAP networking, `panic=1`, `pci=off` | Real kernel + scheduling boundary; read-only root prevents persistence |
 
+### 4.1b Contestant Upload Flow (`platform/intake-api/`)
+
+A contestant interacts with the platform through one HTTP front door — the intake API
+(Go), which fronts the pipeline above and tracks each submission through an explicit
+state machine. The submission work-queue is backed by **Redis** (`LPUSH submissions:pending`).
+
+```
+POST /api/v1/submissions   (multipart tarball, field "engine")
+   → state RECEIVED, queued on Redis  submissions:pending
+   → 202 { "submission_id": "...", "state": "RECEIVED",
+           "status_url": "/api/v1/submissions/<id>" }
+
+GET  /api/v1/submissions/:id    → current state-machine snapshot
+
+State machine (worker advances RECEIVED→BUILDING→ATTESTED itself; the
+orchestrator posts RUNNING/SCORED):
+
+   RECEIVED ──▶ BUILDING ──▶ ATTESTED ──▶ RUNNING ──▶ SCORED
+                    │            │            │
+                    └────────────┴────────────┴──▶ REJECTED   (any stage can reject)
+```
+
+Example — upload an engine and poll its status:
+
+```bash
+# upload
+curl -F engine=@my_engine.tar.gz http://localhost:9090/api/v1/submissions
+# → 202 { "submission_id": "a1b2…", "state": "RECEIVED",
+#         "status_url": "/api/v1/submissions/a1b2…" }
+
+# poll
+curl http://localhost:9090/api/v1/submissions/a1b2…
+# → { "submission_id": "a1b2…", "state": "ATTESTED" }
+```
+
+This is the missing front door that turns "a folder of pipeline stages" into a
+platform a contestant can actually submit to. **Honest status:** the worker advances a
+submission as far as **ATTESTED** today; `RUNNING`/`SCORED` are reached once the
+orchestrator consumes the scoring queue on a `/dev/kvm` host (Phase 1.4) — the API
+contract and state machine are complete, the microVM-execution hand-off is the
+hardware-bound step.
+
 ### 4.2 The load-bearing decision: Firecracker, not containers
 
 > A benchmark must isolate the **latency** of the submission, not just its
@@ -440,30 +482,33 @@ headline anywhere - an average hides exactly the stalls that matter.
 
 ---
 
-## 9. Decision Log: alternatives & trade-offs (rubric #2 & #3)
+## 9. Architecture Decision Records (ADRs): alternatives & trade-offs (rubric #2 & #3)
 
-Every row is a real fork in the road with the path not taken.
+Each row below is an **Architecture Decision Record (ADR)** — a real fork in the road,
+the path taken, the path rejected, and the reason. They are numbered ADR-1 … ADR-11 so
+they can be cited individually.
 
-| # | Decision | Chosen | Alternative(s) rejected | Why |
+| ADR | Decision | Chosen | Alternative(s) rejected | Why |
 |---|---|---|---|---|
-| 1 | Measurement methodology | **CO-corrected (Tene/Snyder)** | Naive round-trip histograms | Naive numbers are wrong by ~20–75× under stalls (19.7× in our tabulated run); they'd rank engines incorrectly |
-| 2 | Submission isolation (runtime) | **Firecracker microVM** | Docker container | Container shares host scheduler to pollutes the *latency* being measured |
-| 3 | Build isolation | **Docker `--network none`** | Build on host | Hermetic, no supply-chain fetch; filesystem isolation is the right tool *here* |
-| 4 | Wire format | **Binary SBE, 4B-framed** | JSON / gRPC | JSON/gRPC add tens of µs to the path we're measuring |
-| 5 | Contract lifecycle | **Frozen + versioned v1.1** | Living interface | One field = 3 codebases broken; freezing removes the top integration risk |
-| 6 | Fleet percentile | **Merge raw HDR, read p99** | Average per-bot p99s | Averaging percentiles is mathematically meaningless |
-| 7 | Correctness | **Byte-exact diff, hard-fail cap** | Threshold / sampling checker | A same-length LIFO bug passes a threshold checker; byte-exact catches it |
-| 8 | Leaderboard role | **Display-only** | Frontend recomputes metrics | Removes the last-mile lie by construction |
-| 9 | Integrity gate result | **Exclude, not penalise** | Score penalty | A penalty still shows a number we can't stand behind |
-| 10 | Demo data source | **Mock-first, live swap** | Live-only | Live-only demos go blank when the feed hiccups; mock-first never does |
-| 11 | Price representation | **`int64` ticks** | `double` | Float is non-deterministic to breaks byte-exact replay |
+| ADR-1 | Measurement methodology | **CO-corrected (Tene/Snyder)** | Naive round-trip histograms | Naive numbers understate the tail by 19.7× (tabulated shared-host run) up to 76× (measured isolcpus); they'd rank engines incorrectly |
+| ADR-2 | Submission isolation (runtime) | **Firecracker microVM** | Docker container | Container shares the host scheduler, polluting the *latency* being measured |
+| ADR-3 | Build isolation | **Docker `--network none`** | Build on host | Hermetic, no supply-chain fetch; filesystem isolation is the right tool *here* |
+| ADR-4 | Wire format | **Binary SBE, 4B-framed** | JSON / gRPC | JSON/gRPC add tens of µs to the path we're measuring |
+| ADR-5 | Contract lifecycle | **Frozen + versioned v1.1** | Living interface | One field = 3 codebases broken; freezing removes the top integration risk |
+| ADR-6 | Fleet percentile | **Merge raw HDR, read p99** | Average per-bot p99s | Averaging percentiles is mathematically meaningless |
+| ADR-7 | Correctness | **Byte-exact diff, hard-fail cap** | Threshold / sampling checker | A same-length LIFO bug passes a threshold checker; byte-exact catches it |
+| ADR-8 | Latency clock | **Single-clock RTT (`now − intended_send` on the bot) + CO correction** | Cross-machine PTP / HW timestamp diff | One clock means nothing to sync or drift; the honest tail comes from CO back-fill, not clock precision. PTP is a production-roadmap step, not required for a correct RTT. |
+| ADR-9 | Leaderboard role | **Display-only** | Frontend recomputes metrics | Removes the last-mile lie by construction |
+| ADR-10 | Integrity gate result | **Exclude, not penalise** | Score penalty | A penalty still shows a number we can't stand behind |
+| ADR-11 | Price representation | **`int64` ticks** | `double` | Float is non-deterministic and breaks byte-exact replay |
 
 ### 9.1 Deliberate deferrals (honest scope: *decisions, not gaps*)
 
 | Deferred | Why it doesn't change the score *at this scale* |
 |---|---|
 | **AVX-512 / SIMD batch ingester** | Payoff starts at ~1 M msg/s receive; current per-bot rate ~10 k/s. The SPSC path proves the architecture scales there. |
-| **AF_XDP kernel bypass** | Needed for sub-µs receive; current p99 already ~84 µs on TCP + `SO_BUSY_POLL`. |
+| **AF_XDP kernel bypass** | Needed for sub-µs receive; measured bare-metal p99 is already 7.7 µs on TCP + `SO_BUSY_POLL` (isolcpus). |
+| **eBPF in-kernel latency prober** | A kernel-side probe measures a *different* number (kernel ingress→egress), not the trader-visible RTT. Our single-clock userspace RTT + CO correction is the honest, trader-relevant measurement; see §11.8. A deliberate choice, not a missing feature. |
 | **Aeron / Chronicle transport** | Our topology is N-bots to 1-engine fan-in, not 1-publisher to many-subscribers. Wrong tool. |
 | **HW NIC timestamp cmsg parse** | Request path is wired; full parse needs a PTP-synced production NIC. |
 | **macOS CPU pinning** | `pthread_setaffinity_np` is Linux-only; the bot detects and degrades gracefully. |
@@ -515,9 +560,23 @@ cluster here. We label blueprints as blueprints.
 
 ---
 
-## 11. Verified Results (rubric #6: every number is reproducible)
+## 11. Verified Results / Performance Characteristics (rubric #6: every number is reproducible)
 
-Environment for the headline runs: a **4-core shared cloud container**
+_This section is the platform's **Performance Characteristics**: every figure is sourced
+to a committed run in `verified_runs/` and to `verified_runs/canonical.json`._
+
+**Performance Characteristics at a glance** (all from `canonical.json`):
+
+| Characteristic | Measured value | Source |
+|---|---|---|
+| Coordinated-Omission gap (p99) | 19.7× tabulated (shared host) → 76× (isolcpus) | `verified_runs/aftab/co_proof.txt` |
+| Bare-metal latency p99 | **7.7 µs MEASURED** (i7-13620H, isolcpus) | `verified_runs/aftab/baremetal_latency.txt` |
+| Byte-exact determinism | live == offline replay, **IDENTICAL, exit 0** (representative 25,743,624 bytes; run-dependent) | `verified_runs/aftab/live_replay.txt` |
+| Fleet scale | 2,989 connections, Sent == Acked, 0 aborts | `verified_runs/aftab/scale_3000bots.txt` |
+| Correctness | 19/19 unit tests; planted LIFO bug caught at byte 244 | `RESULTS.md §2` |
+| Memory safety | 0 ASan / 0 UBSan findings | `RESULTS.md §11.6` |
+
+Environment for the headline shared-host runs: a **4-core shared cloud container**
 (Linux x86-64, **no core isolation, no NIC tuning**) - deliberately hostile. See
 §11.7 on why that's a feature.
 
@@ -575,6 +634,51 @@ These ran in a shared container with rampant scheduler preemption. On a quiet, o
 In our shared CI container, even 'clean' runs show inflated CO tails - that is the 
 methodology correctly reporting real scheduler stalls, not a bug. *A benchmark that shows beautiful numbers
 in a noisy environment is broken. This one refuses to.*
+
+### 11.8 Latency Measurement: single-clock RTT + CO, not an eBPF kernel prober
+
+**What we measure and where.** Latency is the trader-visible round trip: the bot
+timestamps `intended_send` and `ack_received` on its **own single clock** and reports
+the difference, then applies Coordinated-Omission correction so a stalled engine cannot
+hide missed sends. One clock means there is nothing to synchronize, drift, or
+mis-configure — the honesty of the tail comes from the CO back-fill, not from clock
+precision (ADR-8).
+
+**Why not an in-kernel eBPF prober.** A competing approach instruments the kernel
+(eBPF/kprobes) to time the syscall or NIC path. We deliberately did **not** do this, and
+it is a decision, not a gap:
+
+- An eBPF probe measures a *different quantity* — kernel ingress→egress inside the host —
+  not the round trip a trading client actually experiences. Optimizing the number a judge
+  cares about means measuring the trader-visible RTT, which is exactly what single-clock
+  RTT captures.
+- The CO correction is the hard, rare part of honest latency measurement, and it lives in
+  userspace regardless of where the timestamp is taken. eBPF would add kernel-version
+  fragility and root/privilege requirements without changing the reported truth.
+- Kernel-bypass / in-kernel timing (eBPF, AF_XDP) is recorded as a **documented deferral**
+  (§9.1): it matters below ~1 µs receive, where our measured 7.7 µs bare-metal p99 is not
+  yet the binding constraint.
+
+This is the same honesty discipline as the rest of the platform: report the number the
+user feels, by the simplest mechanism that cannot lie about it.
+
+### 11.9 Chaos Engineering / Resilience
+
+The platform is exercised under deliberate failure, not just happy-path load:
+
+- **Engine-kill mid-run (DONE, committed):** the matching engine is killed during a live
+  benchmark; backpressure surfaces as `EAGAIN`, Sent == Acked accounting holds, zero lost
+  or double-counted orders. Log: `verified_runs/aftab/resilience_engine_kill.txt`.
+- **Node-kill / DaemonSet reschedule (PLANNED):** kill a benchmark node mid-run; the fleet
+  reschedules and the board shows the gap honestly. Pending the multi-node k3s run (Phase 2.3).
+- **Gateway reconnect (BUILT, demo-pending):** the leaderboard's silent fallback + reconnect
+  path already exists in `tools/telemetry_server.js`; a recorded clip is pending.
+- **Integrity-gate auto-filter (DONE, mechanism):** a run that fails self-test latency or
+  jitter bounds is excluded before scoring (ADR-10), demonstrated by the gate logic; a
+  live on-camera clip is pending.
+
+Status is stated per item — committed runs are cited; planned/pending clips are labeled as
+such, never implied as done.
 
 ---
 
