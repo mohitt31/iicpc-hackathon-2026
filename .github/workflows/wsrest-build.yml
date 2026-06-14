@@ -49,6 +49,24 @@ jobs:
           ls -la ws_bot rest_bot refserver
           echo "✅ ws_bot + rest_bot compile on x86"
 
+      - name: Binary TCP end-to-end smoke — assert Sent==Acked (real loop, binary↔engine)
+        run: |
+          ./bot-engine/build/refserver --port 9030 --journal /tmp/ref_bin.jrn & RS=$!
+          sleep 1
+          ./bot-engine/build/bot --ip 127.0.0.1 --port 9030 --interval-us 50 --duration-sec 5 | tee /tmp/bin_out.txt
+          kill -9 $RS 2>/dev/null || true
+          python3 - <<'PY'
+          import re
+          t = open('/tmp/bin_out.txt').read()
+          m = re.search(r'Sent=(\d+)\s+Acked=(\d+)', t)
+          assert m, "no Sent/Acked line in bot output:\n" + t
+          sent, acked = int(m.group(1)), int(m.group(2))
+          print(f"sent={sent} acked={acked}")
+          assert acked > 0, "FAIL: acked==0 — Binary bot not acking"
+          assert acked >= sent * 0.95, f"FAIL: too many unacked ({sent-acked}/{sent})"
+          print("✅ Binary board is REAL: Sent==Acked over bot -> reference-engine")
+          PY
+
       - name: WS end-to-end smoke — assert Sent==Acked (real loop, no synthetic acks)
         run: |
           npm install ws --no-audit --no-fund --prefix .
