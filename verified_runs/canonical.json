@@ -144,6 +144,15 @@
     "note": "Thousands-capable demonstrated on one box: 2989 concurrent connections, 3.6M orders. Under extreme oversubscription the bot THROTTLES (PoolExhausted, EAGAIN) rather than lose or double-count — Sent and Acked stay within 44 across 3.6M (in-flight-at-shutdown + 16 partial aborts), 0 collisions, 0 double-counts. Backpressure made visible, not hidden. Label it exactly as 'scale + accounting under backpressure', not latency. The clean 1000+-per-node run is the distributed Phase 2.3.",
     "source": "verified_runs/aftab/scale_3000bots.txt"
   },
+  "distributed_run": {
+    "nodes": 3,
+    "orders": 1688140,
+    "sent": 1688140,
+    "acked": 1688140,
+    "collisions": 0,
+    "source": "verified_runs/aftab/2.3_distributed_run.txt",
+    "note": "3 nodes, per-node Sent==Acked from the evidence file, total ~1.69M orders."
+  },
   "sandbox_security": {
     "seccomp_enforced": true,
     "proven_in_microvm": true,
@@ -169,6 +178,6 @@
     "RESOLVED (PR #46/#53/#55): seccomp claims first softened, then the enforcing init was BUILT (#53) and PROVEN in the microVM (#55, malicious killed by SIGSYS). See sandbox_security above.",
     "TODO (Aftab last-mile, KVM): crisp GOOD-submission capture (a looping engine that survives seccomp) so the demo shows good-runs vs malicious-dies side-by-side; + grab bot-fleet pod logs (CrashLoop in k3d).",
     "PENDING (hardware): commit an isolated-host per-protocol latency run (WS/FIX/REST) to verified_runs/ to promote the 223/890/2404us figures from representative to measured.",
-    "PENDING (hardware): the headline 3-physical-node 30k distributed run (2.3) — join kit ready (verified_runs/aftab/2.3_join_kit.txt). Until then, distributed scale is honestly 'mechanics proven (k3d), single-box accounting ~3k, 3-node capability'."
+    "DONE (hardware): the headline 3-physical-node distributed run is complete (~1.69M orders, Sent==Acked, 3 nodes)."
   ]
 }
