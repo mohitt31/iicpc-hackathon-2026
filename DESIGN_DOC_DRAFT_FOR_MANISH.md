@@ -180,7 +180,7 @@ freeze is what let three people build in parallel without integration hell.
 - **Component 2a — Reference matching engine** (`order_book.h`, design doc §6): header-only
   (offline replay CLI + in-sandbox TCP server share identical logic). 4 invariants:
   single-writer per symbol, deterministic (never iterate the hash map), price-time priority
-  (dense `vector<PriceLevel>` + `std::list` FIFO), maker-before-taker fill emission.
+  (sparse `std::map` keyed by price tick — O(active-levels) memory, avoids OOM at distributed scale; byte-exact determinism re-verified in CI + `std::list` FIFO), maker-before-taker fill emission.
 - **Component 2b — Bot fleet + telemetry** (`bot.cpp`, design doc §7, the centerpiece):
   open-loop, CPU-pinned, CO correction (Tene/Snyder), integrity self-gate, SPSC offload,
   additive HDR merge.

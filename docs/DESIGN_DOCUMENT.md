@@ -103,7 +103,7 @@ The gold standard every contestant is diffed against (`order_book.h`).
 **Invariants:**
 1. **Single-writer per symbol:** No locks on the match path.
 2. **Deterministic:** We explicitly avoid iterating over `std::unordered_map` (used for O(1) cancel lookup via `by_id_`) because hash iteration order is implementation-defined and breaks determinism.
-3. **Price-time priority:** Uses `std::vector<PriceLevel>` indexed by price tick; each level is a `std::list<RestingOrder>` (FIFO).
+3. **Price-time priority:** Uses sparse `std::map` keyed by price tick — O(active-levels) memory, avoids OOM at distributed scale; byte-exact determinism re-verified in CI; each level is a `std::list<RestingOrder>` (FIFO).
 
 **Byte-Exact Validator:**
 The diff tool walks two output journals frame-by-frame and reports the first divergent byte. No heuristics. The provided demo plants a real-world HFT bug (LIFO matching instead of FIFO) and our validator instantly pinpoints it: `DIVERGE @ byte 244`.
