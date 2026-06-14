@@ -18,9 +18,6 @@ Omission**, fixed at the core.
 
 ![Architecture](docs/architecture.png)
 
-*Logical Measurement Flow: The Truth Pipeline*
-![The Truth Pipeline](docs/truth-pipeline.png)
-
 ---
 
 ## 🎯 What makes this submission different
