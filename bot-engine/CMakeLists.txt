@@ -14,7 +14,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # HFT optimization flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -flto -Wall -Wextra -Wpedantic")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=x86-64-v2 -flto -Wall -Wextra -Wpedantic")
 
 # Sanitizer build for testing (never for benchmarking — ASan skews timing).
 #   cmake -B build-asan -DENABLE_SANITIZERS=ON && cmake --build build-asan
