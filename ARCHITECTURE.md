@@ -9,7 +9,7 @@ and tail latency** — measured honestly.
 > display it.** The hard part of a latency benchmark is not drawing the chart —
 > it is not lying in the chart. See *Coordinated Omission* below.
 
-![AWS deployment architecture](docs/architecture_diagram.png)
+![AWS deployment architecture](docs/architecture.png)
 
 ---
 
@@ -26,6 +26,8 @@ and tail latency** — measured honestly.
               T1                              T2                               T3
                          all three build against contracts/interface_contract_v1.h  (FROZEN)
 ```
+
+![The Truth Pipeline — submit → sandbox → frozen contract → measure → integrity gate → byte-exact → score → display-only board](docs/truth-pipeline.png)
 
 Three independently-built components, one frozen wire contract. A single field
 change breaks three codebases — so the contract is frozen and versioned (v1.1).
