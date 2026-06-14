@@ -829,7 +829,7 @@ Stated plainly so we're never caught overclaiming: **as of this document, the
 binary-TCP board is real and measured; the WebSocket and REST boards are labeled
 `(Roadmap)`** because their bots are drafted but not yet producing committed measured
 runs. The labels come off **only** when those bots compile, run against a real endpoint,
-and commit Sent==Acked HDR output to `verified_runs/` — same evidence bar as every other
+and commit clean Sent-matches-Acked HDR output to `verified_runs/` — same evidence bar as every other
 number here. We would rather show an honest "(Roadmap)" than a synthetic number dressed
 as real. That discipline is the entire point of the platform.
 

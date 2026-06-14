@@ -22,6 +22,40 @@ metadata:
   labels:
     app.kubernetes.io/part-of: iicpc-hft-platform
 ---
+# ---- Reference matching engine — the gold standard the bot fleet benchmarks --
+# (Was missing: the bot fleet had TARGET_ENGINE_IP=REPLACE_... with nothing to
+#  hit, so the k8s loop was broken. This is the engine all bots connect to.)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reference-engine
+  namespace: hft-bench
+  labels: { app: reference-engine }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: reference-engine }
+  template:
+    metadata:
+      labels: { app: reference-engine }
+    spec:
+      containers:
+        - name: engine
+          image: ghcr.io/mohitt31/iicpc-bot-engine:latest
+          command: ["./build/refserver"]
+          args: ["--port", "9000", "--journal", "/tmp/refserver.jrn"]
+          ports: [{ containerPort: 9000, name: sbe }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reference-engine
+  namespace: hft-bench
+spec:
+  selector: { app: reference-engine }
+  ports:
+    - { name: sbe, port: 9000, targetPort: 9000 }
+---
 # ---- Bot fleet — DaemonSet, one pinned generator per benchmark node --------
 apiVersion: apps/v1
 kind: DaemonSet
@@ -45,28 +79,35 @@ spec:
           value: "benchmark"
           effect: "NoSchedule"
       hostNetwork: true            # avoid the CNI overlay for the hot path
+      dnsPolicy: ClusterFirstWithHostNet   # so 'reference-engine' service DNS resolves under hostNetwork
       containers:
         - name: bot
           image: ghcr.io/mohitt31/iicpc-bot-engine:latest
           command: ["./build/bot"]
+          # --no-gate: the integrity self-test can't pass inside a container (no
+          # CPU pinning), so it CrashLoops with the gate on. This is a scale +
+          # accounting run, not a latency run — the gate belongs on bare-metal.
+          # --duration-sec=0: run continuously for the live demo.
           args:
             - "--bots=8"
             - "--interval-us=50"
-            - "--duration-sec=60"
+            - "--duration-sec=0"
+            - "--no-gate"
             - "--ip=$(TARGET_ENGINE_IP)"
             - "--port=9000"
             - "--snapshot-dir=/telemetry"
           env:
             - name: TARGET_ENGINE_IP
-              value: "REPLACE_with_sandbox_service_or_node_ip"
+              value: "reference-engine"     # k8s Service DNS in the hft-bench namespace
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]   # required for SO_BUSY_POLL / SO_TIMESTAMPING
           resources:
-            # Guaranteed QoS: requests == limits, integer CPU → exclusive cores
-            # (requires the kubelet static CPU manager policy on the node).
-            requests: { cpu: "8", memory: "2Gi" }
-            limits:   { cpu: "8", memory: "2Gi" }
+            # Schedulable on a laptop node for the scale/accounting run. For the
+            # bare-metal latency path, raise to integer CPU (Guaranteed QoS) +
+            # the kubelet static CPU-manager policy for exclusive pinned cores.
+            requests: { cpu: "1", memory: "512Mi" }
+            limits:   { cpu: "2", memory: "1Gi" }
           volumeMounts:
             - { name: telemetry, mountPath: /telemetry }
       volumes:
