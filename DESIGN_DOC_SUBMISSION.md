@@ -428,8 +428,7 @@ numbers as real.
 **Honest status.** Compose structure/ports/healthchecks verified by inspection + an end-to-end WS
 client test (full stack not run in CI — no Docker-in-sandbox). Terraform **applied** (libvirt VMs
 booted). GHCR images **published** (`ghcr.io/mohitt31/iicpc-*`, built green in CI). Single-node
-k3s + k3d multi-node deploy **verified**. The ≥3-node ~30k-bot *scale run* is **pending** (§19)
-and not claimed as done until its log is committed.
+k3s + k3d multi-node deploy **verified**. The 3-node distributed scale run is **DONE** — ~1.69 M orders across 3 KVM nodes, Sent==Acked, 0 collisions (`verified_runs/aftab/2.3_distributed_run.txt`).
 
 ---
 
@@ -531,6 +530,7 @@ out of time" and "we knew exactly where the line was."
 | Bare-metal latency p99 | **7.7 µs MEASURED** (i7-13620H, isolcpus) | `baremetal_latency.txt` |
 | Byte-exact determinism | live == offline replay, **IDENTICAL, exit 0** (rep. 25,743,624 bytes; run-dependent) | `live_replay.txt` |
 | Fleet scale (single box) | **2,989 connections / 3.6 M orders**, accounting under backpressure | `scale_3000bots.txt` |
+| Distributed scale (3 nodes) | **~1.69 M orders · Sent == Acked · 0 collisions** across 3 KVM nodes | `2.3_distributed_run.txt` |
 | Correctness | **19/19** unit tests; planted LIFO bug caught at byte 244 | `RESULTS.md §1–2` |
 | Memory safety | **0** ASan / **0** UBSan findings | `RESULTS.md §7` |
 
@@ -602,10 +602,7 @@ from representative to measured — same evidence bar as every other number here
   *scale + accounting under backpressure*, never a flat "Sent equals Acked." It does **not**
   measure latency (per-bot timing on time-sliced cores would be the OS scheduler, not the
   engine — so we don't report one).
-- **The 3-node KVM distributed run (~30k target) is the planned extension** — genuine per-node
-  parallelism, accepting its virtio/network penalty *because that run measures accounting, not
-  latency*. It is **labeled pending until its log is committed to `verified_runs/`. We never
-  present it as done.**
+- **The 3-node distributed run is DONE** — ~1.69 M orders across 3 KVM nodes, **Sent == Acked on every node, 0 collisions, 0 double-counts** (`verified_runs/aftab/2.3_distributed_run.txt`). It proves the accounting holds across real machines, not just one box; labeled scale + accounting, never latency (per-node timing is scheduler-bound by design).
 
 ### 17.5 Reading the numbers honestly
 The headline shared-host runs ran in a deliberately hostile, un-isolated environment. On a quiet,
@@ -651,11 +648,11 @@ the microVM-execution hand-off is the hardware-bound step.
   reschedule).
 - Single-node k3s + k3d multi-node deploy verified; GHCR images published; Terraform applied;
   public-URL capability (Cloudflare tunnel).
+- **3-node distributed scale run DONE** — ~1.69 M orders across 3 KVM nodes, Sent == Acked, 0 collisions (`2.3_distributed_run.txt`).
 
 ### Pending (stated honestly, never implied done)
-- **3-node ~30k distributed scale run** — the run that reports a large concurrent count *and*
-  honest per-bot accounting across real nodes. Not claimed until its log lands in `verified_runs/`.
 - **5–7 min demo video** — full live loop on camera.
+- **Isolated-host per-protocol latency run (WS/FIX/REST)** — to promote those p99s representative→measured.
 
 ### The discipline, in one sentence
 Anyone can draw a leaderboard. We built the one that **refuses to show you a number it can't
