@@ -1,11 +1,11 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for every headline number on this platform. Frontend, RESULTS.md, and the demo script must read/copy from this file only — never hand-type a number. This kills landing/board/RESULTS drift permanently (Phase 0.3). Every value carries a `source` pointing at committed evidence. `open_items` records known conflicts to reconcile in the Phase 4.4 consistency sweep.",
   "schema_version": "1.0",
-  "status": "evidence-complete for the measurement claims: isolcpus run committed (verified_runs/aftab/) and bare-metal p99 MEASURED (7.7µs). Remaining is no-hardware surface propagation: push the 76x CO range, the measured bare-metal p99, and the run-dependent byte-count framing into RESULTS.md/README/ARCHITECTURE/frontend, and delete the 'design target' labels (Phase 4.4 round 2).",
+  "status": "evidence-complete for core measurement claims: isolcpus run committed, bare-metal p99 MEASURED (7.7µs), Firecracker seccomp boundary ENFORCED + proven (verified_runs/aftab/firecracker_*), 4 protocol loops Sent==Acked CI-verified. Surface propagation (76x CO, measured 7.7µs, run-dependent bytes, design-target labels removed) is DONE. Pending: a committed isolated-host per-protocol latency run to promote WS/FIX/REST p99s from representative to measured; and the multi-node >=3-node distributed scale run (~30k target).",
   "generated": "2026-06-13",
   "naming": {
     "wire_protocol": "BINARY (SBE v1)",
-    "note": "The wire is a custom binary SBE-style protocol (fixed 4B header + fixed structs), NOT FIX. Every surface says BINARY (SBE v1). FIX is a Phase 3 stretch goal; until it exists, no surface claims FIX."
+    "note": "The core hot-path wire is a custom binary SBE-style protocol (fixed 4B header + fixed structs); the BINARY board cites SBE v1. As of Phase 3.2-3.4 the platform ALSO benchmarks WebSocket, FIX 4.4, and REST as additional transports (bot -> adapter -> reference engine, Sent==Acked CI-verified in wsrest-build.yml). Binary remains the hot path; the other three exist to measure the framing tax (binary << WS << FIX << REST). Per-protocol ABSOLUTE latency is representative (shared CI runner) until a committed isolated-host latency run is logged to verified_runs/."
   },
   "correctness": {
     "unit_tests": {
@@ -149,7 +149,7 @@
     "RESOLVED (Phase 4.1): PTP 'LOCKED/badge' claims reworded to single-clock RTT across index.html, landing.html, ARCHITECTURE; PTP retained only as a production-roadmap item.",
     "RESOLVED (Phase 0.3): RESULTS.md §3 order-count corrected 100,000 -> 200,000 (matches ARCH_LINUX_RUN.md §5 + canonical); unverifiable 'Fills 155,218' row removed.",
     "RESOLVED (Aftab, PR #40): isolcpus runs committed to verified_runs/aftab/ — live_replay.txt (determinism), co_proof.txt (76.3x CO), baremetal_latency.txt (measured p99 7.7µs), scale_3000bots.txt (2989 connections), resilience_engine_kill.txt, terraform_apply.txt (3 libvirt VMs booted).",
-    "TODO (no-hardware, Phase 4.4 round 2): propagate into all surfaces — (a) CO range 19.7x-76x, (b) MEASURED bare-metal p99 7.7µs + DELETE every 'design target' label, (c) run-dependent byte-count framing (lead with 'IDENTICAL match', not a fixed number), (d) add the 2989-bot scale accounting result.",
-    "TODO (no-hardware): soften the seccomp/'hardened isolation' claims (README §Sandbox isolation, ARCHITECTURE §Component 1) to 'Firecracker microVM + read-only rootfs; seccomp specified, runtime enforcement in progress' until Phase 1.4 builds the enforcing init (see sandbox/test/malicious/README.md)."
+    "PENDING (hardware): commit an isolated-host per-protocol latency run (WS/FIX/REST) to verified_runs/ to promote the 223/890/2404us figures from representative to measured.",
+    "PENDING (hardware): multi-node >=3-node distributed scale run (~30k concurrent target); single-node k3s deploy verified (#42), multi-node scale run not yet run."
   ]
 }
