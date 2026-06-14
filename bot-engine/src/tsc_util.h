@@ -1,4 +1,29 @@
 #pragma once
+// ============================================================================
+// HFT TIMEKEEPING AND MULTI-SOCKET TSC DRIFT WARNING
+// ============================================================================
+// For the hackathon MVP, we use `rdtscp` to read the CPU's Invariant TSC.
+// This is perfectly valid ONLY IF the Network RX, Matching Engine, and
+// Network TX threads are strictly pinned to the exact same physical NUMA node.
+// 
+// THE FLAW: If Ingress is stamped on Socket 0, and Egress on Socket 1, the 
+// math is fundamentally broken. Different physical sockets have independent
+// oscillators. Due to boot-skew and thermal drift, Socket 0's TSC might 
+// lead or lag Socket 1 by thousands of cycles. Subtracting them yields 
+// negative or hallucinated latencies.
+//
+// THE TIER-1 PRODUCTION FIX (IEEE 1588 PTP):
+// In production, we do not trust the CPU clock. We use Hardware NIC Timestamping.
+// The Solarflare/Mellanox SmartNIC maintains a GPS-synced atomic clock (PTP).
+// - Ingress: The NIC writes a 64-bit nanosecond timestamp into the descriptor
+//   the exact instant the Start-of-Frame hits the MAC layer.
+// - Egress: The NIC stamps the packet the exact instant it leaves the port.
+//
+// Latency = NIC_TX_Timestamp - NIC_RX_Timestamp. 
+// This guarantees pure Wire-to-Wire latency measurement, mathematically 
+// immune to CPU topology, PCIe delays, and OS thread scheduling.
+// ============================================================================
+
 #include <cstdint>
 #include <chrono>
 #include <thread>
