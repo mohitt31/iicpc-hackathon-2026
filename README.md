@@ -1,185 +1,161 @@
-# IICPC HFT Benchmarking Platform
+# ⚡ IICPC HFT Benchmarking Platform
 
-**Submission for IICPC Summer Hackathon 2026 - multi-track HFT engine benchmarking platform.**
+> **A distributed benchmarking & hosting platform for trading infrastructure.**
+> The hard part of a latency benchmark isn't drawing the chart — it's **not lying in the chart.**
+> We built the one platform that *measures the truth, then only displays it.*
 
-The platform lets independent teams submit a C++ matching engine, runs it inside a sandbox, hammers it with a low-latency synthetic order flow, and ranks submissions by a composite of correctness, throughput, and tail latency.
+![CI](https://github.com/mohitt31/iicpc-hackathon-2026/actions/workflows/wsrest-build.yml/badge.svg)
+![C++](https://img.shields.io/badge/C%2B%2B-20-blue)
+![Sandbox](https://img.shields.io/badge/sandbox-Firecracker%20%2B%20seccomp-orange)
+![Latency](https://img.shields.io/badge/binary%20p99-7.7%C2%B5s%20measured-brightgreen)
+![Honesty](https://img.shields.io/badge/every%20number-traced%20to%20canonical.json-blueviolet)
 
-The platform has three pieces: a low-latency C++ bot fleet that generates load, a sandbox that runs contestant matching engines under controlled isolation, and a realtime leaderboard that ranks submissions by composite score. The shared wire contract is in `contracts/`.
+Contestants submit a C++ matching engine; the platform runs it under **micro-VM isolation**,
+hammers it with a CPU-pinned bot fleet, and ranks it live on **latency, throughput, and
+correctness** — with the one bug that invalidates most public benchmarks, **Coordinated
+Omission**, fixed at the core.
 
-![AWS deployment architecture](docs/architecture_diagram.png)
+<!-- 📷 Mohit: apna naya eraser diagram PNG yahan save kar de → docs/architecture.png (yeh line render kar degi) -->
+![Architecture](docs/architecture.png)
 
 ---
 
-## Reproduce in 3 commands
+## 🎯 What makes this submission different
 
-On an **x86-64 Linux** host (the bot uses `rdtscp` and Linux core-pinning; see
-`BUILD.md` for the one-line dependency install - `build-essential cmake g++` plus
-`HdrHistogram_c`). Each command is the real thing a judge can run on a fresh checkout:
+Most teams build *broad and fast* — a pipeline, a leaderboard, some numbers. We went **deep** on
+the things that decide whether a benchmark is *trustworthy*:
+
+| # | Differentiator | Why it wins |
+|---|---|---|
+| 1 | **Coordinated-Omission correction** (Tene/Snyder) | Naive benchmarks hide the exact stalls that matter — we expose a **19.7×–76× gap** between the lie and the truth |
+| 2 | **Byte-exact correctness validator** | Catches a same-length price-time-priority bug at **byte 244** — a threshold checker misses it |
+| 3 | **Measured, not quoted** | Binary p99 **7.7 µs**, measured on isolated cores — every number traces to a committed log |
+| 4 | **4 protocols incl. FIX 4.4** | binary ≪ WebSocket ≪ FIX ≪ REST — the transport tax, the protocol the brief names included |
+| 5 | **Proven sandbox** | 3 malicious submissions **killed by seccomp (SIGSYS)** in a real Firecracker micro-VM; good submission survives |
+| 6 | **Honesty as a structural property** | Display-only leaderboard that *cannot* compute a lie; integrity gate that excludes rather than penalises |
+
+---
+
+## 📊 Verified results — every number traces to `verified_runs/canonical.json`
+
+### Coordinated Omission — the centerpiece (5 ms stall every 20 k orders)
+| Percentile | Naive (ns) | CO-Corrected (ns) | Ratio |
+|---|---|---|---|
+| p50 | 25,887 | 26,479 | 1.0× |
+| p90 | 80,895 | 141,823 | 1.8× |
+| p99 | **173,439** | **3,414,015** | **19.7×** |
+| p99.9 | 520,191 | 4,820,991 | 9.3× |
+| p99.99 | 5,189,631 | 5,251,071 | 1.0× |
+
+A naive benchmark *cannot see* the stall. CO-correction backfills it. **19.7× on a shared host,
+up to 76× on isolated hardware** — the cleaner the host, the harder a naive number lies.
+`verified_runs/aftab/co_proof.txt`
+
+### Binary latency — MEASURED on isolated cores (`baremetal_latency.txt`)
+i7-13620H, `isolcpus + nohz_full + rcu_nocbs`, 300k/300k acked, EAGAIN=0:
+
+| p50 | p90 | **p99** | p99.9 | p99.99 |
+|---|---|---|---|---|
+| 5.9 µs | 6.2 µs | **7.7 µs** | 11.3 µs | 20.2 µs |
+
+*Measured on an isolated **consumer** desktop (i7-13620H), not server hardware — the honest qualifier.*
+On this clean run **naive == CO** (ratio 1.0): a quiet machine has no coordinated-omission gap to hide.
+
+### Four protocols — same order, four transports, same engine
+| Transport | p99 | Sent == Acked | Note |
+|---|---|---|---|
+| **Binary (SBE/TCP)** | **7.7 µs** *(measured)* | yes | parse-by-pointer-cast |
+| **WebSocket** | 223 µs *(representative)* | 25,000 / 25,000 | RFC-6455 framing |
+| **FIX 4.4** | 890 µs *(representative)* | 12,500 / 12,500 | SOH tag=value + checksum |
+| **REST (HTTP/1.1)** | 2,404 µs *(representative)* | 12,500 / 12,500 | HTTP + JSON per order |
+
+**Honest caveat:** binary is measured; WS/FIX/REST **`Sent==Acked` is CI-verified** but the
+absolute latencies are **representative** (shared CI runner). The robust, reproducible result is
+the **ordering** — which is exactly why the hot path is binary. (`wsrest-build.yml`)
+
+### Scale, correctness, safety, sandbox
+| What | Result | Source |
+|---|---|---|
+| **Distributed scale** | 3 nodes, **~1.69 M orders, Sent == Acked, 0 collisions** | `2.3_distributed_run.txt` |
+| Single-box scale | 2,989 concurrent connections, accounting closes | `scale_3000bots.txt` |
+| Byte-exact replay | live == offline, **IDENTICAL, exit 0** (~25.7 M bytes, run-dependent) | `live_replay.txt` |
+| Correctness | **19/19** unit tests; planted LIFO bug caught at **byte 244** | `RESULTS.md` |
+| Memory safety | **0** ASan / **0** UBSan findings | `RESULTS.md` |
+| **Sandbox (proven)** | 3 malicious fixtures **KILLED via seccomp (SIGSYS)**; good submission survives | `firecracker_malicious.txt` / `firecracker_good.txt` |
+| Resilience | 4 clips: engine-kill, gateway self-heal, integrity-gate exclusion, node-kill reschedule | `verified_runs/aftab/` |
+
+---
+
+## 🚀 Reproduce in 3 commands
+
+On an **x86-64 Linux** host (the bot uses `rdtscp` + Linux core-pinning; deps in `BUILD.md`):
 
 ```bash
 # 1. Build the engine, bot, and reference tools
 cd bot-engine && mkdir -p build && cd build && cmake .. && make -j && cd ..
 
-# 2. Run the Coordinated-Omission proof (the centrepiece): 5ms stall every 20k orders
+# 2. The centerpiece — Coordinated-Omission proof (5 ms stall every 20 k orders)
 ./build/null_responder --stall-mode --stall-every 20000 --stall-ms 5 &
 ./build/bot --bots 1 --interval-us 100 --duration-sec 60 --no-gate ; kill %1
 
-# 3. See the live board: start the gateway, open the frontend
+# 3. The live board — start the gateway, open the frontend
 cd ../tools && npm install && node telemetry_server.js --port 8080 &
-cd ../frontend && python3 -m http.server 8088   # → http://localhost:8088
+cd ../frontend && python3 -m http.server 8088
+#   → http://localhost:8088            (live leaderboard)
+#   → http://localhost:8088/landing.html  (public showcase)
 ```
+Also: `./demo/run_demo.sh` → `DIVERGE @ byte 244` (the byte-exact validator catching the planted bug).
 
 Command 2 prints the naive-vs-CO histograms - the naive p99 reads ~170 µs while the
 CO-corrected p99 exposes the real ~3.4 ms tail (the 19.7x gap). Full correctness,
 soak, and the byte-exact planted-bug demo are in `DESIGN_DOC_SUBMISSION.md` (Appendix B) and `BUILD.md`.
 
-**Honest caveats:** the C++ bot is x86-64/Linux (rdtscp + `pthread_setaffinity_np` +
-`SO_BUSY_POLL`); on macOS the pinning/busy-poll calls degrade to no-ops and you see
-scheduler jitter, not engine latency. Firecracker sandboxing and the measured 7.7 µs
-bare-metal number require a Linux + `/dev/kvm` host (see `RESULTS.md §9` for what each
-run does and does not prove).
+**Honest caveats.** The C++ bot is x86-64/Linux (`rdtscp`, `pthread_setaffinity_np`,
+`SO_BUSY_POLL`); on **macOS / arm64** the pinning & busy-poll calls degrade to no-ops, so you see
+scheduler jitter, not engine latency — the **7.7 µs** number comes from the isolated Linux run
+(committed). Firecracker sandboxing needs a Linux + `/dev/kvm` host. To run the full stack on a
+Mac for a demo: `DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose -f infra/docker-compose.yml up`.
 
 ---
 
-## What's distinctive about this submission
+## 🏗️ Architecture — 3 components, 1 frozen contract
 
-Most teams will build "broad and fast" - a working pipeline, a leaderboard, some numbers on the page. This submission picks one thing that most benchmarks get wrong and makes it the centrepiece: **Coordinated Omission**.
+- **Sandbox** (`sandbox/`) — Firecracker micro-VM + **enforced seccomp PID-1** (`no-new-privs` +
+  82-syscall BPF allowlist, `default = KILL`). A real kernel + scheduling boundary, so we measure
+  the engine's latency, not host noise — and a malicious submission is *killed*, not merely contained.
+- **Bot Fleet + Telemetry** (`bot-engine/`) — open-loop, CPU-pinned C++ load generator;
+  CO-corrected tail latency; gold-standard reference engine (sparse `std::map` price ladder,
+  deterministic); byte-exact validator; SPSC lock-free HDR offload (`alignas(128)`, false-sharing-free).
+- **Real-Time Leaderboard** (`frontend/`) — **display-only**; renders scored deltas over WebSocket
+  and **never recomputes a percentile**, so it structurally cannot introduce a measurement lie.
 
-A naive load generator records the time between sending an order and receiving its ack. If the engine stalls for 5 ms, the bot also stalls (it can't send more orders), so the *next* sample is recorded only after the stall ends - and shows up at the engine's normal latency, not 5 ms. The naive histogram says "p99 = 30 µs" while the real worst-case experience was 5 ms. This single bug invalidates almost every public latency benchmark.
-
-The bot in this repository fixes this with the structural Tene/Snyder correction:
-
-- Records latencies against **intended send time**, not actual send time
-- Backfills phantom samples during stalls via `hdr_record_corrected_value`
-- Pins SO_SNDBUF small so backpressure is visible, not hidden in kernel buffers
-
-On a deterministic 5 ms stall every 20,000 orders, the measurement is **naive p99 173 µs vs CO-corrected p99 3.41 ms - a 19.7x gap** tabulated on a shared host, and up to 76x on isolated hardware (the cleaner the host, the harder a naive benchmark lies). Every contestant on this platform is measured the honest way.
-
-A second distinctive choice: a **byte-exact correctness validator**. The platform ships a gold-standard reference matching engine. Every contestant's output journal is diffed against the reference's output on the same input. The included demo plants one common HFT bug (price-time priority violation - newest order matches first instead of oldest) into a buggy engine and shows the validator pinpointing the divergence on the first aggressive trade. No heuristics, no thresholds.
-
----
-
-## Headline numbers (verified)
-
-All numbers below were produced by the bot in this repository against `null_responder` and `reference_engine`. Logs and CSV outputs are under `verified_runs/` (top-level), with the local integration suite under `bot-engine/`.
-
-**Soak tests & Data Integrity:**
-Across all committed runs (600k CO proof + 200k replay + 1.28M in the 32-bot test = 2M+ orders), zero integrity-counter violations (0 collisions, 0 pool exhaustion, 0 partial aborts). The full soak suite (soak/soak_test.sh) is reproducible.
-
-**Coordinated Omission proof (deterministic 5 ms stall every 20 k orders):**
-
-| Percentile | Naive (ns) | CO-Corrected (ns) | Ratio |
-|---|---|---|---|
-| p50    | 25,887    | 26,479    | 1.0x  |
-| p90    | 80,895    | 141,823   | 1.8x  |
-| p99    | 173,439   | 3,414,015 | 19.7x |
-| p99.9  | 520,191   | 4,820,991 | 9.3x  |
-| p99.99 | 5,189,631 | 5,251,071 | 1.0x  |
-
-Run: 600,000 orders, 5 ms stall every 20,000, 100µs interval, Arch Linux (16-core,
-no isolcpus). 600,000/600,000 acked, 0 violations, 53,584 phantom samples backfilled.
-
-Reproduced independently on Arch Linux (pinning engaged) and macOS (pinning is a
-no-op): the CO-corrected p99 stays ~3.4–5.1 ms on every host because it captures the
-injected 5 ms stall; the naive-vs-CO ratio (19.7x shared host, up to 76x isolcpus)
-tracks each host's baseline jitter. Tuned bare-metal (isolcpus + nohz_full +
-SO_BUSY_POLL) measures p99 7.7µs (`verified_runs/aftab/baremetal_latency.txt`).
-
-**Clean run, 4 bots, 100 µs interval (measured on an otherwise-idle machine; localhost numbers vary with background load):**
-
-| Percentile | Naive (ns) | CO-corrected (ns) |
-|---|---|---|
-| p50 | 23,551 | 23,551 |
-| p90 | 47,903 | 47,903 |
-| p99 | 83,711 | 83,967 |
-| Max | 300,799 | 300,799 |
-
-Proof that this is environment, not engine: On a quiet, otherwise-idle machine, naive and CO-corrected p99 agree within ~1.1x. 
-In our shared CI container, even 'clean' runs show inflated CO tails - that is the 
-methodology correctly reporting real scheduler stalls, not a bug.
+The seam is `contracts/interface_contract_v1.h` — a **frozen, versioned (v1.1)** binary wire
+format. One field change breaks three codebases, so we froze it on day one; that's how three
+people built in parallel without integration hell.
 
 ---
 
-### Where these numbers come from (and the macOS caveat)
+## 🧭 What we deliberately did **not** build (decisions, not gaps)
 
-All headline numbers were measured in a deliberately hostile, un-isolated environment 
-(shared cloud Linux container; on macOS the Linux-only pthread_setaffinity_np and 
-SO_BUSY_POLL are no-ops). On such a host you are seeing scheduler jitter, not the 
-engine - which is why the CO-corrected p99 is the honest reading. The engine's designed 
-operating point is an isolated bare-metal Linux node (isolcpus + nohz_full + rcu_nocbs
-+ SO_BUSY_POLL); bare-metal latency is **measured** at p99 7.7µs on an isolated
-consumer desktop (i7-13620H) - `verified_runs/aftab/baremetal_latency.txt`.
+Each carries the scale threshold at which it would matter (full list + rationale in
+[`DESIGN_DOC_SUBMISSION.md` §16](DESIGN_DOC_SUBMISSION.md)):
 
----
-
-## Quick start
-
-Build everything and run the canonical demo:
-
-```bash
-# Dependencies - see BUILD.md for full install instructions
-sudo apt install -y cmake g++ libhdrhistogram-dev python3   # Ubuntu/Debian
-# brew install cmake hdrhistogram                            # macOS
-
-# Build
-cd bot-engine
-mkdir -p build && cd build
-cmake .. && make -j
-cd ..
-
-# Run the live correctness-validator demo (proves the diff tool)
-./demo/run_demo.sh
-
-# Run the production-confidence soak suite (~9 minutes)
-./soak/soak_test.sh
-
-# Run an end-to-end integration test against the reference engine
-./test/integration_test.sh
-```
-
-For sandbox integration or leaderboard integration, see the contract documentation in `contracts/INTERFACE_CONTRACT.md`.
+- **eBPF kernel prober** — measures a *different quantity* (kernel ingress→egress), not the
+  trader-visible RTT. CO correction is the hard part, and it lives in userspace regardless.
+- **AF_XDP / SR-IOV** — earn their complexity below ~1 µs receive; our measured p99 is 7.7 µs on TCP + busy-poll.
+- **AVX-512 ingest / Aeron** — payoff at ~1 M msg/s and a 1-to-many topology; ours is N-to-1 fan-in.
 
 ---
 
-## Architecture (one sentence per piece)
+## 📚 Where to look
 
-- **`bot-engine/src/bot.cpp`** - multi-threaded open-loop load generator with per-thread memory pools, CPU pinning, HDR histograms (naive + CO-corrected), per-second CSV snapshots, integrity gate, and an opt-in SPSC lock-free ring for HDR offload.
-- **`bot-engine/src/null_responder.cpp`** - minimal multi-connection TCP server that acks every order; used for bot perf testing and CO proof.
-- **`bot-engine/src/reference_engine.cpp`** - offline single-threaded matching engine (price-time priority, FIFO, IOC market orders) that acts as the gold standard for correctness diffs.
-- **`bot-engine/src/hdr_merge.cpp`** - merges per-bot CSV snapshots into a fleet-wide unified time-series and a per-bot ranking, using max-of-percentiles per the telemetry contract (never averages percentiles).
-- **`bot-engine/demo/buggy_engine.cpp`** - copy of `reference_engine.cpp` with one planted price-time priority bug (LIFO matching), used by the live demo.
-- **`contracts/interface_contract_v1.h`** - frozen wire contract: 5 message types, fixed-point prices, little-endian, x86_64. All messages share a common 16-byte header for diff alignment.
+| Doc | What |
+|---|---|
+| [`DESIGN_DOC_SUBMISSION.md`](DESIGN_DOC_SUBMISSION.md) | Full HLD + LLD (19 sections, 11 ADRs, hostile-judge Q&A) |
+| [`RESULTS.md`](RESULTS.md) | Verified results, reproducible commands |
+| [`verified_runs/canonical.json`](verified_runs/canonical.json) | **Single source of truth** — every headline number, with its committed source |
+| [`ARCHITECTURE_DIAGRAM.eraser`](ARCHITECTURE_DIAGRAM.eraser) | Architecture diagram source (eraser.io) |
+| [`DEMO_VIDEO_SCRIPT.md`](DEMO_VIDEO_SCRIPT.md) | 5–7 min demo shooting script |
 
----
-
-## Sandbox isolation
-
-Contestant engines run inside a Firecracker microVM with a read-only rootfs and an
-intake pipeline (static source scan, attestation, rootfs packing) plus an
-orchestrator that provisions the VM, sets up networking, and runs the benchmark.
-The intake source-scan is a lint heuristic (it rejects e.g. `fork`), not a security
-boundary. The seccomp allowlist is **specified** (`pack_rootfs.sh` writes the
-profile) but runtime enforcement is **in progress** — nothing installs the profile
-yet, so live syscall filtering is not claimed. See
-`sandbox/test/malicious/README.md` for the exact per-layer enforcement status.
-The reference engine is also exposed as a TCP server for in-sandbox correctness
-checks, while the offline reference-engine binary remains the gold standard for
-byte-exact diffing.
-
----
-
-## What we deliberately did **not** build (and why)
-
-Some optimizations from the research documents would not have improved this submission's score at our scale, and would have introduced risk to the working pipeline. The Architecture Blueprint ([`ARCHITECTURE.md`](ARCHITECTURE.md), section "Deliberate deferrals") covers the full deferral list with citations; the short version:
-
-- **SIMD AVX2 batch ingester** - payoff begins at 1M+ msg/sec receive. Current per-bot rate is 10k/sec. Skipped.
-- **AF_XDP kernel bypass** - needed for sub-µs receive. Current p99 already at 84 µs on TCP + `SO_BUSY_POLL`. Skipped.
-- **Aeron / Chronicle transport** - while Aeron handles many-to-one fan-in exceptionally well, the integration overhead for a hackathon outweighs the sub-microsecond transport gain when our latency is already bottlenecked by the host OS scheduler. Skipped.
-
-These are documented as deliberate engineering judgment, not gaps.
-
----
-
-## License & contributors
-
-Hackathon submission, IICPC 2026.
+> **The discipline, in one line:** anyone can draw a leaderboard. We built the one that refuses to
+> show you a number it can't stand behind.
