@@ -1,11 +1,11 @@
 {
   "_comment": "SINGLE SOURCE OF TRUTH for every headline number on this platform. Frontend, RESULTS.md, and the demo script must read/copy from this file only — never hand-type a number. This kills landing/board/RESULTS drift permanently (Phase 0.3). Every value carries a `source` pointing at committed evidence. `open_items` records known conflicts to reconcile in the Phase 4.4 consistency sweep.",
   "schema_version": "1.0",
-  "status": "evidence-complete for measurement AND sandbox-security claims: bare-metal p99 MEASURED (7.7µs), CO 19.7x-76x, byte-exact IDENTICAL, 2989-bot accounting, all 4 resilience clips captured, and the seccomp boundary PROVEN in the microVM (malicious killed by SIGSYS, PR #55). Surfaces are reconciled. Remaining (2 items): a crisp GOOD-submission-survives capture (Aftab last-mile, demo polish) and the headline 3-physical-node 30k distributed run (needs all 3 machines). Everything else is committed and honest.",
+  "status": "evidence-complete for measurement AND sandbox-security claims: bare-metal p99 MEASURED (7.7µs), CO 19.7x-76x, byte-exact IDENTICAL, 2989-bot accounting, all 4 resilience clips captured, Firecracker seccomp boundary ENFORCED + proven (malicious killed by SIGSYS), and 4 protocol loops Sent==Acked CI-verified. Surfaces are reconciled. Pending: a committed isolated-host per-protocol latency run to promote WS/FIX/REST p99s to measured, a crisp GOOD-submission-survives capture, and the headline 3-physical-node 30k distributed scale run.",
   "generated": "2026-06-13",
   "naming": {
     "wire_protocol": "BINARY (SBE v1)",
-    "note": "The wire is a custom binary SBE-style protocol (fixed 4B header + fixed structs), NOT FIX. Every surface says BINARY (SBE v1). FIX is a Phase 3 stretch goal; until it exists, no surface claims FIX."
+    "note": "The core hot-path wire is a custom binary SBE-style protocol (fixed 4B header + fixed structs); the BINARY board cites SBE v1. As of Phase 3.2-3.4 the platform ALSO benchmarks WebSocket, FIX 4.4, and REST as additional transports (bot -> adapter -> reference engine, Sent==Acked CI-verified in wsrest-build.yml). Binary remains the hot path; the other three exist to measure the framing tax (binary << WS << FIX << REST). Per-protocol ABSOLUTE latency is representative (shared CI runner) until a committed isolated-host latency run is logged to verified_runs/."
   },
   "correctness": {
     "unit_tests": {
@@ -168,6 +168,7 @@
     "RESOLVED (Manish PR #45/#50/#52): CO range 19.7x-76x, measured 7.7µs bare-metal, run-dependent byte framing, 2989-bot accounting, and multi-node-run-NOT-YET-RUN scoping all propagated into the surfaces; 'design target' labels removed.",
     "RESOLVED (PR #46/#53/#55): seccomp claims first softened, then the enforcing init was BUILT (#53) and PROVEN in the microVM (#55, malicious killed by SIGSYS). See sandbox_security above.",
     "TODO (Aftab last-mile, KVM): crisp GOOD-submission capture (a looping engine that survives seccomp) so the demo shows good-runs vs malicious-dies side-by-side; + grab bot-fleet pod logs (CrashLoop in k3d).",
-    "TODO (3-machine session): the headline 3-physical-node 30k distributed run (2.3) — join kit ready (verified_runs/aftab/2.3_join_kit.txt). Until then, distributed scale is honestly 'mechanics proven (k3d), single-box accounting ~3k, 3-node capability'."
+    "PENDING (hardware): commit an isolated-host per-protocol latency run (WS/FIX/REST) to verified_runs/ to promote the 223/890/2404us figures from representative to measured.",
+    "PENDING (hardware): the headline 3-physical-node 30k distributed run (2.3) — join kit ready (verified_runs/aftab/2.3_join_kit.txt). Until then, distributed scale is honestly 'mechanics proven (k3d), single-box accounting ~3k, 3-node capability'."
   ]
 }

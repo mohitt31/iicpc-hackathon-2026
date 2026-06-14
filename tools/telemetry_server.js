@@ -5,7 +5,7 @@
  * Serves the leaderboard's LIVE feed. Speaks the exact wire shape the frontend
  * subscriber (frontend/index.html → connectLive()) expects:
  *
- *     { "type": "deltas", "deltas": { "BINARY TCP":[row,...], "WEBSOCKET (Roadmap)":[...], "REST (Roadmap)":[...] } }
+ *     { "type": "deltas", "deltas": { "BINARY TCP":[row,...], "WEBSOCKET":[...], "REST":[...] } }
  *
  * Each row is ALREADY scored + ranked here (server-side), honouring the
  * Interface Contract cardinal rule: the browser only displays, never computes
@@ -76,18 +76,19 @@ function hdrValueAtPercentile(h, p) {
  * Synthetic source — contract-faithful. Same roster/shape as the frontend mock
  * so the live feed looks identical to the in-page demo, just served over WS.
  * ========================================================================== */
-const PROTOCOLS = ['BINARY TCP', 'WEBSOCKET (Roadmap)', 'REST (Roadmap)'];
+const PROTOCOLS = ['BINARY TCP', 'WEBSOCKET', 'FIX', 'REST'];
 const NODES = ['node-01', 'node-02', 'node-03', 'node-04'];
 function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function hashId(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(16).padStart(8, '0'); }
 
 const Source = (() => {
-  const base = { 'BINARY TCP': [10000, 28000], 'WEBSOCKET (Roadmap)': [35000, 90000], 'REST (Roadmap)': [120000, 420000] };  // ns
+  const base = { 'BINARY TCP': [10000, 28000], 'WEBSOCKET': [35000, 90000], 'FIX': [60000, 200000], 'REST': [120000, 420000] };  // ns
   const roster = [
     ['Priya Sharma', 'BINARY TCP'], ['Arjun Mehta', 'BINARY TCP'], ['Sanya Rao', 'BINARY TCP'], ['Dev Kapoor', 'BINARY TCP'],
-    ['Kiran Nair', 'WEBSOCKET (Roadmap)'], ['Rohan Gupta', 'WEBSOCKET (Roadmap)'], ['Ananya Iyer', 'WEBSOCKET (Roadmap)'], ['Vikram Sen', 'WEBSOCKET (Roadmap)'],
-    ['Meera Joshi', 'REST (Roadmap)'], ['Aditya Rao', 'REST (Roadmap)'], ['Neha Verma', 'REST (Roadmap)'], ['Karan Shah', 'REST (Roadmap)'],
+    ['Kiran Nair', 'WEBSOCKET'], ['Rohan Gupta', 'WEBSOCKET'], ['Ananya Iyer', 'WEBSOCKET'], ['Vikram Sen', 'WEBSOCKET'],
+    ['Meera Joshi', 'REST'], ['Aditya Rao', 'REST'], ['Neha Verma', 'REST'], ['Karan Shah', 'REST'],
+    ['Ishaan Roy', 'FIX'], ['Tara Bose', 'FIX'], ['Yash Pillai', 'FIX'], ['Zoya Khan', 'FIX'],
   ];
   let subs = [];
   function sampleInto(h, median, tail, count) {
@@ -114,7 +115,7 @@ const Source = (() => {
       p50: hdrValueAtPercentile(s.hdr, 50), p90: hdrValueAtPercentile(s.hdr, 90),
       p99: hdrValueAtPercentile(s.hdr, 99), p99_9: hdrValueAtPercentile(s.hdr, 99.9),
       p99_99: hdrValueAtPercentile(s.hdr, 99.99), max: hdrValueAtPercentile(s.hdr, 100),
-      tps: Math.round((s.protocol === 'BINARY TCP' ? 180000 : s.protocol === 'WEBSOCKET (Roadmap)' ? 120000 : 60000) * (0.6 + Math.random() * 0.6)),
+      tps: Math.round((s.protocol === 'BINARY TCP' ? 180000 : s.protocol === 'WEBSOCKET' ? 120000 : s.protocol === 'FIX' ? 90000 : 60000) * (0.6 + Math.random() * 0.6)),
       err: Math.max(0, Math.min(0.12, 0.005 + Math.abs(gauss()) * 0.01)),
       diff_pass_rate: Math.random() < 0.10 ? 0.985 + Math.random() * 0.012 : 1.0,
       invariant_violations: Math.random() < 0.08 ? Math.floor(1 + Math.random() * 2) : 0,
@@ -139,14 +140,24 @@ const Source = (() => {
       // sort() — readdir order is filesystem-dependent; keep the
       // file→contestant mapping deterministic across platforms.
       const files = fs.readdirSync(SNAPSHOT_DIR).filter(f => f.endsWith('.csv')).sort();
-      files.forEach((f, i) => {
-        if (i < 4 && i < subs.length) { // Map to first 4 contestants
+      let binIdx = 0;
+      files.forEach((f) => {
+        // Route each fleet CSV onto the right PROTOCOL board by filename:
+        // ws_bot.csv → WEBSOCKET, rest_bot.csv → REST, bot_*.csv → BINARY.
+        let idx;
+        if (f === 'ws_bot.csv') idx = 4;          // first WEBSOCKET contestant
+        else if (f === 'rest_bot.csv') idx = 8;   // first REST contestant
+        else if (f === 'fix_bot.csv') idx = 12;   // first FIX contestant
+        else if (binIdx < 4) idx = binIdx++;      // binary roster
+        else return;
+        if (idx >= subs.length) return;
+        {
           try {
             const content = fs.readFileSync(path.join(SNAPSHOT_DIR, f), 'utf-8').trim();
             const lines = content.split('\n');
             if (lines.length > 1) {
               const last = lines[lines.length - 1].split(',');
-              const s = subs[i];
+              const s = subs[idx];
               // elapsed_sec,sent,acked,naive_p50,naive_p90,naive_p99,naive_p99_9,naive_p99_99,naive_max,co_p50,co_p90,co_p99,co_p99_9,co_p99_99,co_max
               s.gauges.p50 = parseFloat(last[9]) || 0;
               s.gauges.p90 = parseFloat(last[10]) || 0;
@@ -221,7 +232,11 @@ function rowOf(s, rank, excluded = false) {
 function buildDeltas(subs) {
   const out = {};
   PROTOCOLS.forEach(p => {
-    const { ranked, excluded } = scoreProtocol(subs.filter(s => s.protocol === p));
+    // When a protocol has REAL fleet data (from_csv), show ONLY the real
+    // contestants — never let a synthetic row pollute a live board.
+    let group = subs.filter(s => s.protocol === p);
+    if (group.some(s => s.from_csv)) group = group.filter(s => s.from_csv);
+    const { ranked, excluded } = scoreProtocol(group);
     out[p] = ranked.map((s, i) => rowOf(s, i + 1)).concat(excluded.map(s => rowOf(s, null, true)));
   });
   return out;

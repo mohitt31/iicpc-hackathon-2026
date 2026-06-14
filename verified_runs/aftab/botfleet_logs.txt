@@ -1,0 +1,4 @@
+[sudo] password for aftabnaik19: [Gate] FAILED: could not complete self-test
+[Gate] Target may be unreachable. Aborting.
+[Main] TSC calibrated.
+[Gate] Running integrity self-test (1000 orders @ 100us)...
