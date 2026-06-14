@@ -1,0 +1,86 @@
+// =============================================================================
+//  IICPC 2026 — Architecture  (paste into https://app.eraser.io)
+//  WHITE THEME + de-tangled: colorMode outline = white nodes w/ colored borders.
+//  Services<->Benchmark crossing reduced 3->1 arrow: the byte-exact diff is now
+//  INTERNAL to the Benchmark subnet (RefEngine -> BotFleet), so only ONE
+//  telemetry arrow crosses subnets. Labels trimmed to cut congestion.
+//
+//  HONESTY (every label = committed code): Gateway is Node.js live + Go prod v2;
+//  Redis Streams is the prod path (live seam = HDR CSV); tmpfs journal real;
+//  virtio-net -> Day-2 SR-IOV; SPSC alignas(128) is the bot's internal ring.
+// =============================================================================
+
+direction right
+colorMode outline
+styleMode plain
+typeface clean
+
+title AWS Deployment Topology
+
+Contestants [icon: users]
+
+AWS us-east-1 [icon: aws, color: orange] {
+  VPC 10.0.0.0/16 [icon: aws-vpc, color: blue] {
+
+    Public DMZ [icon: aws-public-subnet, color: green] {
+      ALB [icon: aws-elastic-load-balancing, label: "ALB · HTTPS / WSS"]
+      NAT [icon: aws-nat-gateway, label: "NAT · egress only"]
+    }
+
+    Services Subnet EKS [icon: aws-eks, color: purple] {
+      Intake [icon: docker, label: "Intake & Build · Go + Docker --network none"]
+      Gateway [icon: golang, label: "Telemetry Gateway · Node.js (live) | Go fan-out (prod v2)"]
+      VictoriaMetrics [icon: database, label: "VictoriaMetrics + HDR blobs"]
+      Board [icon: react, label: "Leaderboard · display-only"]
+    }
+
+    Benchmark Subnet [icon: aws-ec2, color: red, label: "Benchmark Subnet · c6i.metal · isolcpus + nohz_full + rcu_nocbs"] {
+      BotFleet [icon: cpu, color: red, label: "Bot Fleet DaemonSet · CPU-pinned, CO-corrected · SPSC alignas(128) ring"]
+      RefEngine [icon: shield, color: orange, label: "Reference Engine + Diff · journal on tmpfs RAM-disk"]
+      microVM [icon: server, color: orange, label: "Firecracker microVM · seccomp default=KILL · virtio-net (MVP) -> Day-2 SR-IOV"]
+    }
+  }
+  S3 Artifact Store [icon: aws-s3, color: green]
+}
+
+// ---- flow: forward where possible; only ONE telemetry arrow crosses subnets ----
+Contestants > ALB: HTTPS / WSS
+ALB > Intake: upload ELF
+ALB > Board: WS deltas
+Intake > S3 Artifact Store: artifact + attestation
+Intake > microVM: pack + boot
+BotFleet > microVM: SBE / TCP · NewOrder
+microVM > BotFleet: Ack / Fill
+RefEngine > BotFleet: byte-exact diff
+BotFleet > Gateway: HDR CSV + correctness (prod: Redis Streams)
+Gateway > VictoriaMetrics: HDR blobs
+Gateway > Board: scored deltas
+
+
+// =============================================================================
+direction right
+colorMode outline
+styleMode plain
+typeface clean
+
+title Logical Measurement Flow — The Truth Pipeline
+
+Submit [icon: upload, label: "Contestant submission"]
+Sandbox [icon: lock, color: orange, label: "Sandbox · build(--network none) -> attest -> Firecracker + seccomp(KILL)"]
+Contract [icon: file, color: purple, label: "FROZEN WIRE CONTRACT v1.1 · 4B header + 5 structs · int64 ticks"]
+Bot [icon: activity, color: red, label: "Bot Fleet (hot plane) · SBE/TCP · single-clock RTT + CO"]
+Gate [icon: filter, color: yellow, label: "Integrity Gate · self-test -> EXCLUDE not penalise"]
+HDR [icon: bar-chart, color: blue, label: "Additive HDR merge · max-of-percentiles, never averaged"]
+Diff [icon: check-circle, color: green, label: "Byte-exact diff vs gold engine · hard-fail cap · TRUST ANCHOR"]
+Score [icon: award, color: green, label: "Score = 0.40 lat + 0.30 tps + 0.30 correctness · per-protocol"]
+Board2 [icon: monitor, color: purple, label: "Leaderboard · display-only, never computes"]
+
+Submit > Sandbox
+Sandbox > Contract: SBE wire
+Contract > Bot
+Bot > Gate: self-test first
+Gate > HDR: passed runs
+Bot > Diff: journal (tmpfs)
+HDR > Score: latency + tps
+Diff > Score: correctness
+Score > Board2: scored deltas
