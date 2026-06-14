@@ -42,7 +42,7 @@ spec:
       containers:
         - name: engine
           image: ghcr.io/mohitt31/iicpc-bot-engine:latest
-          command: ["./build/refserver"]
+          command: ["stdbuf", "-oL", "-eL", "./build/refserver"]
           args: ["--port", "9000", "--journal", "/tmp/refserver.jrn"]
           ports: [{ containerPort: 9000, name: sbe }]
 ---
@@ -83,19 +83,25 @@ spec:
       containers:
         - name: bot
           image: ghcr.io/mohitt31/iicpc-bot-engine:latest
-          command: ["./build/bot"]
+          command: ["stdbuf", "-oL", "-eL", "./build/bot"]
           # --no-gate: the integrity self-test can't pass inside a container (no
           # CPU pinning), so it CrashLoops with the gate on. This is a scale +
           # accounting run, not a latency run — the gate belongs on bare-metal.
           # --duration-sec=0: run continuously for the live demo.
           args:
-            - "--bots=8"
-            - "--interval-us=50"
-            - "--duration-sec=0"
+            - "--bots"
+            - "8"
+            - "--interval-us"
+            - "50"
+            - "--duration-sec"
+            - "0"
             - "--no-gate"
-            - "--ip=$(TARGET_ENGINE_IP)"
-            - "--port=9000"
-            - "--snapshot-dir=/telemetry"
+            - "--ip"
+            - "$(TARGET_ENGINE_IP)"
+            - "--port"
+            - "9000"
+            - "--snapshot-dir"
+            - "/telemetry"
           env:
             - name: TARGET_ENGINE_IP
               value: "reference-engine"     # k8s Service DNS in the hft-bench namespace
