@@ -141,7 +141,7 @@
     "collisions": 0,
     "pool_exhausted": 3727008,
     "pending_slots": 16384,
-    "note": "Thousands-capable demonstrated on one box: 2989 concurrent connections (connection scale demonstrated to 10,000 concurrent connections on one box \u2014 clean ceiling stays 2989), 3.6M orders. Under extreme oversubscription the bot THROTTLES (PoolExhausted, EAGAIN) rather than lose or double-count \u2014 Sent and Acked stay within 44 across 3.6M (in-flight-at-shutdown + 16 partial aborts), 0 collisions, 0 double-counts. Backpressure made visible, not hidden. Label it exactly as 'scale + accounting under backpressure; throughput ~120k orders/sec aggregate sustained at 2,989 bots (3.6 M orders, committed)', not latency. The clean 1000+-per-node run is the distributed Phase 2.3.",
+    "note": "Thousands-capable demonstrated on one box: 2989 concurrent connections, 3.6M orders. Under extreme oversubscription the bot THROTTLES (PoolExhausted, EAGAIN) rather than lose or double-count \u2014 Sent and Acked stay within 44 across 3.6M (in-flight-at-shutdown + 16 partial aborts), 0 collisions, 0 double-counts. Backpressure made visible, not hidden. Label it exactly as 'scale + accounting under backpressure; throughput ~120k orders/sec aggregate sustained at 2,989 bots (3.6 M orders, committed)', not latency. The clean 1000+-per-node run is the distributed Phase 2.3.",
     "source": "verified_runs/aftab/scale_3000bots.txt"
   },
   "distributed_run": {

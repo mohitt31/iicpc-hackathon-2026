@@ -153,7 +153,7 @@ Each carries the scale threshold at which it would matter (full list + rationale
 | [`RESULTS.md`](RESULTS.md) | Verified results, reproducible commands |
 | [`verified_runs/canonical.json`](verified_runs/canonical.json) | **Single source of truth** — every headline number, with its committed source |
 | [`ARCHITECTURE_DIAGRAM.eraser`](ARCHITECTURE_DIAGRAM.eraser) | Architecture diagram source (eraser.io) |
-| [`DEMO_VIDEO_SCRIPT.md`](DEMO_VIDEO_SCRIPT.md) | 5–7 min demo shooting script |
+
 
 > **The discipline, in one line:** anyone can draw a leaderboard. We built the one that refuses to
 > show you a number it can't stand behind.
