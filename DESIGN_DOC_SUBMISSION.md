@@ -567,23 +567,27 @@ Measured on an **isolated consumer desktop (i7-13620H), not server hardware** �
 qualifier. On this clean run **naive == CO (ratio 1.0)**: a quiet isolated machine has no
 coordinated-omission gap to hide — the methodology's own honesty check.
 
-### 17.3 Cross-protocol comparison — binary ≪ WebSocket ≪ FIX ≪ REST (measured)
+### 17.3 Cross-protocol comparison — binary ≪ WebSocket ≪ FIX ≪ REST (integrity-verified loops; ordering robust)
 The same SBE order over **four** transports against the **same** reference engine, ranked on
 separate boards but shown side-by-side to make the point an HFT benchmark exists to make: the
 transport, not the engine, dominates once you leave binary.
 
-| Transport | naive p99 | Sent == Acked | Added cost vs binary |
+| Transport | p99 (representative) | Sent==Acked (CI-verified) | Added cost vs binary |
 |---|---|---|---|
-| **Binary (SBE/TCP)** | **7.7 µs** (isolated bare-metal) | yes | — (4B header, parse-by-pointer-cast) |
+| **Binary (SBE/TCP)** | **7.7 µs** (committed, isolated bare-metal) | yes | — (4B header, parse-by-pointer-cast) |
 | **WebSocket** | **223 µs** | 25,000 / 25,000 | RFC-6455 framing + per-frame masking |
 | **FIX 4.4** | **890 µs** | 12,500 / 12,500 | SOH tag=value text + BodyLength + CheckSum per message |
 | **REST (HTTP/1.1)** | **2,404 µs** | 12,500 / 12,500 | HTTP text headers + JSON encode/parse per order |
 
-FIX 4.4 — the protocol the brief names — lands exactly where theory says. All four come from the
-committed CI smoke (`wsrest-build.yml`), every order round-tripped through the **real** engine.
-**Honest caveat:** WS/FIX/REST run on a shared CI runner, so absolute values carry scheduler
-jitter; the robust, reproducible result is the **ordering** — which is exactly why the hot path
-is binary.
+FIX 4.4 — the protocol the brief names — lands exactly where theory says. **What is CI-verified vs.
+what these latencies are, precisely:** `wsrest-build.yml` proves each loop is real and
+integrity-clean — every order round-trips through the actual reference engine with **Sent==Acked**
+(it asserts the counts; it does not synthesize acks). The CI smoke does **not** capture a committed
+p99, so the absolute WS/FIX/REST figures above are **representative of the framing-overhead ordering
+on a shared runner**, not a committed isolated-host measurement like the 7.7 µs binary number. The
+**ordering** (binary ≪ WS ≪ FIX ≪ REST) is the robust, reproducible result; a committed per-protocol
+latency run (isolated host, logged to `verified_runs/`) is the pending step that would promote them
+from representative to measured — same evidence bar as every other number here.
 
 ### 17.4 Two runs prove two different things — **do not conflate them**
 - **The 7.7 µs run is purely LATENCY.** Single box, isolated cores

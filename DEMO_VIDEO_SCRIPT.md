@@ -31,7 +31,7 @@ cd frontend && python3 -m http.server 8088    # serves http://localhost:8088
 
 Tabs open and ready: **(1)** the live leaderboard, **(2)** `landing.html` showcase,
 **(3)** a clean terminal in `bot-engine/`, **(4)** `ARCHITECTURE.md` /
-`DESIGN_DOCUMENT.md` for the close.
+`DESIGN_DOC_SUBMISSION.md` for the close.
 
 Pre-stage the CO-proof and demo commands in shell history (press the up-arrow key, don't type live).
 
