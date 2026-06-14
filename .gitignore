@@ -96,3 +96,4 @@ platform/intake-api/intake-api
 
 # go.mod is NOT a Fortran module — undo the *.mod rule above for Go modules
 !**/go.mod
+kubeconfig-2.3.yaml
