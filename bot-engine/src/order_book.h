@@ -27,6 +27,7 @@
 #include <list>
 #include <iterator>
 #include <unordered_map>
+#include <map>
 #include <ostream>
 
 /* ─────────────────────────────────────────────
@@ -83,13 +84,13 @@ public:
     static constexpr size_t  NUM_LEVELS =
         static_cast<size_t>((MAX_PRICE - MIN_PRICE) / TICK_SIZE + 1);
 
-    OrderBook() : levels_(NUM_LEVELS) {}
+    OrderBook() {}
 
     void on_new_order(const NewOrder& o, std::ostream& out);
     void on_cancel   (const CancelOrder& c, std::ostream& out);
 
 private:
-    std::vector<PriceLevel> levels_;
+    std::map<int64_t, PriceLevel> levels_;
 
     // O(1) lookup for cancel. NEVER iterated — see invariant #2.
     std::unordered_map<
@@ -171,19 +172,27 @@ inline void OrderBook::emit_reject(uint64_t order_seq, uint32_t sym, uint8_t rea
 }
 
 inline void OrderBook::refresh_best_bid_from(int64_t hint_idx) {
-    if (hint_idx < 0) hint_idx = static_cast<int64_t>(NUM_LEVELS) - 1;
-    for (int64_t i = hint_idx; i >= 0; --i) {
-        if (!levels_[i].orders.empty()) { best_bid_ = i; return; }
+    if (hint_idx < 0) {
+        best_bid_ = -1;
+        return;
     }
-    best_bid_ = -1;
+    auto it = levels_.upper_bound(hint_idx);
+    if (it != levels_.begin()) {
+        --it;
+        best_bid_ = it->first;
+    } else {
+        best_bid_ = -1;
+    }
 }
 
 inline void OrderBook::refresh_best_ask_from(int64_t hint_idx) {
     if (hint_idx < 0) hint_idx = 0;
-    for (int64_t i = hint_idx; i < static_cast<int64_t>(NUM_LEVELS); ++i) {
-        if (!levels_[i].orders.empty()) { best_ask_ = i; return; }
+    auto it = levels_.lower_bound(hint_idx);
+    if (it != levels_.end()) {
+        best_ask_ = it->first;
+    } else {
+        best_ask_ = -1;
     }
-    best_ask_ = -1;
 }
 
 inline void OrderBook::match_aggressive(uint8_t taker_side, int64_t limit_price_ticks,
@@ -243,6 +252,7 @@ inline void OrderBook::match_aggressive(uint8_t taker_side, int64_t limit_price_
         }
 
         if (lvl.orders.empty()) {
+            levels_.erase(best);
             if (taker_is_buy) refresh_best_ask_from(best + 1);
             else              refresh_best_bid_from(best - 1);
         }
@@ -323,6 +333,7 @@ inline void OrderBook::on_cancel(const CancelOrder& c, std::ostream& out) {
     by_id_.erase(it);
 
     if (lvl.orders.empty()) {
+        levels_.erase(price_idx);
         if (price_idx == best_bid_) refresh_best_bid_from(price_idx - 1);
         if (price_idx == best_ask_) refresh_best_ask_from(price_idx + 1);
     }
