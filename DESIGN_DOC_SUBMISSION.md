@@ -284,7 +284,7 @@ Four invariants enforced by construction (documented in `order_book.h`):
 2. **Deterministic** — same input → byte-identical output. The `unordered_map` for O(1) cancel
    lookup (`by_id_`) is **never iterated** (hash order is implementation-defined and would break
    determinism); find/insert/erase only.
-3. **Price-time priority** — dense `std::vector<PriceLevel>` indexed by price tick; each level
+3. **Price-time priority** — sparse `std::map` keyed by price tick — O(active-levels) memory, avoids OOM at distributed scale; byte-exact determinism re-verified in CI; each level
    is a `std::list<RestingOrder>` (FIFO); match walks the front of the best level.
 4. **Maker-before-taker fill emission** — *contract, not convention* (the diff depends on it).
 

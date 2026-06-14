@@ -331,7 +331,7 @@ replay CLI and the in-sandbox TCP server share *identical* logic.
    Critical detail: `by_id_` (the `unordered_map` for O(1) cancel lookup) is **never
    iterated**, because hash iteration order is implementation-defined and would
    break determinism. Find, insert, and erase only.
-3. **Price-time priority** - `std::vector<PriceLevel>` indexed by price tick;
+3. **Price-time priority** - sparse `std::map` keyed by price tick — O(active-levels) memory, avoids OOM at distributed scale; byte-exact determinism re-verified in CI;
    each level is a `std::list<RestingOrder>` (FIFO). Match walks the front of the
    best level.
 4. **Maker-before-taker fill emission** - per §5.3, a contract invariant.
@@ -340,7 +340,7 @@ replay CLI and the in-sandbox TCP server share *identical* logic.
 
 | Choice | Why | Trade-off accepted |
 |---|---|---|
-| Dense `vector<PriceLevel>` over price range `[1, 1e6]` | O(1) price to level; cache-friendly | Memory for the full ladder - fine for a benchmark with a bounded tick range |
+| Sparse `map` over price range `[1, 1e6]` | O(log N) price to level; O(active-levels) memory | Avoids OOM at distributed scale; byte-exact determinism re-verified in CI |
 | `std::list` per level | O(1) FIFO insert at back, O(1) erase via stored iterator | Pointer-chasing per match - acceptable; the reference engine is the *correctness* oracle, not the speed target |
 | `unordered_map<seq, {price_idx, list_iterator}>` | O(1) cancel | Must never be iterated (determinism) - enforced and documented |
 | Collapse `engine_seq` and `engine_timestamp` into one counter | Cleaner schema; both advance identically per emit | Slightly unusual, documented as deliberate |
