@@ -197,10 +197,7 @@ distributable across nodes. Current status, stated precisely:
   schedules, the deploy path works.
 - **Single-box accounting: verified** at 2,989 concurrent connections (scale +
   accounting under backpressure; see §8 and above).
-- **Multi-node ≥3-node scale run (~30k target): NOT YET RUN** — this is the planned
-  parallel-scale demonstration, pending the cluster session. It is the run that will
-  report both a large concurrent count *and* a per-bot latency (each bot on real CPU,
-  not a scheduler slice).
+- **Multi-node 3-node scale run (~1.69M orders): verified** — scale + accounting across 3 nodes — not latency. 1,688,140 Sent == 1,688,140 Acked. Source: `verified_runs/aftab/2.3_distributed_run.txt`.
 
 We label the multi-node run not-yet-run with the same discipline as the WebSocket/REST
 boards: capability is real and the path is verified single-node, but the multi-node
