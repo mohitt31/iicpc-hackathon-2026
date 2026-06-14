@@ -294,16 +294,13 @@
 </head>
 <body>
 
-<div id="core-glow" aria-hidden="true">
-  <div class="orb"></div><div class="ring r1"></div><div class="ring r2"></div><div class="core-hot"></div>
-</div>
 <div class="fx" aria-hidden="true"></div>
 
 <!-- ── BOOT (click/key to skip · sessionStorage = once per session) ── -->
 <div id="boot" aria-hidden="true" title="Click to skip">
   <div class="boot-box">
     <div class="boot-line">[<span class="ok"> OK </span>] calibrating TSC ............ <span class="val">2.9941 GHz</span></div>
-    <div class="boot-line">[<span class="ok"> OK </span>] integrity gate ............. <span class="val">p99 84&micro;s &lt; 1ms</span></div>
+    <div class="boot-line">[<span class="ok"> OK </span>] integrity gate ............. <span class="val">p99 7.7&micro;s &lt; 1ms</span></div>
     <div class="boot-line">[<span class="ok"> OK </span>] bot fleet uplink ........... <span class="val">32/32 CONNECTED</span></div>
     <div class="boot-line">[<span class="ok"> OK </span>] CO correction .............. <span class="val">ARMED</span></div>
     <div class="boot-bar"><i id="bootBar"></i></div>
@@ -333,9 +330,9 @@
     <h1 class="hero-h1" id="h1"></h1>
     <p class="hero-sub"><span id="typed"></span><span class="caret" id="caret"></span></p>
     <div class="hero-proof">
-      <div class="hp"><div class="n cyan">19.7×</div><div class="l">CO-corrected p99 gap<br>a naive benchmark hides</div></div>
-      <div class="hp"><div class="n green">25.7 MB</div><div class="l">live engine output —<br>byte-exact vs offline replay</div></div>
-      <div class="hp"><div class="n orange">600k/600k</div><div class="l">orders acked ·<br>zero lost, zero collisions</div></div>
+      <div class="hp"><div class="n cyan">7.7&micro;s</div><div class="l">binary p99 · MEASURED<br>on isolated cores (i7-13620H)</div></div>
+      <div class="hp"><div class="n green">76×</div><div class="l">CO-corrected p99 gap (isolated)<br>a naive benchmark hides</div></div>
+      <div class="hp"><div class="n orange">1.69 M</div><div class="l">orders across 3 nodes ·<br>Sent==Acked · 0 collisions</div></div>
     </div>
     <div class="hero-cta">
       <a class="btn primary" href="#lie">See the proof ↓</a>
@@ -365,7 +362,7 @@
           <span class="lg stall"><i></i>Planted 5 ms stall</span>
         </div>
         <div style="font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--faint);margin-top:8px;text-transform:uppercase">
-          600k orders · stall every 20k · Arch 16-core shared host · p99 173µs → 3.41ms = 19.7× · committed in verified_runs/
+          600k orders · stall every 20k · shared host p99 173µs → 3.41ms = 19.7× · up to 76× on isolated cores · committed in verified_runs/
         </div>
       </div>
       <div class="lie-side">
@@ -396,7 +393,7 @@
     <div class="metric-row reveal">
       <div class="metric"><div class="mv cyan" id="mP99">—</div><div class="ml">P99 LATENCY · FLEET HEADLINE · CO-CORRECTED</div></div>
       <div class="metric"><div class="mv white"><span id="mTps">—</span> <span style="font-size:.45em;color:var(--dim)">TPS</span></div><div class="ml">THROUGHPUT · AGGREGATE PEAK</div></div>
-      <div class="metric"><div class="mv green">19.7×</div><div class="ml">TAIL A NAIVE BENCHMARK HIDES · PROVEN ABOVE</div></div>
+      <div class="metric"><div class="mv green">76×</div><div class="ml">TAIL A NAIVE BENCHMARK HIDES · ON ISOLATED CORES</div></div>
     </div>
 
     <div class="hud-grid reveal">
@@ -508,7 +505,7 @@
             <text x="560" y="206" fill="#ff8a3d" text-anchor="middle" font-size="10">FLEET</text>
           </g>
           <text x="560" y="252" fill="rgba(255,255,255,.35)" text-anchor="middle" font-size="9"
-                letter-spacing="2">32 BOTS · 8× CPU OVERSUBSCRIPTION · LIMIT / MARKET / CANCEL</text>
+                letter-spacing="2">BOT FLEET · 3-NODE DISTRIBUTED · 8× OVERSUBSCRIPTION · LIMIT / MARKET / CANCEL</text>
         </g>
         <g id="archDots"></g>
       </svg>
@@ -519,8 +516,9 @@
         <p>Uploads are containerized and pinned: <b>dedicated cores, hard memory caps, no outbound network</b>.
         Malicious or runaway code burns its own budget, never a neighbour's.</p></div>
       <div class="ac"><h3>Distributed load generator<span class="tag">SPEED</span></h3>
-        <p><b>32 bots at 8× CPU oversubscription</b> stream limit orders, market orders and cancels over binary TCP
-        at the intended rate — the fleet never slows down to flatter the engine.</p></div>
+        <p><b>A CPU-pinned bot fleet — 8× oversubscribed per box and distributed across 3 real nodes</b>
+        (1.69 M orders, Sent==Acked) streams limit, market and cancel orders over binary TCP at the
+        intended rate — it never slows down to flatter the engine.</p></div>
       <div class="ac"><h3>Telemetry &amp; validation<span class="tag">ACCURACY</span></h3>
         <p>Acks are TSC-stamped outside the sandbox. <b>Price-time priority and fill accuracy</b> are verified by a
         byte-exact diff against an offline replay — 25,743,624 bytes, zero mismatches.</p></div>
@@ -536,7 +534,7 @@
   <div class="frame">
     <div class="reveal">
       <div class="sec-eyebrow"><span class="ln"></span>DISTRIBUTED LOAD GENERATOR · LIVE VIEW</div>
-      <h2 class="sec-h2">32 bots. One target.</h2>
+      <h2 class="sec-h2">The fleet, distributed.</h2>
     </div>
 
     <div class="fleet-grid reveal">
@@ -579,11 +577,13 @@
       </div>
     </div>
     <div class="proof-grid reveal">
-      <div class="proof-cell"><div class="n cyan"><span class="cnt" data-to="19.7" data-dec="1" data-suf="×">0</span></div><div class="l">naive→CO p99 gap under a planted 5 ms stall — the stall cannot hide</div></div>
+      <div class="proof-cell"><div class="n cyan"><span class="cnt" data-to="76" data-suf="×">0</span></div><div class="l">naive→CO p99 gap on isolated cores under a planted 5 ms stall — the stall cannot hide</div></div>
       <div class="proof-cell"><div class="n green"><span class="cnt" data-to="19" data-suf="/19">0</span></div><div class="l">matching-engine unit tests · price-time priority, IOC, determinism</div></div>
       <div class="proof-cell"><div class="n green"><span class="cnt" data-to="0" data-suf="">0</span></div><div class="l">ASan + UBSan findings · zero-allocation hot path, proven not claimed</div></div>
-      <div class="proof-cell"><div class="n orange"><span class="cnt" data-to="32" data-suf="/32">0</span></div><div class="l">bots connected at 8× CPU oversubscription · every order accounted</div></div>
+      <div class="proof-cell"><div class="n orange"><span class="cnt" data-to="1.69" data-dec="2" data-suf=" M">0</span></div><div class="l">orders across 3 distributed nodes · Sent==Acked, 0 collisions, 0 double-counts</div></div>
       <div class="proof-cell"><div class="n cyan"><span class="cnt" data-to="25.7" data-dec="1" data-suf=" MB">0</span></div><div class="l">live TCP output byte-exact vs offline replay — 25,743,624 bytes</div></div>
+      <div class="proof-cell"><div class="n green"><span class="cnt" data-to="3" data-suf="">0</span></div><div class="l">malicious submissions killed by seccomp (SIGSYS) in a real micro-VM · good survives</div></div>
+      <div class="proof-cell"><div class="n orange"><span class="cnt" data-to="4" data-suf="">0</span></div><div class="l">protocols measured end-to-end · binary ≪ WS ≪ FIX ≪ REST · Sent==Acked CI-verified</div></div>
     </div>
 
     <footer>
@@ -595,7 +595,7 @@
             <a href="https://github.com/mohitt31/iicpc-hackathon-2026/blob/main/RESULTS.md" target="_blank" rel="noopener">Measured results ↗</a><br>
             <a href="https://github.com/mohitt31/iicpc-hackathon-2026" target="_blank" rel="noopener">Source ↗</a></span>
           <span class="col"><b>Stack</b>C++20 · epoll · binary TCP · HDR histograms · Docker</span>
-          <span class="col"><b>Built by</b>Manish Paul · Aftab Naik</span>
+          <span class="col"><b>Built by</b>A three-person team · one frozen contract, built in parallel</span>
         </div>
       </div>
     </footer>
@@ -781,16 +781,16 @@ document.getElementById('stallBtn').addEventListener('click', function(){
 /* ───────────────── TELEMETRY · calm seeded sim, FLIP rank moves ─────────────────
    Slow tick (6s), damped values, rank changes rare and animated. */
 var CONTESTANTS=[
-  {name:'Priya Sharma', v:'v1.0.0', proto:'BINARY TCP', p99:21.8, tps:196, corr:100, score:94.1},
-  {name:'Arjun Mehta',  v:'v2.1.1', proto:'BINARY TCP', p99:19.6, tps:144, corr:100, score:87.3},
-  {name:'Sanya Rao',    v:'v3.2.2', proto:'BINARY TCP', p99:46.1, tps:150, corr:100, score:78.6},
-  {name:'Kiran Nair',   v:'v2.4.4', proto:'WEBSOCKET',  p99:41.7, tps:134, corr:100, score:71.2},
-  {name:'Rohan Gupta',  v:'v3.0.5', proto:'WEBSOCKET',  p99:57.9, tps:97,  corr:100, score:63.0},
-  {name:'Ishaan Roy',   v:'v2.0.1', proto:'FIX',        p99:118.4,tps:71,  corr:100, score:55.8},
-  {name:'Tara Bose',    v:'v1.2.3', proto:'FIX',        p99:152.7,tps:62,  corr:100, score:47.1},
-  {name:'Meera Joshi',  v:'v3.3.8', proto:'REST',       p99:188.2,tps:58,  corr:100, score:49.3},
-  {name:'Aditya Rao',   v:'v1.4.0', proto:'REST',       p99:305.5,tps:45,  corr:100, score:39.4},
-  {name:'Ananya Iyer',  v:'v1.1.6', proto:'WEBSOCKET',  p99:88.0, tps:94,  corr:99.61, score:0, failed:true}
+  {name:'Priya Sharma', v:'v1.0.0', proto:'BINARY TCP', p99:7.4,  tps:196, corr:100, score:94.1},
+  {name:'Arjun Mehta',  v:'v2.1.1', proto:'BINARY TCP', p99:9.1,  tps:144, corr:100, score:87.3},
+  {name:'Sanya Rao',    v:'v3.2.2', proto:'BINARY TCP', p99:13.6, tps:150, corr:100, score:78.6},
+  {name:'Kiran Nair',   v:'v2.4.4', proto:'WEBSOCKET',  p99:198.0,tps:134, corr:100, score:71.2},
+  {name:'Rohan Gupta',  v:'v3.0.5', proto:'WEBSOCKET',  p99:241.5,tps:97,  corr:100, score:63.0},
+  {name:'Ishaan Roy',   v:'v2.0.1', proto:'FIX',        p99:842.0,tps:71,  corr:100, score:55.8},
+  {name:'Tara Bose',    v:'v1.2.3', proto:'FIX',        p99:915.3,tps:62,  corr:100, score:47.1},
+  {name:'Meera Joshi',  v:'v3.3.8', proto:'REST',       p99:2210.0,tps:58, corr:100, score:49.3},
+  {name:'Aditya Rao',   v:'v1.4.0', proto:'REST',       p99:2680.0,tps:45, corr:100, score:39.4},
+  {name:'Ananya Iyer',  v:'v1.1.6', proto:'WEBSOCKET',  p99:288.0,tps:94,  corr:99.61, score:0, failed:true}
 ];
 var lbBody=document.getElementById('lbBody');
 function fmtP99(v){ return v>=1000?(v/1000).toFixed(1)+' ms':v.toFixed(1)+' µs'; }
