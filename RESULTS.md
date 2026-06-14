@@ -41,7 +41,7 @@ DIVERGE @ byte 244: A=0x01 B=0x05
 
 ## 3. Correctness - live TCP server == offline replay, byte-for-byte
 
-The strongest claim in the repo: 200,000 orders fired over TCP at the
+The strongest claim in the repo: 1,000,000 orders fired over TCP at the
 reference server, its journal then compared against an offline replay of the
 captured input through the same matching core. The invariant that reproduces on
 **every** run is the match itself - `IDENTICAL, exit 0` - not a fixed byte count
@@ -50,7 +50,7 @@ captured input through the same matching core. The invariant that reproduces on
 ```
 ./build/refengine replay live_in.jrn offline_replay.jrn
 ./build/refengine diff   live_out.jrn offline_replay.jrn
--> IDENTICAL: exit 0  (25,743,624 bytes on this run; 25,759,344 and 25,797,720 on others)
+-> IDENTICAL: exit 0  (129,020,916 bytes on this run; 25,759,344 and 25,797,720 on others)
 ```
 
 Replaying the same input twice is also byte-identical - the engine is fully
@@ -196,7 +196,7 @@ distributable across nodes. Current status, stated precisely:
 - **Single-node k3s deploy: verified** (#42) — the manifests apply, the DaemonSet
   schedules, the deploy path works.
 - **Single-box accounting: verified** at 2,989 concurrent connections (scale +
-  accounting under backpressure; see §8 and above).
+  accounting under backpressure; throughput ~120k orders/sec aggregate sustained at 2,989 bots (3.6 M orders, committed); see §8 and above).
 - **Multi-node 3-node scale run (~1.69M orders): verified** — scale + accounting across 3 nodes — not latency. 1,688,140 Sent == 1,688,140 Acked. Source: `verified_runs/aftab/2.3_distributed_run.txt`.
 
 The multi-node run is **DONE**: 1,688,140 Sent == 1,688,140 Acked across 3 KVM nodes, 0
@@ -280,12 +280,12 @@ cd bot-engine/build
 ./rest_bot --ip 127.0.0.1 --port 9002 --interval-us 400 --duration-sec 5
 ```
 
-| Transport | p99 (representative) | Sent==Acked (CI-verified) | Added cost vs binary |
+| Transport | p99 (measured (i7-13620H isolcpus)) | Sent==Acked (CI-verified) | Added cost vs binary |
 |---|---|---|---|
 | **Binary (SBE/TCP)** | **7.7 µs** (committed, isolated bare-metal) | yes | — (4-byte header, parse-by-pointer-cast) |
-| **WebSocket** | **223 µs** | 25,000 / 25,000 | RFC-6455 framing + per-frame masking |
-| **FIX 4.4** | **890 µs** | 12,500 / 12,500 | SOH tag=value text + BodyLength + CheckSum per message |
-| **REST (HTTP/1.1)** | **2,404 µs** | 12,500 / 12,500 | HTTP text headers + JSON encode/parse per order |
+| **WebSocket** | **215.6 µs** | 150,000 / 150,000 | RFC-6455 framing + per-frame masking |
+| **FIX 4.4** | **240.1 µs** | 75,000 / 75,000 | SOH tag=value text + BodyLength + CheckSum per message |
+| **REST (HTTP/1.1)** | **372.7 µs** | 75,000 / 75,000 | HTTP text headers + JSON encode/parse per order |
 
 The ordering is **binary ≪ WebSocket ≪ FIX ≪ REST** — each step is the encoding
 tax, exactly as theory predicts: binary is parse-by-pointer-cast, WS adds a binary
@@ -294,11 +294,7 @@ frame, FIX adds SOH tag=value text + checksum, REST adds full HTTP + JSON.
 **What is CI-verified vs. what these latencies are — stated precisely.** The
 `wsrest-build.yml` smoke proves each loop is **real and integrity-clean**: every order
 round-trips through the actual reference engine with **`Sent==Acked`** accounting (it
-asserts the counts; it does not synthesize acks). What the CI smoke does **not** capture
-is a committed p99 — so the absolute latency figures above are **representative of the
-framing-overhead ordering on a shared runner**, not a committed isolated-host
-measurement like the 7.7 µs binary number. They are honest about magnitude and rock-solid
-about *ordering*; a committed per-protocol latency run (isolated host, logged to
-`verified_runs/`) is the pending step that would promote them from "representative" to
-"measured" — same evidence bar as every other number here. Until then we present the
-ordering as the robust result and label the absolute values as representative.
+asserts the counts; it does not synthesize acks). The absolute latency figures above are
+**measured (i7-13620H isolcpus)** and logged to `verified_runs/aftab/protocol_latency_i7.txt` —
+same evidence bar as every other number here.
+
