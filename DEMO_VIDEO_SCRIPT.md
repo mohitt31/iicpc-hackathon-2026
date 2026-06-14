@@ -104,7 +104,8 @@ two-histogram table print.
 **On screen:** highlight the two p99 columns.
 
 > "Look at the two numbers side by side. Naive p99 lands in the tens-to-low-hundreds of microseconds; CO-corrected p99 is about
-> 3.4 milliseconds - a 20-to-70x gap depending on the host. That ~3.4 ms corrected tail is
+> 3.4 milliseconds - a 19.7x gap on this shared host, and up to 76x on isolated
+> hardware, because the cleaner the host, the harder the naive number lies. That ~3.4 ms corrected tail is
 > the truth: it's the 5 ms stall I injected, caught every single time. *This* is
 > the number every contestant on our platform is ranked on. The honest one."
 
@@ -146,14 +147,22 @@ two-histogram table print.
 
 ### [3:50 - 5:00] The leaderboard (live, and why it's trustworthy)
 
-**On screen:** the live leaderboard. Click the protocol bar BINARY to WS to REST.
+**On screen:** the live leaderboard. Click the protocol bar BINARY → WS → FIX → REST.
 Hover the percentile ladder. Point at a greyed/excluded row and a FAIL score.
 
 **Narration:**
 > "This is the live board - real-time deltas over WebSocket, not a screenshot.
-> First: **separate boards per protocol.** We never mix BINARY, WebSocket, and REST -
-> TLS and JSON framing alone add tens of microseconds, so ranking them together is
-> a category error. The contract forbids it; the UI enforces it.
+> First: **separate boards per protocol** - all four are real loops; every order
+> round-trips through the real engine with **sent equals acked, CI-verified**. Binary
+> is **measured** at seven-point-seven microseconds on isolated hardware. For
+> WebSocket, FIX four-point-four - the protocol the brief names - and REST, the absolute
+> numbers, around two-twenty-three, eight-ninety, and two-thousand-four-hundred
+> microseconds, are **representative on a shared CI runner** - and we say so. What's
+> robust and reproducible is the **ordering: binary ≪ WebSocket ≪ FIX ≪ REST** - the
+> transport, not the engine, dominates once you leave binary. We won't call those three
+> 'measured' until we commit an isolated-host run - that restraint is the whole point.
+> We never mix them on one board - framing alone adds tens of microseconds, so ranking
+> them together is a category error. The contract forbids it; the UI enforces it.
 > Second: the **full percentile ladder** - p50 through p99.99 to max, in
 > nanoseconds. No average latency *anywhere* - an average hides the exact stalls
 > we just proved matter.
@@ -183,7 +192,15 @@ without going blank.
 > now that's proven, not claimed. We've driven **32 bots on 4 cores** - 8x over-
 > subscription - with every single order accounted for, zero collisions. The
 > matching engine passes **19 of 19** unit tests, and a live TCP run matched an
-> offline replay **byte-for-byte across 12.9 million bytes.**
+> offline replay **byte-for-byte - identical, exit zero** (around 25.7 million
+> bytes on that run; the byte count moves with the order stream, the *identical
+> match* is what reproduces every time).
+> The sandbox isn't theoretical either: we ran three malicious submissions inside a
+> real Firecracker micro-VM and the kernel **killed all three** with a seccomp
+> violation, while the honest submission survived and exited cleanly. And it scales
+> across machines - a **three-node run moved 1.7 million orders with sent equal to
+> acked on every node, zero collisions** - which we label exactly as a scale and
+> accounting run, never a latency one.
 > For deployment there are two paths: a one-command Docker Compose for the demo,
 > and the real one - a bare-metal Kubernetes **DaemonSet** with Guaranteed-QoS
 > pinned cores, on Terraform-provisioned nodes with `isolcpus` and `nohz_full`, so
