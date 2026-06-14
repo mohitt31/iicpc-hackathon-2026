@@ -130,6 +130,8 @@ jitter can't pollute a measurement.
 ---
 
 ## 3. End-to-End Data Flow
+
+![The truth pipeline — submit → sandbox → frozen contract → measure → integrity gate → byte-exact correctness → score → display-only board](docs/truth-pipeline.png)
 1. **Submit.** Contestant POSTs an engine; Sandbox hashes it to an immutable `submission_id`,
    builds hermetically (`--network none`), attests (hash+version of *what runs*), packs a
    minimal ext4 rootfs, boots it in Firecracker. Artifact → S3.

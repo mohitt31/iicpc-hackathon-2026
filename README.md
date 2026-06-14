@@ -15,7 +15,7 @@ hammers it with a CPU-pinned bot fleet, and ranks it live on **latency, throughp
 correctness** — with the one bug that invalidates most public benchmarks, **Coordinated
 Omission**, fixed at the core.
 
-<!-- 📷 Mohit: apna naya eraser diagram PNG yahan save kar de → docs/architecture.png (yeh line render kar degi) -->
+
 ![Architecture](docs/architecture.png)
 
 ---
