@@ -45,6 +45,13 @@ spec:
           command: ["stdbuf", "-oL", "-eL", "./build/refserver"]
           args: ["--port", "9000", "--journal", "/tmp/refserver.jrn"]
           ports: [{ containerPort: 9000, name: sbe }]
+          volumeMounts:
+            - { name: journal-volume, mountPath: /tmp }
+      volumes:
+        - name: journal-volume
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
 ---
 apiVersion: v1
 kind: Service
