@@ -1,0 +1,8 @@
+# WS/FIX/REST latency — i7-13620H isolcpus — Sun Jun 14 04:20:33 PM UTC 2026
+Model name:                              13th Gen Intel(R) Core(TM) i7-13620H
+--- WS ---
+[ws_bot] proto=WEBSOCKET sent=150000 acked=150000  naive_p99=215551 ns  co_p99=1218559 ns
+--- FIX ---
+[fix_bot] proto=FIX sent=75000 acked=75000  naive_p99=240127 ns  co_p99=1545215 ns
+--- REST ---
+[rest_bot DRAFT] proto=REST sent=75000 acked=75000  naive_p99=372735 ns  co_p99=9674751 ns

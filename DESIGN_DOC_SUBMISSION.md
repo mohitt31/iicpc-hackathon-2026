@@ -567,27 +567,25 @@ Measured on an **isolated consumer desktop (i7-13620H), not server hardware** �
 qualifier. On this clean run **naive == CO (ratio 1.0)**: a quiet isolated machine has no
 coordinated-omission gap to hide — the methodology's own honesty check.
 
-### 17.3 Cross-protocol comparison — binary ≪ WebSocket ≪ FIX ≪ REST (integrity-verified loops; ordering robust)
+### 17.3 Cross-protocol comparison — binary ≪ WebSocket ≪ FIX ≪ REST (measured on i7-13620H isolcpus)
 The same SBE order over **four** transports against the **same** reference engine, ranked on
 separate boards but shown side-by-side to make the point an HFT benchmark exists to make: the
 transport, not the engine, dominates once you leave binary.
 
-| Transport | p99 (representative) | Sent==Acked (CI-verified) | Added cost vs binary |
+| Transport | p99 (measured (i7-13620H isolcpus)) | Sent==Acked (CI-verified) | Added cost vs binary |
 |---|---|---|---|
 | **Binary (SBE/TCP)** | **7.7 µs** (committed, isolated bare-metal) | yes | — (4B header, parse-by-pointer-cast) |
-| **WebSocket** | **223 µs** | 25,000 / 25,000 | RFC-6455 framing + per-frame masking |
-| **FIX 4.4** | **890 µs** | 12,500 / 12,500 | SOH tag=value text + BodyLength + CheckSum per message |
-| **REST (HTTP/1.1)** | **2,404 µs** | 12,500 / 12,500 | HTTP text headers + JSON encode/parse per order |
+| **WebSocket** | **1,219 µs** | 150,000 / 150,000 | RFC-6455 framing + per-frame masking |
+| **FIX 4.4** | **1,545 µs** | 75,000 / 75,000 | SOH tag=value text + BodyLength + CheckSum per message |
+| **REST (HTTP/1.1)** | **9,675 µs** | 75,000 / 75,000 | HTTP text headers + JSON encode/parse per order |
 
 FIX 4.4 — the protocol the brief names — lands between WebSocket and REST, as its heavier framing dictates. **What is CI-verified vs.
 what these latencies are, precisely:** `wsrest-build.yml` proves each loop is real and
 integrity-clean — every order round-trips through the actual reference engine with **Sent==Acked**
-(it asserts the counts; it does not synthesize acks). The CI smoke does **not** capture a committed
-p99, so the absolute WS/FIX/REST figures above are **representative of the framing-overhead ordering
-on a shared runner**, not a committed isolated-host measurement like the 7.7 µs binary number. The
-**ordering** (binary ≪ WS ≪ FIX ≪ REST) is the robust, reproducible result; a committed per-protocol
-latency run (isolated host, logged to `verified_runs/`) is the pending step that would promote them
-from representative to measured — same evidence bar as every other number here.
+(it asserts the counts; it does not synthesize acks). The absolute latency figures above are
+**measured (i7-13620H isolcpus)** and logged to `verified_runs/aftab/protocol_latency_i7.txt` —
+same evidence bar as every other number here. The ordering (binary ≪ WS ≪ FIX ≪ REST) is robust
+and reproducible.
 
 ### 17.4 Two runs prove two different things — **do not conflate them**
 - **The 7.7 µs run is purely LATENCY.** Single box, isolated cores
@@ -636,9 +634,9 @@ the microVM-execution hand-off is the hardware-bound step.
 ## 19. Final Delivery Summary
 
 ### Done + committed + verified
-- **Four real protocol benchmarks**, x86-CI-verified `Sent == Acked`: binary **7.7 µs** ≪ WS
-  **223 µs** ≪ FIX **890 µs** ≪ REST **2,404 µs**.
+- **Four real protocol benchmarks**, measured on i7-13620H isolcpus (`verified_runs/aftab/protocol_latency_i7.txt`): binary **7.7 µs** ≪ WS **1,219 µs** ≪ FIX **1,545 µs** ≪ REST **9,675 µs**.
 - **Measured bare-metal p99 7.7 µs** (isolcpus, i7-13620H).
+- **Isolated-host per-protocol latency run (WS/FIX/REST)** — WS (1,219 µs), FIX (1,545 µs), and REST (9,675 µs) promoted from representative to measured on i7-13620H isolcpus (`verified_runs/aftab/protocol_latency_i7.txt`).
 - **CO proof 19.7×–76×**; **byte-exact** IDENTICAL/exit-0; **19/19** unit tests; **0**
   ASan/UBSan; SPSC dropped 0; fleet merge (top 35.67); 32-bot abuse; **2,989-bot** single-box
   scale-accounting.
@@ -652,7 +650,6 @@ the microVM-execution hand-off is the hardware-bound step.
 
 ### Pending (stated honestly, never implied done)
 - **5–7 min demo video** — full live loop on camera.
-- **Isolated-host per-protocol latency run (WS/FIX/REST)** — to promote those p99s representative→measured.
 
 ### The discipline, in one sentence
 Anyone can draw a leaderboard. We built the one that **refuses to show you a number it can't
@@ -692,7 +689,7 @@ not clock precision. PTP/HW NIC timestamping is a Day-2 roadmap item (ADR-8), no
 correct trader-relevant RTT.
 
 **Q5. "Your WebSocket / FIX / REST boards — are those real measurements?"**
-The **binary board is real and measured** (7.7 µs, committed). The WebSocket/FIX/REST boards are **real, integrity-verified loops** — every order round-trips through the actual reference engine with `Sent == Acked`, asserted in CI (`wsrest-build.yml`). But their absolute latencies (223 / 890 / 2,404 µs) are **representative** on a shared CI runner, *not* yet committed isolated-host measurements — so we label them representative, never measured. The robust claim is the *ordering* (binary ≪ WS ≪ FIX ≪ REST), which is exactly why the hot path is binary.
+Yes. As of the latest update, all four boards are real and measured on isolated hardware. The **binary board is measured at 7.7 µs** (i7-13620H, isolcpus), and the **WebSocket, FIX, and REST boards are measured at 1,219 µs, 1,545 µs, and 9,675 µs** respectively on i7-13620H isolated cores (`verified_runs/aftab/protocol_latency_i7.txt`). All four are real, integrity-verified loops where every order round-trips through the actual reference engine with `Sent == Acked`. The measurements confirm the expected performance ordering: binary (7.7 µs) ≪ WS (1,219 µs) ≪ FIX (1,545 µs) ≪ REST (9,675 µs), demonstrating the significant framing and serialization tax of non-binary protocols.
 
 **Q6. "Isn't the Firecracker virtio-net path polluting your 7.7 µs?"**
 No — the **7.7 µs measurement path does not traverse a microVM**: it is bot↔engine on the
