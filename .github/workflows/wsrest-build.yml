@@ -41,7 +41,7 @@ jobs:
         run: |
           mkdir -p build && cd build
           cmake ..
-          make -j ws_bot rest_bot fix_bot refserver
+          make -j bot ws_bot rest_bot fix_bot refserver
 
       - name: Assert the WS/REST bot binaries exist
         working-directory: bot-engine/build
