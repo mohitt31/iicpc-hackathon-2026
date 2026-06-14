@@ -31,7 +31,7 @@ cd ../frontend && python3 -m http.server 8088   # → http://localhost:8088
 
 Command 2 prints the naive-vs-CO histograms - the naive p99 reads ~170 µs while the
 CO-corrected p99 exposes the real ~3.4 ms tail (the 19.7x gap). Full correctness,
-soak, and the byte-exact planted-bug demo are in `DESIGN_DOCUMENT.md §14` and `BUILD.md`.
+soak, and the byte-exact planted-bug demo are in `DESIGN_DOC_SUBMISSION.md` (Appendix B) and `BUILD.md`.
 
 **Honest caveats:** the C++ bot is x86-64/Linux (rdtscp + `pthread_setaffinity_np` +
 `SO_BUSY_POLL`); on macOS the pinning/busy-poll calls degrade to no-ops and you see
@@ -61,7 +61,7 @@ A second distinctive choice: a **byte-exact correctness validator**. The platfor
 
 ## Headline numbers (verified)
 
-All numbers below were produced by the bot in this repository against `null_responder` and `reference_engine`. Logs and CSV outputs are under `bot-engine/verified_runs/` and `bot-engine/integration_results/`.
+All numbers below were produced by the bot in this repository against `null_responder` and `reference_engine`. Logs and CSV outputs are under `verified_runs/` (top-level), with the local integration suite under `bot-engine/`.
 
 **Soak tests & Data Integrity:**
 Across all committed runs (600k CO proof + 200k replay + 1.28M in the 32-bot test = 2M+ orders), zero integrity-counter violations (0 collisions, 0 pool exhaustion, 0 partial aborts). The full soak suite (soak/soak_test.sh) is reproducible.
