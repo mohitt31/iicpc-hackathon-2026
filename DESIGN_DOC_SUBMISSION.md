@@ -529,7 +529,7 @@ out of time" and "we knew exactly where the line was."
 | Coordinated-Omission gap (p99) | **19.7× tabulated (shared host) → 76× (isolcpus)** | `co_proof.txt` |
 | Bare-metal latency p99 | **7.7 µs MEASURED** (i7-13620H, isolcpus) | `baremetal_latency.txt` |
 | Byte-exact determinism | live == offline replay, **IDENTICAL, exit 0** (rep. 129,020,916 bytes; run-dependent) | `live_replay.txt` |
-| Fleet scale (single box) | **2,989 connections (connection scale demonstrated to 10,000 concurrent connections on one box: accounting degrades under that oversubscription — clean ceiling stays 2,989) / 3.6 M orders**, accounting under backpressure; throughput ~120k orders/sec aggregate sustained at 2,989 bots (3.6 M orders, committed) | `scale_3000bots.txt` |
+| Fleet scale (single box) | **2,989 connections / 3.6 M orders**, accounting under backpressure; throughput ~120k orders/sec aggregate sustained at 2,989 bots (3.6 M orders, committed) | `scale_3000bots.txt` |
 | Distributed scale (3 nodes) | **~1.69 M orders · Sent == Acked · 0 collisions** across 3 KVM nodes | `2.3_distributed_run.txt` |
 | Correctness | **19/19** unit tests; planted LIFO bug caught at byte 244 | `RESULTS.md §1–2` |
 | Memory safety | **0** ASan / **0** UBSan findings | `RESULTS.md §7` |
