@@ -199,15 +199,13 @@ distributable across nodes. Current status, stated precisely:
   accounting under backpressure; see §8 and above).
 - **Multi-node 3-node scale run (~1.69M orders): verified** — scale + accounting across 3 nodes — not latency. 1,688,140 Sent == 1,688,140 Acked. Source: `verified_runs/aftab/2.3_distributed_run.txt`.
 
-We label the multi-node run not-yet-run with the same discipline as the WebSocket/REST
-boards: capability is real and the path is verified single-node, but the multi-node
-*scale run* is pending and is not claimed as done anywhere until its log is committed to
-`verified_runs/`.
+The multi-node run is **DONE**: 1,688,140 Sent == 1,688,140 Acked across 3 KVM nodes, 0
+collisions, 0 double-counts — scale + accounting across real machines, not a latency run
+(`verified_runs/aftab/2.3_distributed_run.txt`).
 
 > If a judge asks "your 3000-bot run on 16 cores isn't really parallel" - correct, and
 > that's the point. It is a scale + integrity test, not a latency test. The latency
-> number comes from the isolated-core run; the planned multi-node run (2.3, not yet run)
-> is where the two will meet.
+> number comes from the isolated-core run; the 3-node distributed run (2.3, DONE) is where scale and honest accounting meet across real machines.
 
 ---
 
