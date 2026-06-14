@@ -1,0 +1,4 @@
+IDENTICAL: 129020916 bytes match
+Order Count: 1,000,000 orders
+Diff Exit Code: 0
+[Main] Aggregate: Sent=1000000 Acked=1000000 Fills=1550348 Rejects=1 EAGAIN=71780 PartialAborts=0 Collisions=0 PoolExhausted=0
