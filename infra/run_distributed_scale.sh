@@ -38,7 +38,7 @@ BOTS_PER_NODE="${BOTS_PER_NODE:-10000}"   # 3 nodes x 10k = 30k target
 INTERVAL_US="${INTERVAL_US:-500}"         # widened cadence — sustainable aggregate
 DURATION_SEC="${DURATION_SEC:-30}"
 MANIFEST="${MANIFEST:-infra/k8s/platform.yaml}"
-NAMESPACE="${NAMESPACE:-iicpc}"
+NAMESPACE="${NAMESPACE:-hft-bench}"
 OUT_DIR="${OUT_DIR:-verified_runs/distributed}"
 DRY_RUN="${DRY_RUN:-0}"
 
@@ -60,9 +60,9 @@ if [ "${READY}" -lt 3 ]; then
 fi
 
 # ---- 1. label the nodes so the DaemonSet/scheduler can target them ---------
-echo "--- labelling nodes iicpc-role=benchmark ---"
+echo "--- labelling nodes node-role.hft/benchmark=true ---"
 for n in $(kubectl get nodes --no-headers -o custom-columns=NAME:.metadata.name); do
-  run kubectl label node "$n" iicpc-role=benchmark --overwrite
+  run kubectl label node "$n" node-role.hft/benchmark=true --overwrite
 done
 
 # ---- 2. apply the platform manifests ---------------------------------------
@@ -76,7 +76,7 @@ run kubectl apply -n "${NAMESPACE}" -f "${MANIFEST}"
 echo "--- patching bot-fleet args: --bots=${BOTS_PER_NODE} --interval-us=${INTERVAL_US} ---"
 PATCH=$(cat <<JSON
 {"spec":{"template":{"spec":{"containers":[{"name":"bot",
- "args":["--bots=${BOTS_PER_NODE}","--interval-us=${INTERVAL_US}","--duration-sec=${DURATION_SEC}","--no-gate","--snapshot-dir=/snap"]}]}}}}
+ "args":["--bots=${BOTS_PER_NODE}","--interval-us=${INTERVAL_US}","--duration-sec=${DURATION_SEC}","--no-gate","--ip=\$(TARGET_ENGINE_IP)","--port=9000","--snapshot-dir=/telemetry"]}]}}}}
 JSON
 )
 run kubectl patch daemonset bot-fleet -n "${NAMESPACE}" --type strategic -p "${PATCH}"
