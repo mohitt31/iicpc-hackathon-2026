@@ -42,6 +42,7 @@ spec:
       containers:
         - name: engine
           image: ghcr.io/mohitt31/iicpc-bot-engine:latest
+          imagePullPolicy: Always
           command: ["stdbuf", "-oL", "-eL", "./build/refserver"]
           args: ["--port", "9000", "--journal", "/tmp/refserver.jrn"]
           ports: [{ containerPort: 9000, name: sbe }]
@@ -90,6 +91,7 @@ spec:
       containers:
         - name: bot
           image: ghcr.io/mohitt31/iicpc-bot-engine:latest
+          imagePullPolicy: Always
           command: ["stdbuf", "-oL", "-eL", "./build/bot"]
           # --no-gate: the integrity self-test can't pass inside a container (no
           # CPU pinning), so it CrashLoops with the gate on. This is a scale +

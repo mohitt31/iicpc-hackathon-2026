@@ -150,7 +150,12 @@ int main(int argc, char* argv[]) {
         close(server_fd);
         return 1;
     }
-    if (listen(server_fd, 32) < 0) {
+    // Backlog = SOMAXCONN (not 32): the distributed scale run opens 1000+ bot
+    // connections near-simultaneously against this single engine. A 32-deep
+    // accept queue overflows instantly → the kernel RSTs/drops SYNs, which the
+    // bots see as "Connection reset by peer" / "Operation now in progress"
+    // (EINPROGRESS). SOMAXCONN lets the kernel queue the connection storm.
+    if (listen(server_fd, SOMAXCONN) < 0) {
         std::cerr << "[RefServer] listen() failed\n";
         close(server_fd);
         return 1;
