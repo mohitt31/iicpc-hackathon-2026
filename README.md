@@ -106,7 +106,7 @@ Also: `./demo/run_demo.sh` → `DIVERGE @ byte 244` (the byte-exact validator ca
 
 Command 2 prints the naive-vs-CO histograms - the naive p99 reads ~170 µs while the
 CO-corrected p99 exposes the real ~3.4 ms tail (the 19.7x gap). Full correctness,
-soak, and the byte-exact planted-bug demo are in `DESIGN_DOC_SUBMISSION.md` (Appendix B) and `BUILD.md`.
+soak, and the byte-exact planted-bug demo are in `DESIGN_DOC_SUBMISSION.pdf` (Appendix B) and `BUILD.md`.
 
 **Honest caveats.** The C++ bot is x86-64/Linux (`rdtscp`, `pthread_setaffinity_np`,
 `SO_BUSY_POLL`); on **macOS / arm64** the pinning & busy-poll calls degrade to no-ops, so you see
@@ -136,7 +136,7 @@ people built in parallel without integration hell.
 ## 🧭 What we deliberately did **not** build (decisions, not gaps)
 
 Each carries the scale threshold at which it would matter (full list + rationale in
-[`DESIGN_DOC_SUBMISSION.md` §16](DESIGN_DOC_SUBMISSION.md)):
+[`DESIGN_DOC_SUBMISSION.pdf` §16](DESIGN_DOC_SUBMISSION.pdf)):
 
 - **eBPF kernel prober** — measures a *different quantity* (kernel ingress→egress), not the
   trader-visible RTT. CO correction is the hard part, and it lives in userspace regardless.
@@ -149,7 +149,7 @@ Each carries the scale threshold at which it would matter (full list + rationale
 
 | Doc | What |
 |---|---|
-| [`DESIGN_DOC_SUBMISSION.md`](DESIGN_DOC_SUBMISSION.md) | Full HLD + LLD (19 sections, 11 ADRs, hostile-judge Q&A) |
+| [`DESIGN_DOC_SUBMISSION.pdf`](DESIGN_DOC_SUBMISSION.pdf) | Full HLD + LLD (19 sections, 11 ADRs, hostile-judge Q&A) |
 | [`RESULTS.md`](RESULTS.md) | Verified results, reproducible commands |
 | [`verified_runs/canonical.json`](verified_runs/canonical.json) | **Single source of truth** — every headline number, with its committed source |
 | [`ARCHITECTURE_DIAGRAM.eraser`](ARCHITECTURE_DIAGRAM.eraser) | Architecture diagram source (eraser.io) |
