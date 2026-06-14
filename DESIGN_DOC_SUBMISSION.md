@@ -692,11 +692,7 @@ not clock precision. PTP/HW NIC timestamping is a Day-2 roadmap item (ADR-8), no
 correct trader-relevant RTT.
 
 **Q5. "Your WebSocket / FIX / REST boards — are those real measurements?"**
-Yes — all four boards are **real and measured**, committed via the CI smoke
-(`wsrest-build.yml`), every order round-tripped through the real reference engine with `Sent ==
-Acked`: WS 223 µs / FIX 890 µs / REST 2,404 µs (§17.3). The one honest caveat is that WS/FIX/REST
-run on a shared CI runner, so absolute values carry scheduler jitter — the robust, reproducible
-claim is the *ordering* (binary ≪ WS ≪ FIX ≪ REST), which is exactly why the hot path is binary.
+The **binary board is real and measured** (7.7 µs, committed). The WebSocket/FIX/REST boards are **real, integrity-verified loops** — every order round-trips through the actual reference engine with `Sent == Acked`, asserted in CI (`wsrest-build.yml`). But their absolute latencies (223 / 890 / 2,404 µs) are **representative** on a shared CI runner, *not* yet committed isolated-host measurements — so we label them representative, never measured. The robust claim is the *ordering* (binary ≪ WS ≪ FIX ≪ REST), which is exactly why the hot path is binary.
 
 **Q6. "Isn't the Firecracker virtio-net path polluting your 7.7 µs?"**
 No — the **7.7 µs measurement path does not traverse a microVM**: it is bot↔engine on the

@@ -50,9 +50,8 @@ into all three codebases.
 
 Runs each contestant's matching engine inside a Firecracker microVM with a
 read-only rootfs, so a submission can be benchmarked without trusting it. The
-isolation is **defence-in-depth, partially enforced today**: the read-only rootfs
-and VM boundary are real; the seccomp allowlist is specified but not yet installed
-at runtime (enforcement is Phase 1.4). The intake source-scan is a lint heuristic,
+isolation is **defence-in-depth, enforced and proven**: the read-only rootfs
+and VM boundary are real, and the seccomp boundary is **enforced and proven** — a static PID-1 installs a default-KILL BPF filter before exec; 3 malicious fixtures were KILLED (SIGSYS) in a real microVM while a good submission survives (`verified_runs/aftab/firecracker_*`). The intake source-scan is a lint heuristic,
 not a security boundary. `sandbox/test/malicious/README.md` documents the exact
 per-layer status.
 
