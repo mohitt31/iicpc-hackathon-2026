@@ -65,9 +65,9 @@ On this clean run **naive == CO** (ratio 1.0): a quiet machine has no coordinate
 | Transport | p99 | Sent == Acked | Note |
 |---|---|---|---|
 | **Binary (SBE/TCP)** | **7.7 µs** *(measured)* | yes | parse-by-pointer-cast |
-| **WebSocket** | **1,219 µs** *(measured (i7-13620H isolcpus))* | 150,000 / 150,000 | RFC-6455 framing |
-| **FIX 4.4** | **1,545 µs** *(measured (i7-13620H isolcpus))* | 75,000 / 75,000 | SOH tag=value + checksum |
-| **REST (HTTP/1.1)** | **9,675 µs** *(measured (i7-13620H isolcpus))* | 75,000 / 75,000 | HTTP + JSON per order |
+| **WebSocket** | **215.6 µs** *(measured (i7-13620H isolcpus))* | 150,000 / 150,000 | RFC-6455 framing |
+| **FIX 4.4** | **240.1 µs** *(measured (i7-13620H isolcpus))* | 75,000 / 75,000 | SOH tag=value + checksum |
+| **REST (HTTP/1.1)** | **372.7 µs** *(measured (i7-13620H isolcpus))* | 75,000 / 75,000 | HTTP + JSON per order |
 
 **Note:** All four protocols are measured on isolated cores (binary in `baremetal_latency.txt`, others in `protocol_latency_i7.txt`). The robust, reproducible result is the **ordering** (binary ≪ WebSocket ≪ FIX ≪ REST) — which is exactly why the hot path is binary.
 

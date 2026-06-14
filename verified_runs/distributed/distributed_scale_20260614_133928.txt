@@ -1,0 +1,5 @@
+# IICPC distributed scale run — 20260614_133928
+# target 10000 bots/node, interval 500us, 30s
+# THIS PROVES: scale + accounting across nodes. NOT latency.
+
+## nodes

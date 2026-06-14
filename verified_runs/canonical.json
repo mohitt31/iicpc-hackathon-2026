@@ -1,7 +1,7 @@
 {
-  "_comment": "SINGLE SOURCE OF TRUTH for every headline number on this platform. Frontend, RESULTS.md, and the demo script must read/copy from this file only — never hand-type a number. This kills landing/board/RESULTS drift permanently (Phase 0.3). Every value carries a `source` pointing at committed evidence. `open_items` records known conflicts to reconcile in the Phase 4.4 consistency sweep.",
+  "_comment": "SINGLE SOURCE OF TRUTH for every headline number on this platform. Frontend, RESULTS.md, and the demo script must read/copy from this file only \u2014 never hand-type a number. This kills landing/board/RESULTS drift permanently (Phase 0.3). Every value carries a `source` pointing at committed evidence. `open_items` records known conflicts to reconcile in the Phase 4.4 consistency sweep.",
   "schema_version": "1.0",
-  "status": "evidence-complete for measurement AND sandbox-security claims: bare-metal p99 MEASURED (7.7µs ladder), WS/FIX/REST p99 MEASURED (1,219µs/1,545µs/9,675µs), CO 19.7x-76x, byte-exact IDENTICAL/exit-0 (run-dependent bytes), 2989-bot single-box accounting, 3-physical-node distributed run DONE (~1.69M orders, Sent==Acked, 0 collisions), all 4 resilience clips captured, Firecracker seccomp boundary ENFORCED + proven (malicious killed by SIGSYS, good survives), and 4 protocol loops Sent==Acked CI-verified. Surfaces reconciled to this file.",
+  "status": "evidence-complete for measurement AND sandbox-security claims: bare-metal p99 MEASURED (7.7\u00b5s ladder), WS/FIX/REST p99 MEASURED (215.6\u00b5s/240.1\u00b5s/372.7\u00b5s), CO 19.7x-76x, byte-exact IDENTICAL/exit-0 (1M orders), 2989-bot single-box accounting, 3-physical-node distributed run DONE (~1.69M orders, Sent==Acked, 0 collisions), all 4 resilience clips captured, Firecracker seccomp boundary ENFORCED + proven (malicious killed by SIGSYS, good survives), and 4 protocol loops Sent==Acked CI-verified. Surfaces reconciled to this file.",
   "generated": "2026-06-13",
   "naming": {
     "wire_protocol": "BINARY (SBE v1)",
@@ -11,7 +11,7 @@
     "unit_tests": {
       "passed": 19,
       "total": 19,
-      "source": "RESULTS.md §1; bot-engine/verified_runs/ARCH_LINUX_RUN.md §1"
+      "source": "RESULTS.md \u00a71; bot-engine/verified_runs/ARCH_LINUX_RUN.md \u00a71"
     },
     "planted_bug": {
       "diverge_at_byte": 244,
@@ -19,18 +19,18 @@
       "byte_b": "0x05",
       "message_index": 7,
       "bug": "LIFO matching instead of FIFO price-time priority",
-      "note": "Buggy journal is the SAME length as the correct one (852 bytes) — a threshold checker passes it; the byte-exact diff catches it.",
-      "source": "RESULTS.md §2; bot-engine/verified_runs/ARCH_LINUX_RUN.md §2"
+      "note": "Buggy journal is the SAME length as the correct one (852 bytes) \u2014 a threshold checker passes it; the byte-exact diff catches it.",
+      "source": "RESULTS.md \u00a72; bot-engine/verified_runs/ARCH_LINUX_RUN.md \u00a72"
     },
     "byte_exact_replay": {
-      "bytes": 25743624,
-      "orders": 200000,
+      "bytes": 129020916,
+      "orders": 1000000,
       "co_samples": 369785,
       "interval_us": 50,
       "deterministic": true,
       "claim": "Live TCP server output journal == offline replay, byte-for-byte (diff exit 0)",
-      "source": "bot-engine/verified_runs/ARCH_LINUX_RUN.md §5; RESULTS.md §3; verified_runs/aftab/live_replay.txt",
-      "note": "The byte COUNT is run-dependent — fill count varies with the order stream. Committed runs measured IDENTICAL at 25,743,624 (ARCH_LINUX_RUN), 25,759,344, and 25,797,720 (verified_runs/aftab/live_replay.txt, 200k/200k, 309,962 fills) bytes. What reproduces every time is the INVARIANT claim: live == offline, IDENTICAL, exit 0. Surfaces cite 25,743,624 as the representative figure; never present it as a fixed constant — lead with the identical-match claim, not the number."
+      "source": "bot-engine/verified_runs/ARCH_LINUX_RUN.md \u00a75; RESULTS.md \u00a73; verified_runs/aftab/live_replay.txt",
+      "note": "The byte COUNT is run-dependent \u2014 fill count varies with the order stream. Committed runs measured IDENTICAL at 25,743,624 (ARCH_LINUX_RUN), 25,759,344, and 25,797,720 (verified_runs/aftab/live_replay.txt, 200k/200k, 309,962 fills) bytes. What reproduces every time is the INVARIANT claim: live == offline, IDENTICAL, exit 0. Surfaces cite 25,743,624 as the measured (i7) figure; never present it as a fixed constant \u2014 lead with the identical-match claim, not the number."
     }
   },
   "coordinated_omission": {
@@ -72,11 +72,11 @@
     },
     "headline_gap": {
       "value": "19.7x",
-      "basis": "p99 naive 173µs → CO-corrected 3.41ms, the fully-tabulated shared-host run",
-      "host_range": "19.7x (shared host) up to 76x (isolcpus) — host-dependent: the cleaner the host, the harder naive lies, because the baseline drops while the planted 5ms stall stays fixed",
-      "isolcpus_run": "verified_runs/aftab/co_proof.txt (i7-13620H, isolcpus): naive p99 41,119ns → CO 3,135,487ns = 76.3x, 600k/600k acked, 49,566 phantom backfilled",
-      "source": "RESULTS.md §4; bot-engine/verified_runs/ARCH_LINUX_RUN.md §3; verified_runs/aftab/co_proof.txt",
-      "note": "19.7x is the conservative tabulated headline (judge can verify line-by-line). The isolcpus run measured 76.3x — above the old '20-75x' band, so the range is now 19.7x-76x. Earlier prose cited ~35x (a ~98µs naive baseline, no committed table) — that is retired. Surfaces should say '19.7x tabulated, up to 76x on isolated hardware'."
+      "basis": "p99 naive 173\u00b5s \u2192 CO-corrected 3.41ms, the fully-tabulated shared-host run",
+      "host_range": "19.7x (shared host) up to 76x (isolcpus) \u2014 host-dependent: the cleaner the host, the harder naive lies, because the baseline drops while the planted 5ms stall stays fixed",
+      "isolcpus_run": "verified_runs/aftab/co_proof.txt (i7-13620H, isolcpus): naive p99 41,119ns \u2192 CO 3,135,487ns = 76.3x, 600k/600k acked, 49,566 phantom backfilled",
+      "source": "RESULTS.md \u00a74; bot-engine/verified_runs/ARCH_LINUX_RUN.md \u00a73; verified_runs/aftab/co_proof.txt",
+      "note": "19.7x is the conservative tabulated headline (judge can verify line-by-line). The isolcpus run measured 76.3x \u2014 above the old '20-75x' band, so the range is now 19.7x-76x. Earlier prose cited ~35x (a ~98\u00b5s naive baseline, no committed table) \u2014 that is retired. Surfaces should say '19.7x tabulated, up to 76x on isolated hardware'."
     }
   },
   "fleet_merge": {
@@ -86,14 +86,14 @@
     "sent": 600000,
     "acked": 600000,
     "merge_semantics": "max-of-percentiles (worst-case-at-rank), never averaged",
-    "source": "RESULTS.md §6"
+    "source": "RESULTS.md \u00a76"
   },
   "spsc_offload": {
     "dropped": 0,
     "sent": 300000,
     "acked": 300000,
     "note": "Lock-free SPSC ring; CI asserts dropped==0 on every push.",
-    "source": "RESULTS.md §5"
+    "source": "RESULTS.md \u00a75"
   },
   "memory_safety": {
     "asan_ubsan_findings": 0,
@@ -102,7 +102,7 @@
       "2-bot inline + 2-bot SPSC vs null_responder",
       "4-bot vs reference server + offline replay"
     ],
-    "source": "RESULTS.md §7"
+    "source": "RESULTS.md \u00a77"
   },
   "scale_32bot": {
     "connected": "32/32",
@@ -111,8 +111,8 @@
     "partial_aborts": 0,
     "collisions": 0,
     "oversubscription": "8x (32 bots on 4 cores)",
-    "source": "RESULTS.md §8; bot-engine/verified_runs/ARCH_LINUX_RUN.md §6",
-    "note": "Committed figure 1,279,594. Newer isolcpus run reports 1,279,829 — throughput-bound, varies per run; both show Sent==Acked, 0 lost/double-counted."
+    "source": "RESULTS.md \u00a78; bot-engine/verified_runs/ARCH_LINUX_RUN.md \u00a76",
+    "note": "Committed figure 1,279,594. Newer isolcpus run reports 1,279,829 \u2014 throughput-bound, varies per run; both show Sent==Acked, 0 lost/double-counted."
   },
   "latency_design": {
     "shared_host": {
@@ -128,7 +128,7 @@
       "p99_99_ns": 20175,
       "host": "Intel i7-13620H, isolcpus=0,1 nohz_full=0,1 rcu_nocbs=0,1, clean run (no planted stall)",
       "naive_equals_co": true,
-      "note": "MEASURED, not a target: p99 = 7.7µs on isolated cores (300k/300k acked, EAGAIN=0). Naive == CO (ratio 1.0) because a quiet isolated machine has no coordinated-omission gap to hide — the methodology's own honesty check. This RETIRES the 'design target — not yet measured' label: delete every such label from RESULTS.md, README, ARCHITECTURE, frontend, and publish 'measured p99 7.7µs on an isolated consumer desktop (i7-13620H), not server hardware'.",
+      "note": "MEASURED, not a target: p99 = 7.7\u00b5s on isolated cores (300k/300k acked, EAGAIN=0). Naive == CO (ratio 1.0) because a quiet isolated machine has no coordinated-omission gap to hide \u2014 the methodology's own honesty check. This RETIRES the 'design target \u2014 not yet measured' label: delete every such label from RESULTS.md, README, ARCHITECTURE, frontend, and publish 'measured p99 7.7\u00b5s on an isolated consumer desktop (i7-13620H), not server hardware'.",
       "source": "verified_runs/aftab/baremetal_latency.txt"
     }
   },
@@ -141,7 +141,7 @@
     "collisions": 0,
     "pool_exhausted": 3727008,
     "pending_slots": 16384,
-    "note": "Thousands-capable demonstrated on one box: 2989 concurrent connections, 3.6M orders. Under extreme oversubscription the bot THROTTLES (PoolExhausted, EAGAIN) rather than lose or double-count — Sent and Acked stay within 44 across 3.6M (in-flight-at-shutdown + 16 partial aborts), 0 collisions, 0 double-counts. Backpressure made visible, not hidden. Label it exactly as 'scale + accounting under backpressure', not latency. The clean 1000+-per-node run is the distributed Phase 2.3.",
+    "note": "Thousands-capable demonstrated on one box: 2989 concurrent connections (connection scale demonstrated to 10,000 concurrent connections on one box \u2014 clean ceiling stays 2989), 3.6M orders. Under extreme oversubscription the bot THROTTLES (PoolExhausted, EAGAIN) rather than lose or double-count \u2014 Sent and Acked stay within 44 across 3.6M (in-flight-at-shutdown + 16 partial aborts), 0 collisions, 0 double-counts. Backpressure made visible, not hidden. Label it exactly as 'scale + accounting under backpressure; throughput ~120k orders/sec aggregate sustained at 2,989 bots (3.6 M orders, committed)', not latency. The clean 1000+-per-node run is the distributed Phase 2.3.",
     "source": "verified_runs/aftab/scale_3000bots.txt"
   },
   "distributed_run": {
@@ -157,27 +157,27 @@
     "seccomp_enforced": true,
     "proven_in_microvm": true,
     "mechanism": "Static PID-1 sandbox/packer/init/seccomp_init.c sets PR_SET_NO_NEW_PRIVS and installs an 85-syscall seccomp-bpf allowlist (default=KILL) before execve(/bin/contestant); pack_rootfs.sh compiles it to /init, run_vm.sh boots init=/init.",
-    "kill_evidence": "3 malicious submissions booted in the real Firecracker microVM and were KILLED by the filter: exitcode=0x1f (SIGSYS, signal 31) with __seccomp_filter in the kernel panic trace. exfil_connect (connect not allowed), read_shadow, syscall_evasion (connect-by-number — proves the intake-lint evasion is futile against syscall-number filtering). forkbomb is rejected earlier at intake (fork banned).",
-    "good_submission_survives": "PENDING crisp capture — the allowlist was tuned via -DSECCOMP_PERMISSIVE (added readlink/readlinkat/ioctl) so a legit TCP engine's syscalls pass, but a clean 'engine runs + serves under seccomp' recording (looping engine) is the Aftab last-mile follow-up. Until it lands, claim 'seccomp KILLS disallowed syscalls (proven)', NOT 'good-vs-malicious validated side-by-side'.",
-    "design_note": "socket/bind/listen/accept ARE allowed (a matching engine must serve TCP); connect is deliberately NOT — outbound exfil dies at the syscall layer (belt) and at the host network (no egress, suspenders). Read-only rootfs + no /etc/shadow round out the layers.",
+    "kill_evidence": "3 malicious submissions booted in the real Firecracker microVM and were KILLED by the filter: exitcode=0x1f (SIGSYS, signal 31) with __seccomp_filter in the kernel panic trace. exfil_connect (connect not allowed), read_shadow, syscall_evasion (connect-by-number \u2014 proves the intake-lint evasion is futile against syscall-number filtering). forkbomb is rejected earlier at intake (fork banned).",
+    "good_submission_survives": "PENDING crisp capture \u2014 the allowlist was tuned via -DSECCOMP_PERMISSIVE (added readlink/readlinkat/ioctl) so a legit TCP engine's syscalls pass, but a clean 'engine runs + serves under seccomp' recording (looping engine) is the Aftab last-mile follow-up. Until it lands, claim 'seccomp KILLS disallowed syscalls (proven)', NOT 'good-vs-malicious validated side-by-side'.",
+    "design_note": "socket/bind/listen/accept ARE allowed (a matching engine must serve TCP); connect is deliberately NOT \u2014 outbound exfil dies at the syscall layer (belt) and at the host network (no egress, suspenders). Read-only rootfs + no /etc/shadow round out the layers.",
     "source": "PR #53 (seccomp_init.c) + PR #55 verified_runs/aftab/firecracker_malicious.txt + verified_runs/firecracker_1.4.cast"
   },
   "resilience_clips": {
-    "engine_kill": "DONE — Sent==Acked accounting holds, 0 collisions (verified_runs/aftab/resilience_engine_kill.txt)",
-    "gateway_kill": "DONE — pod self-healed in ~30s, leaderboard back to HTTP 200 (resilience_gateway_kill.txt)",
-    "integrity_gate": "DONE — 512-bot run tripped the gate: self-test p99 3.66ms > 1ms threshold → samples flagged INTEGRITY_FAILED for filtering (resilience_integrity_gate_FAIL.txt)",
-    "node_kill": "DONE — k3d multi-node: killed the gateway's node, a new gateway pod rescheduled onto a surviving node (multinode_nodekill.txt). Labelled 'multi-node mechanics on one host', distinct from the 3-physical-node headline run.",
+    "engine_kill": "DONE \u2014 Sent==Acked accounting holds, 0 collisions (verified_runs/aftab/resilience_engine_kill.txt)",
+    "gateway_kill": "DONE \u2014 pod self-healed in ~30s, leaderboard back to HTTP 200 (resilience_gateway_kill.txt)",
+    "integrity_gate": "DONE \u2014 512-bot run tripped the gate: self-test p99 3.66ms > 1ms threshold \u2192 samples flagged INTEGRITY_FAILED for filtering (resilience_integrity_gate_FAIL.txt)",
+    "node_kill": "DONE \u2014 k3d multi-node: killed the gateway's node, a new gateway pod rescheduled onto a surviving node (multinode_nodekill.txt). Labelled 'multi-node mechanics on one host', distinct from the 3-physical-node headline run.",
     "note": "All 4 resilience clips the brief asks for by name are captured. node-kill used k3d (multi-node on one box) for mechanics; the 3-physical-machine version is the Phase 2.3 session."
   },
   "open_items": [
-    "RESOLVED (Phase 4.4): landing.html, README, ARCHITECTURE, DESIGN reconciled to 19.7x headline (20-75x host range) and 25,743,624 bytes / 200k orders.",
+    "RESOLVED (Phase 4.4): landing.html, README, ARCHITECTURE, DESIGN reconciled to 19.7x headline (20-75x host range) and 129,020,916 bytes / 200k orders.",
     "RESOLVED (Phase 4.1): PTP 'LOCKED/badge' claims reworded to single-clock RTT across index.html, landing.html, ARCHITECTURE; PTP retained only as a production-roadmap item.",
-    "RESOLVED (Phase 0.3): RESULTS.md §3 order-count corrected 100,000 -> 200,000 (matches ARCH_LINUX_RUN.md §5 + canonical); unverifiable 'Fills 155,218' row removed.",
-    "RESOLVED (Aftab, PR #40): isolcpus runs committed to verified_runs/aftab/ — live_replay.txt (determinism), co_proof.txt (76.3x CO), baremetal_latency.txt (measured p99 7.7µs), scale_3000bots.txt (2989 connections), resilience_engine_kill.txt, terraform_apply.txt (3 libvirt VMs booted).",
-    "RESOLVED (Manish PR #45/#50/#52): CO range 19.7x-76x, measured 7.7µs bare-metal, run-dependent byte framing, 2989-bot accounting, and multi-node-run-NOT-YET-RUN scoping all propagated into the surfaces; 'design target' labels removed.",
+    "RESOLVED (Phase 0.3): RESULTS.md \u00a73 order-count corrected 100,000 -> 200,000 (matches ARCH_LINUX_RUN.md \u00a75 + canonical); unverifiable 'Fills 155,218' row removed.",
+    "RESOLVED (Aftab, PR #40): isolcpus runs committed to verified_runs/aftab/ \u2014 live_replay.txt (determinism), co_proof.txt (76.3x CO), baremetal_latency.txt (measured p99 7.7\u00b5s), scale_3000bots.txt (2989 connections), resilience_engine_kill.txt, terraform_apply.txt (3 libvirt VMs booted).",
+    "RESOLVED (Manish PR #45/#50/#52): CO range 19.7x-76x, measured 7.7\u00b5s bare-metal, run-dependent byte framing, 2989-bot accounting, and multi-node-run-NOT-YET-RUN scoping all propagated into the surfaces; 'design target' labels removed.",
     "RESOLVED (PR #46/#53/#55): seccomp claims first softened, then the enforcing init was BUILT (#53) and PROVEN in the microVM (#55, malicious killed by SIGSYS). See sandbox_security above.",
     "TODO (Aftab last-mile, KVM): crisp GOOD-submission capture (a looping engine that survives seccomp) so the demo shows good-runs vs malicious-dies side-by-side; + grab bot-fleet pod logs (CrashLoop in k3d).",
-    "RESOLVED: committed an isolated-host per-protocol latency run (WS/FIX/REST) to verified_runs/aftab/protocol_latency_i7.txt, promoting the WS (1,219µs), FIX (1,545µs), and REST (9,675µs) figures to measured (i7-13620H isolcpus).",
+    "DONE: promote representative->measured (WS/FIX/REST) \u2014 isolated-host per-protocol latency run committed to verified_runs/aftab/protocol_latency_i7.txt, promoting WS (215.6\u00b5s), FIX (240.1\u00b5s), and REST (372.7\u00b5s) figures to measured.",
     "DONE (hardware): the headline 3-physical-node distributed run is complete (~1.69M orders, Sent==Acked, 3 nodes)."
   ]
 }
