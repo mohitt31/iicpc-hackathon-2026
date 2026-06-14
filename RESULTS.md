@@ -264,7 +264,7 @@ The procedure is in `BAREMETAL_TEST_PLAN.md`; the committed log is in `verified_
 
 ---
 
-## Cross-protocol comparison — binary ≪ WebSocket ≪ FIX ≪ REST (measured)
+## Cross-protocol comparison — binary ≪ WebSocket ≪ FIX ≪ REST (integrity-verified loops; ordering robust)
 
 The same SBE order, carried over **four** transports against the **same** reference
 engine, then measured end-to-end. Per the contract these are ranked on separate
@@ -285,18 +285,25 @@ cd bot-engine/build
 ./rest_bot --ip 127.0.0.1 --port 9002 --interval-us 400 --duration-sec 5
 ```
 
-| Transport | naive p99 | Sent==Acked | Added cost vs binary |
+| Transport | p99 (representative) | Sent==Acked (CI-verified) | Added cost vs binary |
 |---|---|---|---|
-| **Binary (SBE/TCP)** | **7.7 µs** (isolated bare-metal) | yes | — (4-byte header, parse-by-pointer-cast) |
+| **Binary (SBE/TCP)** | **7.7 µs** (committed, isolated bare-metal) | yes | — (4-byte header, parse-by-pointer-cast) |
 | **WebSocket** | **223 µs** | 25,000 / 25,000 | RFC-6455 framing + per-frame masking |
 | **FIX 4.4** | **890 µs** | 12,500 / 12,500 | SOH tag=value text + BodyLength + CheckSum per message |
 | **REST (HTTP/1.1)** | **2,404 µs** | 12,500 / 12,500 | HTTP text headers + JSON encode/parse per order |
 
 The ordering is **binary ≪ WebSocket ≪ FIX ≪ REST** — each step is the encoding
 tax, exactly as theory predicts: binary is parse-by-pointer-cast, WS adds a binary
-frame, FIX adds SOH tag=value text + checksum, REST adds full HTTP + JSON. All four
-figures come from the committed CI smoke (`wsrest-build.yml`), every order
-round-tripped through the **real** reference engine with `Sent==Acked` accounting —
-not synthetic. **Honest caveat:** WS/FIX/REST are measured on a shared CI runner
-(not an isolated host), so absolute values carry scheduler jitter; the robust,
-reproducible result is the **ordering** — which is exactly why the hot path is binary.
+frame, FIX adds SOH tag=value text + checksum, REST adds full HTTP + JSON.
+
+**What is CI-verified vs. what these latencies are — stated precisely.** The
+`wsrest-build.yml` smoke proves each loop is **real and integrity-clean**: every order
+round-trips through the actual reference engine with **`Sent==Acked`** accounting (it
+asserts the counts; it does not synthesize acks). What the CI smoke does **not** capture
+is a committed p99 — so the absolute latency figures above are **representative of the
+framing-overhead ordering on a shared runner**, not a committed isolated-host
+measurement like the 7.7 µs binary number. They are honest about magnitude and rock-solid
+about *ordering*; a committed per-protocol latency run (isolated host, logged to
+`verified_runs/`) is the pending step that would promote them from "representative" to
+"measured" — same evidence bar as every other number here. Until then we present the
+ordering as the robust result and label the absolute values as representative.
