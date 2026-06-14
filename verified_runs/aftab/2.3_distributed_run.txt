@@ -1,0 +1,23 @@
+# Phase 2.3 distributed Sun Jun 14 09:31:56 AM UTC 2026
+## nodes
+NAME            STATUS   ROLES           AGE     VERSION        INTERNAL-IP       EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+archlinux       Ready    control-plane   19h     v1.35.5+k3s1   192.168.31.117    <none>        Arch Linux           7.0.11-arch1-1      containerd://2.2.3-k3s1
+iicpc-bench-0   Ready    <none>          4h42m   v1.35.5+k3s1   192.168.122.252   <none>        Ubuntu 24.04.4 LTS   6.8.0-124-generic   containerd://2.2.3-k3s1
+iicpc-bench-1   Ready    <none>          4h41m   v1.35.5+k3s1   192.168.122.64    <none>        Ubuntu 24.04.4 LTS   6.8.0-117-generic   containerd://2.2.3-k3s1
+iicpc-bench-2   Ready    <none>          4h42m   v1.35.5+k3s1   192.168.122.79    <none>        Ubuntu 24.04.4 LTS   6.8.0-124-generic   containerd://2.2.3-k3s1
+## pods
+NAME                                 READY   STATUS    RESTARTS        AGE     IP                NODE            NOMINATED NODE   READINESS GATES
+bot-fleet-46sng                      1/1     Running   1 (77s ago)     3m6s    192.168.122.252   iicpc-bench-0   <none>           <none>
+bot-fleet-jkfwz                      1/1     Running   1 (15s ago)     2m3s    192.168.122.79    iicpc-bench-2   <none>           <none>
+bot-fleet-wr9sz                      1/1     Running   1 (48s ago)     2m35s   192.168.122.64    iicpc-bench-1   <none>           <none>
+leaderboard-67764c8b96-rjbtv         1/1     Running   1 (6h13m ago)   14h     10.42.0.22        archlinux       <none>           <none>
+leaderboard-67764c8b96-sr9qt         1/1     Running   1 (6h13m ago)   14h     10.42.0.24        archlinux       <none>           <none>
+reference-engine-7dd955bd57-ssg2l    1/1     Running   0               3m9s    10.42.0.54        archlinux       <none>           <none>
+telemetry-gateway-544f575545-svfp6   1/1     Running   1 (6h13m ago)   14h     10.42.0.25        archlinux       <none>           <none>
+## accounting
+### pod/bot-fleet-46sng
+[Main] Aggregate: Sent=575130 Acked=575130 Fills=885344 Rejects=526 EAGAIN=104703 PartialAborts=0 Collisions=0 PoolExhausted=0
+### pod/bot-fleet-jkfwz
+[Main] Aggregate: Sent=555980 Acked=555980 Fills=854926 Rejects=538 EAGAIN=64105 PartialAborts=0 Collisions=0 PoolExhausted=0
+### pod/bot-fleet-wr9sz
+[Main] Aggregate: Sent=557030 Acked=557030 Fills=857814 Rejects=538 EAGAIN=62618 PartialAborts=0 Collisions=0 PoolExhausted=1973
