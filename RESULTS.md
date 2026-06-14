@@ -265,7 +265,7 @@ The same SBE order, carried over **four** transports against the **same** refere
 engine, then measured end-to-end. Per the contract these are ranked on separate
 boards (never mixed) — but side-by-side they make the point an HFT benchmark
 exists to make: the transport, not the engine, dominates once you leave binary.
-FIX 4.4 is the protocol the brief names — and it lands exactly where theory says.
+FIX 4.4 is the protocol the brief names — and it lands between WebSocket and REST, as its heavier framing dictates.
 
 ```
 cd bot-engine/build

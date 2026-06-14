@@ -397,7 +397,7 @@ putting physical disk I/O on the engine's critical path during the distributed K
 reference-engine journal directory is a K8s **`emptyDir: { medium: Memory }`** tmpfs
 (`infra/k8s/platform.yaml`). The engine still issues ordinary synchronous writes — correctness
 unchanged — but the kernel serves them from RAM, removing disk latency and a single-point I/O
-bottleneck under load. Production tiers completed journals to object storage for durable audit;
+bottleneck under load. A Day-2 production tier would tier completed journals to object storage for durable audit;
 the hot path never touches it.
 
 Design principle: anything that feeds a *ranking* is stored as a **mergeable raw distribution**,
@@ -506,7 +506,7 @@ re-weight — another instance of "display only."
 |---|---|
 | **eBPF in-kernel prober** | Measures a *different quantity* (kernel ingress→egress), not trader-visible RTT; adds kernel/root fragility without changing the truth (§5.2) |
 | **AF_XDP kernel bypass** | Needed below ~1 µs receive; measured bare-metal p99 is already 7.7 µs on TCP + `SO_BUSY_POLL` |
-| **SR-IOV / VFIO NIC passthrough** | The 7.7 µs path is bare-metal (bot↔engine on the host; the microVM only wraps untrusted *contestant* engines, not the measurement path). When an engine runs *inside* Firecracker, virtio-net adds host→guest ring overhead; production maps the NIC's virtual function directly into the guest via SR-IOV. Deferred — it shifts every engine's floor equally, so the ranking is unchanged, and our headline doesn't traverse virtio. |
+| **SR-IOV / VFIO NIC passthrough** | The 7.7 µs path is bare-metal (bot↔engine on the host; the microVM only wraps untrusted *contestant* engines, not the measurement path). When an engine runs *inside* Firecracker, virtio-net adds host→guest ring overhead; a Day-2 production tier would map the NIC's virtual function directly into the guest via SR-IOV. Deferred — it shifts every engine's floor equally, so the ranking is unchanged, and our headline doesn't traverse virtio. |
 | **CRTP zero-overhead dispatch** | The reference engine decodes with a `switch` on `msg_type` (`reference_server.cpp`) — predictable but can pressure the BTB/i-cache under branchy load. CRTP resolves dispatch at compile time; deferred because the reference engine is the *correctness oracle*, not the speed target. |
 | **UDP multicast (fan-OUT)** | Load topology is N-bots → 1-engine fan-IN over TCP — correct for a measured request/reply RTT. The *display* fan-out (gateway → many viewers) is where a single Node event loop / TCP head-of-line would bottleneck; production is a Rust/Go gateway, and real market-data uses OUCH-style UDP multicast + a TCP snapshot server for gap recovery. Deferred — off the measured path. |
 | **Reliable intake queue** | The worker pops from Redis `submissions:pending` (at-most-once: a crash mid-build loses the task). Day-2 uses `BRPOPLPUSH` to an in-flight list (or Redis Streams + consumer groups + `XACK`). Deferred — a season re-runs a lost submission idempotently by `submission_id`. |
@@ -579,7 +579,7 @@ transport, not the engine, dominates once you leave binary.
 | **FIX 4.4** | **890 µs** | 12,500 / 12,500 | SOH tag=value text + BodyLength + CheckSum per message |
 | **REST (HTTP/1.1)** | **2,404 µs** | 12,500 / 12,500 | HTTP text headers + JSON encode/parse per order |
 
-FIX 4.4 — the protocol the brief names — lands exactly where theory says. **What is CI-verified vs.
+FIX 4.4 — the protocol the brief names — lands between WebSocket and REST, as its heavier framing dictates. **What is CI-verified vs.
 what these latencies are, precisely:** `wsrest-build.yml` proves each loop is real and
 integrity-clean — every order round-trips through the actual reference engine with **Sent==Acked**
 (it asserts the counts; it does not synthesize acks). The CI smoke does **not** capture a committed
