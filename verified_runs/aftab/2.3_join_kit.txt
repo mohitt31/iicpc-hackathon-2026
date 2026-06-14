@@ -1,7 +1,7 @@
 2.3 JOIN KIT (ready)
-server Tailscale IP: 100.94.241.122
-node-token: K10eac846e4fbfc49374a9419372c5e0fd4c2d4db43294f2dc95fe020b56cd15a6f::server:e31fcf7e39f98f714ca2090308e42af5
+server Tailscale IP: <SERVER_TAILSCALE_IP>
+node-token: <K3S_NODE_TOKEN>   # redacted — get from `sudo cat /var/lib/rancher/k3s/server/node-token` on the server
 
 On each OTHER machine after `tailscale up`:
-  curl -sfL https://get.k3s.io | K3S_URL=https://100.94.241.122:6443 K3S_TOKEN=K10eac846e4fbfc49374a9419372c5e0fd4c2d4db43294f2dc95fe020b56cd15a6f::server:e31fcf7e39f98f714ca2090308e42af5 sh -
+  curl -sfL https://get.k3s.io | K3S_URL=https://<SERVER_TAILSCALE_IP>:6443 K3S_TOKEN=<K3S_NODE_TOKEN> sh -
 Then here: sudo k3s kubectl get nodes -o wide ; sudo k3s kubectl apply -f infra/k8s/

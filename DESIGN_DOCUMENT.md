@@ -823,13 +823,23 @@ We don't need cross-machine sync, because we don't take cross-machine timestamps
   decomposing where time goes in a deployed system — not required for a correct,
   trader-relevant RTT in this benchmark.
 
-### Q5. "Your WebSocket and REST boards — are those real measurements?"
+### Q5. "Your WebSocket, FIX, and REST boards — are those real measurements?"
 
-Stated plainly so we're never caught overclaiming: **as of this document, the
-binary-TCP board is real and measured; the WebSocket and REST boards are labeled
-`(Roadmap)`** because their bots are drafted but not yet producing committed measured
-runs. The labels come off **only** when those bots compile, run against a real endpoint,
-and commit clean Sent-matches-Acked HDR output to `verified_runs/` — same evidence bar as every other
-number here. We would rather show an honest "(Roadmap)" than a synthetic number dressed
-as real. That discipline is the entire point of the platform.
+Stated plainly so we're never caught overclaiming, in two parts:
+
+- **The loops are real and integrity-verified.** WebSocket (RFC-6455), FIX 4.4, and REST
+  bots each round-trip the same SBE order through the **actual reference engine** via a
+  transport adapter, and `wsrest-build.yml` asserts **Sent==Acked** in CI for all three.
+  That part is committed and reproducible — the boards are not synthetic mock-ups.
+- **The absolute latencies are representative, not yet measured.** The CI smoke proves
+  integrity (Sent==Acked) but does **not** capture a committed p99, and these run on a
+  shared CI runner, not an isolated host. So the WS 223 µs / FIX 890 µs / REST 2,404 µs
+  figures are **representative of the framing-overhead ordering** (binary ≪ WS ≪ FIX ≪
+  REST), not a committed isolated-host measurement like the 7.7 µs binary number. The
+  **ordering** is the robust result; a committed per-protocol latency run logged to
+  `verified_runs/` is the pending step that promotes them from representative to measured —
+  the same evidence bar as every other number here.
+
+We would rather state "representative, ordering-robust" than dress a shared-runner number
+as an isolated-host measurement. That discipline is the entire point of the platform.
 
