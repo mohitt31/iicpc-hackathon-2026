@@ -6,6 +6,7 @@
 <title>IICPC 2026 · Real-Time Leaderboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- TODO(zero-CDN): self-host these as local .woff2 + @font-face so fonts never depend on Google CDN. System fallback stack is in place so the design holds if blocked. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Archivo+Expanded:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -15,7 +16,7 @@
     --o1:#ff5a1f; --o2:#ff8a3d; --o3:#e63916;           /* orange→red accent */
     --good:#3ad29f; --warn:#ffb23d; --bad:#ff5c5c; --cool:#36d3ff;
     --grad:linear-gradient(90deg,#e63916 0%,#ff5a1f 50%,#ff8a3d 100%);
-    --sans:'Archivo',sans-serif; --exp:'Archivo Expanded','Archivo',sans-serif; --mono:'JetBrains Mono',monospace;
+    --sans:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; --exp:'Archivo Expanded','Archivo',-apple-system,'Segoe UI',Helvetica,sans-serif; --mono:'JetBrains Mono',ui-monospace,'SF Mono','Cascadia Mono',Consolas,monospace;
   }
   html{scroll-behavior:smooth}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow-x:hidden;
@@ -231,7 +232,7 @@ function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();
 function hashId(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16).padStart(8,'0');}
 
 const MockSource=(()=>{
-  const base={'BINARY TCP':[12000,18000],'WEBSOCKET':[25000,45000],'FIX':[50000,90000],'REST':[80000,150000]}; // ns
+  const base={'BINARY TCP':[6500,8500],'WEBSOCKET':[170000,180000],'FIX':[188000,198000],'REST':[290000,305000]}; // ns median — synthetic, tuned so displayed p99 lands near MEASURED naive p99 (binary 7.7 / WS 216 / FIX 240 / REST 373 µs, verified_runs/aftab/protocol_latency_i7.txt)
   const roster=[
     ['Priya Sharma','BINARY TCP'],['Arjun Mehta','BINARY TCP'],['Sanya Rao','BINARY TCP'],['Dev Kapoor','BINARY TCP'],
     ['Kiran Nair','WEBSOCKET'],['Rohan Gupta','WEBSOCKET'],['Ananya Iyer','WEBSOCKET'],['Vikram Sen','WEBSOCKET'],
@@ -239,14 +240,14 @@ const MockSource=(()=>{
   ];
   let subs=[];
   function sampleInto(h,median,tail,count){
-    for(let k=0;k<count;k++){let v=median*Math.exp(0.35*gauss());
+    for(let k=0;k<count;k++){let v=median*Math.exp(0.09*gauss());
       if(Math.random()<tail.p)v*=tail.mult*(1+Math.random());hdrRecord(h,Math.max(HDR_MIN,v));}
   }
   function init(){
     subs=roster.map((r,i)=>{
       const [name,proto]=r,[lo,hi]=base[proto];
       const median=lo+Math.random()*(hi-lo);
-      const tail={p:0.01+Math.random()*0.06,mult:6+Math.random()*30};
+      const tail={p:0.004+Math.random()*0.008,mult:1.1+Math.random()*0.35};
       const hdr=hdrNew();sampleInto(hdr,median,tail,60000);
       const node=NODES[i%NODES.length];
       const submission_id=(hashId(name+proto+'a')+hashId(name+proto+'b')).slice(0,16); // 128-bit ELF hash (§1)
