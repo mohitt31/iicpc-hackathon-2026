@@ -1,0 +1,14 @@
+
+=================================================================
+ CO_CORRECTION_PROBE — plain hdr_record_value vs hdr_record_corrected_value
+ (both fed the SAME per-order co_latency = ack - intended_ts)
+=================================================================
+pct        plain (no backfill) corrected (backfill)
+50.00                   24415              24623
+90.00                   26975              29103
+99.00                   38463            3207167
+99.90                 3280895            4567039
+99.99                 4947967            5009407
+max                   5124095            5124095
+total_count         600000             641747
+phantom_backfilled: 41747

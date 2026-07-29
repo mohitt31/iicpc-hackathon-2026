@@ -1,0 +1,27 @@
+[Main] TSC calibrated.
+[Gate] SKIPPED (--no-gate)
+[Main] Launching 1 bots, interval 100us, duration 60s, target 127.0.0.1:9500
+[Main] CPU pinning: cores 1 through 1
+[Bot 0] Pinned to core 1
+[Bot 0] SO_BUSY_POLL enabled (50us)
+[Bot 0] SO_TIMESTAMPING enabled (HW on supported NICs, SW fallback)
+
+[Main] All bots finished. Connected: 1/1
+[Main] INTEGRITY: UNCHECKED  (gate disabled)
+[Main] Aggregate: Sent=600000 Acked=600000 Fills=0 Rejects=0 EAGAIN=63063 PartialAborts=0 Collisions=0 PoolExhausted=0
+
+=================================================================
+ AGGREGATE ROUND-TRIP LATENCY — 1 bots — Naive vs CO-Corrected (ns)
+=================================================================
+Percentile               Naive      CO-Corrected       Ratio
+-----------------------------------------------------------------
+p50                      23999             24607        1.0x
+p90                      26303             31023        1.2x
+p99                      45279           3264511       72.1x
+p99.9                   889855           4661247        5.2x
+p99.99                 5074943           5099519        1.0x
+Max                    5259263           5259263        1.0x
+=================================================================
+
+Naive sample count:  600000
+CO-corrected count:  641626  (backfilled 41626 phantom samples)

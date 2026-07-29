@@ -1,0 +1,13 @@
+
+=================================================================
+ CLOSED_LOOP_PROBE — one request in flight at a time (Tene's textbook case)
+ Same null_responder, same --stall-mode --stall-every 20000 --stall-ms 5
+=================================================================
+total round trips: 1629698
+p50.000               35551 ns
+p90.000               39327 ns
+p99.000               49983 ns
+p99.900              114431 ns
+p99.990              281855 ns
+p99.999             5115903 ns
+max                5124095 ns
