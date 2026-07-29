@@ -22,6 +22,8 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -63,7 +65,7 @@ jobs:
             | tee /tmp/co_correction_probe_ci.txt
           kill -9 $RESP 2>/dev/null || true
 
-      - name: Commit results to verified_runs/
+      - name: Commit results to verified_runs/ (best-effort; branch protection may reject this)
         run: |
           mkdir -p verified_runs/ci
           cp /tmp/co_proof_ci.txt verified_runs/ci/co_proof_ci_x86.txt
@@ -73,7 +75,7 @@ jobs:
           git add verified_runs/ci/co_proof_ci_x86.txt verified_runs/ci/co_correction_probe_x86.txt
           git diff --staged --quiet && echo "no change" || \
             git commit -m "ci: commit co_correction_probe evidence (real x86 binary run)"
-          git push || echo "push skipped (no new commit or non-fast-forward)"
+          git push || echo "push skipped: main is protected and the default GITHUB_TOKEN can't bypass it (403 expected here) — the artifact upload below is the reliable path; commit it to verified_runs/ manually from the artifact if you want it tracked in git history"
 
       - name: Upload as workflow artifact
         uses: actions/upload-artifact@v4

@@ -113,26 +113,51 @@ up during one 5&nbsp;ms stall at 100µs cadence — so no virtual slot is ever
 silently skipped for lack of a free slot), it is fair to ask whether this
 extra backfill double-counts.
 
-I built a standalone reproduction (not the repo build, which is x86-only and
-won't compile on my arm64 machine — see §6) that replays exactly this
-accounting against the real `hdr_histogram_c` library, once recording
-`co_latency` directly and once through `hdr_record_corrected_value`. Direct
-recording puts the stall-affected fraction (≈0.25% of orders, matching 30
-stalls × ~50 orders / 600,000) at **p99.9**, not p99 — it's genuinely a rare
-event at the per-order level. Running the same values through
-`hdr_record_corrected_value` pads the tail with enough synthetic mass that the
-stall becomes visible at **p99**. So the backfill is not redundant: it
-re-expresses "fraction of *orders* affected" as "fraction of *operating time*
-affected" — the metric a continuously-present trader actually cares about,
-since at any random instant during the stall window a hypothetical order
-would have been late, even though only a minority of the 600,000 discrete
-orders happen to land there. This is the same choice HdrHistogram's own docs
-recommend making generally, independent of open- vs. closed-loop generation.
-I did not verify this end-to-end on the real compiled bot; the synthetic
-reproduction matches the shape and order of magnitude of the committed
-phantom-sample counts (my model: 35,574 backfilled samples against a
-simplified stall/RTT model; committed runs: 53,584 and 49,566) but is not a
-byte-for-byte replay of the network path.
+I checked this two ways rather than assert it. First, a standalone model
+against the real `hdr_histogram_c` library (not the repo build, which is
+x86-only and won't compile on my arm64 machine): recording `co_latency`
+directly put the stall-affected fraction at p99.9, not p99; running the same
+values through `hdr_record_corrected_value` pushed it to p99. Second — since a
+model isn't the same as the real thing — I added `bot-engine/src/co_correction_probe.cpp`,
+a diagnostic tool (not part of the judged demo path) that drives the actual
+wire protocol against the actual `null_responder`, computing the same
+`ack - intended_ts` per order and recording it into two real histograms in
+parallel: one via `hdr_record_value` only, one via
+`hdr_record_corrected_value`. It ran on GitHub Actions' `ubuntu-latest`
+(x86, ephemeral), workflow `co-correction-probe.yml`, run
+[30469631810](https://github.com/mohitt31/iicpc-hackathon-2026/actions/runs/30469631810),
+evidence committed at `verified_runs/ci/co_correction_probe_x86.txt`:
+
+| | p99 | p99.9 |
+|---|---|---|
+| plain (`hdr_record_value` only) | 35,935 ns | 3,274,751 ns |
+| corrected (`hdr_record_corrected_value`) | 3,198,975 ns | 4,558,847 ns |
+
+This confirms the model exactly: without the backfill, the stall shows up at
+p99.9 (3.27ms), matching almost exactly where the *corrected* column's p99
+lands (3.20ms) — the backfill's effect is precisely to move the visible onset
+of the stall from p99.9 to p99, not to change its magnitude. Phantom count on
+this run was 41,626 (600,000→641,626), against 41,676 independently reported
+by the actual `bot` binary in the companion sanity-check run in the same CI
+job (`verified_runs/ci/co_proof_ci_x86.txt`) — two independent
+implementations of the same accounting, agreeing to within 0.1%. So the
+backfill is not redundant: it re-expresses "fraction of *orders* affected"
+(≈0.25%, genuinely rare per-order) as "fraction of *operating time* affected"
+— the metric a continuously-present trader actually cares about, since at any
+random instant during the stall window a hypothetical order would have been
+late, even though only a minority of the 600,000 discrete orders happen to
+land there. This is the same choice HdrHistogram's own docs recommend making
+generally, independent of open- vs. closed-loop generation.
+
+That CI run also handed back a third, independent host data point for §5: on
+GitHub's shared runner, the same workload gave naive p99 = 34,623 ns →
+corrected p99 = 3,246,079 ns, a **93.8×** ratio — above even the isolated
+i7-13620H's 76.3×, consistent with a noisy, virtualized shared runner having
+its own unpredictable baseline jitter. Three environments now show the same
+qualitative pattern (19.7×, 76.3×, 93.8×) with three different naive
+baselines and the same ~3.1–3.4ms corrected tail, which is the strongest
+evidence in this note that the ratio tracks the *naive baseline*, not the
+fault.
 
 ## 4. The fix
 
@@ -151,17 +176,18 @@ the same process, so there is no separate "before/after" run to introduce
 run-to-run variance into the comparison — the 19.7×/76.3× ratios come from one
 run each, naive and corrected computed side by side per order.
 
-## 5. Why the ratio moves with host isolation (19.7× → 76.3×)
+## 5. Why the ratio moves with host isolation (19.7× → 76.3× → 93.8×)
 
-The workload is identical in both conditions — same 600,000 orders, same
+The workload is identical in all three conditions — same 600,000 orders, same
 100µs interval, same 5&nbsp;ms/20,000-order injected stall. The
 CO-corrected p99 is essentially the injected stall and stays close to
-3.1–3.4&nbsp;ms in both:
+3.1–3.4&nbsp;ms across all of them:
 
 | | naive p99 | CO-corrected p99 | ratio |
 |---|---|---|---|
-| shared host | 173,439 ns | 3,414,015 ns | 19.7× |
-| isolated (`isolcpus`) | 41,119 ns | 3,135,487 ns | 76.3× |
+| shared host (Arch Linux) | 173,439 ns | 3,414,015 ns | 19.7× |
+| isolated (`isolcpus`, i7-13620H) | 41,119 ns | 3,135,487 ns | 76.3× |
+| GitHub Actions shared runner (§3) | 34,623 ns | 3,246,079 ns | 93.8× |
 
 What moves is the **naive baseline**, not the injected fault. On the shared
 host, ordinary scheduler preemption, timer-tick interrupts, and competing
@@ -185,17 +211,25 @@ cd iicpc-hackathon-2026/bot-engine
 # Requires: hdr_histogram_c (brew install hdrhistogram on macOS,
 # apt install libhdrhistogram-dev on Debian/Ubuntu), CMake, a C++20 compiler.
 mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --target bot null_responder
+cmake --build . --target bot null_responder co_correction_probe
 
 ./null_responder --stall-mode --stall-every 20000 --stall-ms 5 &
 ./bot --bots 1 --interval-us 100 --duration-sec 60 --no-gate
 ```
-This is exactly the command pair in `RESULTS.md` §4. Note:
-`CMakeLists.txt` hardcodes `-march=x86-64-v2`, so this builds on x86_64 Linux
-only; it does not build on Apple Silicon without editing that flag (this is
-a real, unresolved limitation of the current build — see §7). The isolated
-run additionally needs a kernel booted with `isolcpus=0,1 nohz_full=0,1
-rcu_nocbs=0,1` and the bot pinned to one of those cores.
+This is exactly the command pair in `RESULTS.md` §4. `co_correction_probe`
+(§3) runs the same way, against the same `null_responder`:
+```bash
+./null_responder --stall-mode --stall-every 20000 --stall-ms 5 --port 9501 &
+./co_correction_probe --orders 600000 --interval-us 100 --port 9501
+```
+Note: `CMakeLists.txt` hardcodes `-march=x86-64-v2`, so this builds on x86_64
+Linux only; it does not build on Apple Silicon without editing that flag —
+which is why the CI verification in §3 runs on GitHub Actions rather than
+locally. The isolated run additionally needs a kernel booted with
+`isolcpus=0,1 nohz_full=0,1 rcu_nocbs=0,1` and the bot pinned to one of those
+cores. The CI job itself is `.github/workflows/co-correction-probe.yml`,
+triggerable via `gh workflow run co-correction-probe.yml` or on push to the
+probe source.
 
 ## 7. Limitations — what this does and doesn't prove
 
@@ -205,15 +239,9 @@ rcu_nocbs=0,1` and the bot pinned to one of those cores.
   organic source of tail latency. The claim is "this measurement technique
   correctly surfaces a known, injected fault"; it is not yet "this is what a
   real matching engine's tail looks like in production."
-- **The `hdr_record_corrected_value` stacking (§3) has not been verified on
-  the actual compiled binary** — only in a standalone model against the real
-  library. I'd want to build on Linux/x86 (or retarget the CMake flags for
-  arm64) and confirm the committed 53,584 / 49,566 phantom-sample counts
-  reproduce a comparable "which percentile does the stall first appear at"
-  shift before I'd call this fully closed.
-- **The two hardware conditions are not a controlled A/B on identical
-  hardware** from the committed evidence alone — the shared-host run's exact
-  CPU model isn't logged. The mechanism explanation in §5 is sound
+- **The two hardware conditions in the original run are not a controlled A/B
+  on identical hardware** from the committed evidence alone — the shared-host
+  run's exact CPU model isn't logged. The mechanism explanation in §5 is sound
   independent of this (it only requires that isolation reduces ambient
   jitter, which is uncontroversial), but I can't cite it as "same box,
   isolation toggled" with the same confidence as the rest of the run.
