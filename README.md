@@ -51,6 +51,9 @@ A naive benchmark *cannot see* the stall. CO-correction backfills it. **19.7× o
 up to 76× on isolated hardware** — the cleaner the host, the harder a naive number lies.
 `verified_runs/aftab/co_proof.txt`
 
+Full methodology, mechanism, and honest limitations write-up:
+[`docs/COORDINATED_OMISSION_WRITEUP.md`](docs/COORDINATED_OMISSION_WRITEUP.md).
+
 ### Binary latency — MEASURED on isolated cores (`baremetal_latency.txt`)
 i7-13620H, `isolcpus + nohz_full + rcu_nocbs`, 300k/300k acked, EAGAIN=0:
 
