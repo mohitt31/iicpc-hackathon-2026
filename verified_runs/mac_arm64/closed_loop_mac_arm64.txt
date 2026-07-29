@@ -1,0 +1,16 @@
+Host: Apple M4, macOS 26.5.2, Darwin 25.5.0 arm64 (unpinned; laptop concurrently running this Claude Code session -- NOT a clean isolated host, included for run-to-run variance evidence only, see write-up)
+
+[closed_loop_probe] round_trips=4710837 elapsed_s=60
+
+=================================================================
+ CLOSED_LOOP_PROBE — one request in flight at a time (Tene's textbook case)
+ Same null_responder, same --stall-mode --stall-every 20000 --stall-ms 5
+=================================================================
+total round trips: 4710837
+p50.000               12399 ns
+p90.000               14543 ns
+p99.000               18895 ns
+p99.900               48319 ns
+p99.990              112127 ns
+p99.999             6311935 ns
+max                6393855 ns

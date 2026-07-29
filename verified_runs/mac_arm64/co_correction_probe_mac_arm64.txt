@@ -1,0 +1,17 @@
+Host: Apple M4, macOS 26.5.2, Darwin 25.5.0 arm64 (unpinned; same caveat as above)
+
+[probe] sent=600000 acked=600000 elapsed_s=60
+
+=================================================================
+ CO_CORRECTION_PROBE — plain hdr_record_value vs hdr_record_corrected_value
+ (both fed the SAME per-order co_latency = ack - intended_ts)
+=================================================================
+pct        plain (no backfill) corrected (backfill)
+50.00                   13431              13519
+90.00                   17119             230655
+99.00                   24063            4788223
+99.90                 4558847            8757247
+99.99                 6856703           11247615
+max                  12337151           12337151
+total_count         600000             667292
+phantom_backfilled: 67292

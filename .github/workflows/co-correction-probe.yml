@@ -15,6 +15,7 @@ on:
     branches: [main]
     paths:
       - 'bot-engine/src/co_correction_probe.cpp'
+      - 'bot-engine/src/closed_loop_probe.cpp'
       - 'bot-engine/CMakeLists.txt'
       - '.github/workflows/co-correction-probe.yml'
 
@@ -36,14 +37,14 @@ jobs:
           cmake .. -DHDR_HISTOGRAM_BUILD_PROGRAMS=OFF -DHDR_HISTOGRAM_BUILD_SHARED=OFF
           make -j && sudo make install && sudo ldconfig
 
-      - name: Build null_responder, bot, co_correction_probe
+      - name: Build null_responder, bot, co_correction_probe, closed_loop_probe
         working-directory: bot-engine
         env:
           CMAKE_PREFIX_PATH: /usr/local
         run: |
           mkdir -p build && cd build
           cmake ..
-          make -j null_responder bot co_correction_probe
+          make -j null_responder bot co_correction_probe closed_loop_probe
 
       - name: Reproduce the committed CO-proof numbers (sanity check vs canonical.json)
         working-directory: bot-engine/build
@@ -65,16 +66,27 @@ jobs:
             | tee /tmp/co_correction_probe_ci.txt
           kill -9 $RESP 2>/dev/null || true
 
+      - name: Run closed_loop_probe (textbook closed-loop generator, same fault)
+        working-directory: bot-engine/build
+        run: |
+          set -e
+          ./null_responder --stall-mode --stall-every 20000 --stall-ms 5 --port 9502 & RESP=$!
+          sleep 1
+          ./closed_loop_probe --duration-sec 60 --port 9502 \
+            | tee /tmp/closed_loop_probe_ci.txt
+          kill -9 $RESP 2>/dev/null || true
+
       - name: Commit results to verified_runs/ (best-effort; branch protection may reject this)
         run: |
           mkdir -p verified_runs/ci
           cp /tmp/co_proof_ci.txt verified_runs/ci/co_proof_ci_x86.txt
           cp /tmp/co_correction_probe_ci.txt verified_runs/ci/co_correction_probe_x86.txt
+          cp /tmp/closed_loop_probe_ci.txt verified_runs/ci/closed_loop_probe_x86.txt
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add verified_runs/ci/co_proof_ci_x86.txt verified_runs/ci/co_correction_probe_x86.txt
+          git add verified_runs/ci/co_proof_ci_x86.txt verified_runs/ci/co_correction_probe_x86.txt verified_runs/ci/closed_loop_probe_x86.txt
           git diff --staged --quiet && echo "no change" || \
-            git commit -m "ci: commit co_correction_probe evidence (real x86 binary run)"
+            git commit -m "ci: commit co_correction_probe + closed_loop_probe evidence (real x86 binary run)"
           git push || echo "push skipped: main is protected and the default GITHUB_TOKEN can't bypass it (403 expected here) — the artifact upload below is the reliable path; commit it to verified_runs/ manually from the artifact if you want it tracked in git history"
 
       - name: Upload as workflow artifact
@@ -84,3 +96,4 @@ jobs:
           path: |
             /tmp/co_proof_ci.txt
             /tmp/co_correction_probe_ci.txt
+            /tmp/closed_loop_probe_ci.txt

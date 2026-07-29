@@ -13,8 +13,18 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# HFT optimization flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=x86-64-v2 -flto -Wall -Wextra -Wpedantic")
+# HFT optimization flags. -march=x86-64-v2 only means something on x86_64;
+# on arm64 (e.g. Apple Silicon dev machines) drop it so the tree still
+# configures and builds instead of failing at the first compile with
+# "unsupported argument 'x86-64-v2' to option '-march='". This does not
+# change the x86_64 build in any way — it only widens what else can build it.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+    set(HFT_ARCH_FLAG "-march=x86-64-v2")
+else()
+    set(HFT_ARCH_FLAG "")
+    message(STATUS "Non-x86_64 target (${CMAKE_SYSTEM_PROCESSOR}): skipping -march=x86-64-v2")
+endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 ${HFT_ARCH_FLAG} -flto -Wall -Wextra -Wpedantic")
 
 # Sanitizer build for testing (never for benchmarking — ASan skews timing).
 #   cmake -B build-asan -DENABLE_SANITIZERS=ON && cmake --build build-asan
@@ -67,6 +77,7 @@ add_executable(buggy_engine demo/buggy_engine.cpp)
 add_executable(hdr_merge src/hdr_merge.cpp)
 add_executable(refserver src/reference_server.cpp)
 add_executable(co_correction_probe src/co_correction_probe.cpp)
+add_executable(closed_loop_probe src/closed_loop_probe.cpp)
 
 # Link threads if necessary
 find_package(Threads REQUIRED)
@@ -80,6 +91,7 @@ target_link_libraries(hdr_merge PRIVATE ${HDR_LIB})
 target_link_libraries(refengine PRIVATE ${HDR_LIB})
 target_link_libraries(buggy_engine PRIVATE ${HDR_LIB})
 target_link_libraries(co_correction_probe PRIVATE Threads::Threads ${HDR_LIB})
+target_link_libraries(closed_loop_probe PRIVATE Threads::Threads ${HDR_LIB})
 
 # Unit tests for the matching engine
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/test_order_book.cpp)

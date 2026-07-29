@@ -1,0 +1,27 @@
+Host: Apple M4, macOS 26.5.2, Darwin 25.5.0 arm64 (unpinned -- macOS core affinity is a no-op, see RESULTS.md)
+
+[Main] TSC calibrated.
+[Gate] SKIPPED (--no-gate)
+[Main] Launching 1 bots, interval 100us, duration 60s, target 127.0.0.1:9711
+[Main] CPU pinning: cores 1 through 1
+[Bot 0] WARNING: could not pin to core 1
+
+[Main] All bots finished. Connected: 1/1
+[Main] INTEGRITY: UNCHECKED  (gate disabled)
+[Main] Aggregate: Sent=600000 Acked=600000 Fills=0 Rejects=0 EAGAIN=0 PartialAborts=0 Collisions=0 PoolExhausted=0
+
+=================================================================
+ AGGREGATE ROUND-TRIP LATENCY — 1 bots — Naive vs CO-Corrected (ns)
+=================================================================
+Percentile               Naive      CO-Corrected       Ratio
+-----------------------------------------------------------------
+p50                      13543             13831        1.0x
+p90                      17631            961023       54.5x
+p99                      61247          10698751      174.7x
+p99.9                  4411391          18382847        4.2x
+p99.99                 6189055          20512767        3.3x
+Max                   21594111          21594111        1.0x
+=================================================================
+
+Naive sample count:  600000
+CO-corrected count:  686019  (backfilled 86019 phantom samples)
