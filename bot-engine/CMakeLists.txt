@@ -66,6 +66,7 @@ add_executable(refengine src/reference_engine.cpp)
 add_executable(buggy_engine demo/buggy_engine.cpp)
 add_executable(hdr_merge src/hdr_merge.cpp)
 add_executable(refserver src/reference_server.cpp)
+add_executable(co_correction_probe src/co_correction_probe.cpp)
 
 # Link threads if necessary
 find_package(Threads REQUIRED)
@@ -78,6 +79,7 @@ target_link_libraries(fix_bot PRIVATE Threads::Threads ${HDR_LIB})
 target_link_libraries(hdr_merge PRIVATE ${HDR_LIB})
 target_link_libraries(refengine PRIVATE ${HDR_LIB})
 target_link_libraries(buggy_engine PRIVATE ${HDR_LIB})
+target_link_libraries(co_correction_probe PRIVATE Threads::Threads ${HDR_LIB})
 
 # Unit tests for the matching engine
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test/test_order_book.cpp)

@@ -1,0 +1,84 @@
+name: CO-correction backfill probe (real binary, x86)
+
+# Companion to docs/COORDINATED_OMISSION_WRITEUP.md §3/§7. That doc's central
+# claim — that hdr_record_corrected_value's interval backfill, applied on top
+# of an already intended-timestamp-corrected latency, is what pushes the
+# injected stall from p99.9 to p99 — was originally verified only against a
+# standalone synthetic model (arm64 Mac can't build this repo's x86-only
+# bot-engine). This workflow runs the actual compiled co_correction_probe
+# against the actual null_responder, over the real network stack, on x86, and
+# commits the output as evidence next to the rest of verified_runs/.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'bot-engine/src/co_correction_probe.cpp'
+      - 'bot-engine/CMakeLists.txt'
+      - '.github/workflows/co-correction-probe.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain + HdrHistogram_c
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential cmake g++ git zlib1g-dev
+          git clone --depth 1 --branch 0.11.8 https://github.com/HdrHistogram/HdrHistogram_c.git /tmp/hdr_c
+          cd /tmp/hdr_c && mkdir build && cd build
+          cmake .. -DHDR_HISTOGRAM_BUILD_PROGRAMS=OFF -DHDR_HISTOGRAM_BUILD_SHARED=OFF
+          make -j && sudo make install && sudo ldconfig
+
+      - name: Build null_responder, bot, co_correction_probe
+        working-directory: bot-engine
+        env:
+          CMAKE_PREFIX_PATH: /usr/local
+        run: |
+          mkdir -p build && cd build
+          cmake ..
+          make -j null_responder bot co_correction_probe
+
+      - name: Reproduce the committed CO-proof numbers (sanity check vs canonical.json)
+        working-directory: bot-engine/build
+        run: |
+          set -e
+          ./null_responder --stall-mode --stall-every 20000 --stall-ms 5 --port 9500 & RESP=$!
+          sleep 1
+          ./bot --bots 1 --interval-us 100 --duration-sec 60 --no-gate --ip 127.0.0.1 --port 9500 \
+            | tee /tmp/co_proof_ci.txt
+          kill -9 $RESP 2>/dev/null || true
+
+      - name: Run co_correction_probe (plain hdr_record_value vs hdr_record_corrected_value, same real run)
+        working-directory: bot-engine/build
+        run: |
+          set -e
+          ./null_responder --stall-mode --stall-every 20000 --stall-ms 5 --port 9501 & RESP=$!
+          sleep 1
+          ./co_correction_probe --orders 600000 --interval-us 100 --port 9501 \
+            | tee /tmp/co_correction_probe_ci.txt
+          kill -9 $RESP 2>/dev/null || true
+
+      - name: Commit results to verified_runs/
+        run: |
+          mkdir -p verified_runs/ci
+          cp /tmp/co_proof_ci.txt verified_runs/ci/co_proof_ci_x86.txt
+          cp /tmp/co_correction_probe_ci.txt verified_runs/ci/co_correction_probe_x86.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add verified_runs/ci/co_proof_ci_x86.txt verified_runs/ci/co_correction_probe_x86.txt
+          git diff --staged --quiet && echo "no change" || \
+            git commit -m "ci: commit co_correction_probe evidence (real x86 binary run)"
+          git push || echo "push skipped (no new commit or non-fast-forward)"
+
+      - name: Upload as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: co-correction-probe-results
+          path: |
+            /tmp/co_proof_ci.txt
+            /tmp/co_correction_probe_ci.txt
