@@ -17,8 +17,10 @@ host (§6). A companion tool built for this note goes further and reproduces
 the textbook failure mode directly: a genuine closed-loop generator against
 the identical fault reports p99, p99.9, and even **p99.99 as completely
 normal** — the fault is only visible at p99.999 (§4). This note describes the
-mechanism precisely, gives exact reproduction steps, and states what the
-result does and does not prove.
+mechanism precisely, gives exact reproduction steps, states what the result
+does and does not prove, and (§9) engages specifically with where this
+connects to Karsten's own published latency methodology, rather than citing
+it decoratively.
 
 The correction follows Gil Tene's coordinated-omission analysis directly —
 *"How NOT to Measure Latency"*, QCon London 2013 (longer version at Strange
@@ -338,10 +340,62 @@ sources.
   but it is not the wire-to-wire, NIC-timestamped measurement a production
   system would need.
 
+## 9. Relation to Karsten's own measurement methodology
+
+Two of Karsten's papers report latency numbers directly relevant to this
+note's subject, and it's worth being specific about how, rather than citing
+them decoratively.
+
+**Karsten & Barghi, 2020 (the `fred`/libfibre paper), §6.3 "Tail Latency."**
+To compare their user-level threading runtime against Arachne, vanilla
+Memcached, and Pthread, they generate an "orchestrated workload" across 8
+client machines for throughput, and separately use "one dedicated client
+[that] creates a low-rate (1000 queries/sec) request stream... used to
+measure end-to-end service latency," reporting p99 read latency against
+achieved throughput (Fig. 14, 15) as the average of 20 runs. This is a
+sensible design — decoupling the latency probe from the throughput-generating
+load avoids the probe's own queueing from distorting what it measures. What
+the text doesn't state is **how the dedicated probe issues its 1000 QPS**:
+on a fixed schedule (open-loop), or by waiting for each response before
+issuing the next (closed-loop, one request in flight). At 1000 QPS against a
+server capable of orders of magnitude more throughput, this distinction is
+invisible almost everywhere in Fig. 14/15 — except exactly at the top end,
+near saturation, which is the part of the curve the experiment exists to
+characterize. §4 of this note shows directly why that detail matters: a
+closed-loop generator with one request in flight can report p99, p99.9, and
+even p99.99 as clean while remaining completely blind to a real, repeatedly
+occurring fault, because it only ever samples one instance of the fault at a
+time no matter how long or how often it recurs. I don't know which
+discipline the probe in §6.3 uses — it isn't in the text I have access to —
+and I'm not asserting the reported curves are wrong; I'm saying this is the
+one specific, checkable thing that would tell me whether they could be
+understated near the saturation knee, and it's the most concrete answer I
+can give to whether I see a "measurement mistake": not a mistake I can point
+to, but a gap in the write-up that determines whether one exists.
+
+**Cai & Karsten, 2024 (kernel vs. user-level networking), §3.2 and §5.2.**
+This paper's own methodology splits the same way this note argues for: pure
+throughput-ceiling (QPT) experiments explicitly use "closed-loop clients that
+saturate the server... at effectively 100% CPU utilization" (§3.2) — a
+correct use of closed-loop, since the goal there is finding the throughput
+ceiling under backpressure, not measuring response-time percentiles from that
+run — while the tail-latency-vs-throughput curves (Fig. 5, 6, §5.2) switch to
+clients that "generate a fixed rate of service requests in **open-loop
+mode**" specifically because that's what a percentile-based tail-latency
+result requires. This is the same generator/latency crossing point argued
+in §4 of this note, using the same tool (Mutilate, in the 2020 paper) or a
+comparable one, and it's good independent evidence that the open-loop
+requirement isn't specific to HFT benchmarking — it's the same fix in a
+completely different domain (kernel networking) for the same underlying
+reason.
+
 ## References
 
 - G. Tene. *How NOT to Measure Latency.* QCon London, 2013 (extended version:
   Strange Loop, 2015).
+- M. Karsten and S. Barghi. *User-level Threading: Have Your Cake and Eat It
+  Too.* Proc. ACM Meas. Anal. Comput. Syst. (SIGMETRICS 2020).
+  https://doi.org/10.1145/3379483
 - P. Cai and M. Karsten. *Kernel vs. User-Level Networking: Don't Throw Out
   the Stack with the Interrupts.* Proc. ACM Meas. Anal. Comput. Syst.
   (SIGMETRICS 2024). https://doi.org/10.1145/3626780
