@@ -382,12 +382,13 @@ ceiling under backpressure, not measuring response-time percentiles from that
 run — while the tail-latency-vs-throughput curves (Fig. 5, 6, §5.2) switch to
 clients that "generate a fixed rate of service requests in **open-loop
 mode**" specifically because that's what a percentile-based tail-latency
-result requires. This is the same generator/latency crossing point argued
-in §4 of this note, using the same tool (Mutilate, in the 2020 paper) or a
-comparable one, and it's good independent evidence that the open-loop
-requirement isn't specific to HFT benchmarking — it's the same fix in a
-completely different domain (kernel networking) for the same underlying
-reason.
+result requires. Per §5.1.3, this uses Mutilate — the same tool as the 2020
+paper's Memcached experiments, not just a comparable one. This is the same
+generator/latency crossing point argued in §4 of this note, and it's good
+independent evidence that the open-loop requirement isn't specific to HFT
+benchmarking — it's the same fix, with the same tool, in a different
+subsystem (kernel networking vs. user-level threading) for the same
+underlying reason.
 
 ## References
 
